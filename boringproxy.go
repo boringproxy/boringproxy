@@ -10,17 +10,45 @@ import (
         "sync"
         "strconv"
         "encoding/json"
+        "io/ioutil"
         "github.com/caddyserver/certmagic"
 )
 
 
+type BoringProxyConfig struct {
+        AdminDomain string `json:"admin_domain"`
+        Smtp *SmtpConfig `json:"smtp"`
+}
+
+type SmtpConfig struct {
+        Server string
+        Port int
+        Username string
+        Password string
+}
+
+
 type BoringProxy struct {
+        config *BoringProxyConfig
         tunMan *TunnelManager
         adminListener *AdminListener
         certConfig *certmagic.Config
 }
 
 func NewBoringProxy() *BoringProxy {
+
+        config := &BoringProxyConfig{}
+
+        configJson, err := ioutil.ReadFile("boringproxy_config.json")
+        if err != nil {
+                log.Println(err)
+        }
+
+        err = json.Unmarshal(configJson, config)
+        if err != nil {
+                log.Println(err)
+                config = &BoringProxyConfig{}
+        }
 
         //certmagic.DefaultACME.DisableHTTPChallenge = true
         certmagic.DefaultACME.DisableTLSALPNChallenge = true
@@ -30,14 +58,14 @@ func NewBoringProxy() *BoringProxy {
         tunMan := NewTunnelManager(certConfig)
         adminListener := NewAdminListener()
 
-        err := certConfig.ManageSync([]string{"anders.boringproxy.io"})
+        err = certConfig.ManageSync([]string{config.AdminDomain})
         if err != nil {
                 log.Println("CertMagic error")
                 log.Println(err)
         }
 
 
-        p := &BoringProxy{tunMan, adminListener, certConfig}
+        p := &BoringProxy{config, tunMan, adminListener, certConfig}
 
 	http.HandleFunc("/", p.handleAdminRequest)
         go http.Serve(adminListener, nil)
@@ -143,8 +171,7 @@ func (p *BoringProxy) handleConnection(clientConn net.Conn) {
         // is automatically called on first read/write
         decryptedConn.Handshake()
 
-        adminDomain := "anders.boringproxy.io"
-        if serverName == adminDomain {
+        if serverName == p.config.AdminDomain {
                 p.handleAdminConnection(decryptedConn)
         } else {
                 p.handleTunnelConnection(decryptedConn, serverName)
