@@ -10,20 +10,34 @@ import (
         "sync"
         "strconv"
         "encoding/json"
+        "github.com/caddyserver/certmagic"
 )
 
 
 type BoringProxy struct {
         tunMan *TunnelManager
         adminListener *AdminListener
+        certConfig *certmagic.Config
 }
 
 func NewBoringProxy() *BoringProxy {
 
-        tunMan := NewTunnelManager()
+        //certmagic.DefaultACME.DisableHTTPChallenge = true
+        certmagic.DefaultACME.DisableTLSALPNChallenge = true
+        //certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
+        certConfig := certmagic.NewDefault()
+
+        tunMan := NewTunnelManager(certConfig)
         adminListener := NewAdminListener()
 
-        p := &BoringProxy{tunMan, adminListener}
+        err := certConfig.ManageSync([]string{"anders.boringproxy.io"})
+        if err != nil {
+                log.Println("CertMagic error")
+                log.Println(err)
+        }
+
+
+        p := &BoringProxy{tunMan, adminListener, certConfig}
 
 	http.HandleFunc("/", p.handleAdminRequest)
         go http.Serve(adminListener, nil)
@@ -113,8 +127,6 @@ func (p *BoringProxy) handleConnection(clientConn net.Conn) {
         // TODO: does this need to be closed manually, or is it handled when decryptedConn is closed?
         //defer clientConn.Close()
 
-        certBaseDir := "/home/anders/.local/share/caddy/certificates/acme-v02.api.letsencrypt.org-directory/"
-
         var serverName string
 
         decryptedConn := tls.Server(clientConn, &tls.Config{
@@ -122,16 +134,7 @@ func (p *BoringProxy) handleConnection(clientConn net.Conn) {
 
                         serverName = clientHello.ServerName
 
-                        certPath := certBaseDir + clientHello.ServerName + "/" + clientHello.ServerName + ".crt"
-                        keyPath := certBaseDir + clientHello.ServerName + "/" + clientHello.ServerName + ".key"
-
-                        cert, err := tls.LoadX509KeyPair(certPath, keyPath)
-                        if err != nil {
-                                log.Println("getting cert failed")
-                                return nil, err
-                        }
-
-                        return &cert, nil
+                        return p.certConfig.GetCertificate(clientHello)
                 },
         })
         //defer decryptedConn.Close()
@@ -140,7 +143,7 @@ func (p *BoringProxy) handleConnection(clientConn net.Conn) {
         // is automatically called on first read/write
         decryptedConn.Handshake()
 
-        adminDomain := "anders.webstreams.io"
+        adminDomain := "anders.boringproxy.io"
         if serverName == adminDomain {
                 p.handleAdminConnection(decryptedConn)
         } else {

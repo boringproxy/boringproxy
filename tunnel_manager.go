@@ -1,23 +1,32 @@
 package main
 
 import (
+        "log"
         "errors"
         "sync"
+        "github.com/caddyserver/certmagic"
 )
 
 
 type TunnelManager struct {
         tunnels map[string]int
         mutex *sync.Mutex
+        certConfig *certmagic.Config
 }
 
-func NewTunnelManager() *TunnelManager {
+func NewTunnelManager(certConfig *certmagic.Config) *TunnelManager {
         tunnels := make(map[string]int)
         mutex := &sync.Mutex{}
-        return &TunnelManager{tunnels, mutex}
+        return &TunnelManager{tunnels, mutex, certConfig}
 }
 
 func (m *TunnelManager) SetTunnel(host string, port int) {
+        err := m.certConfig.ManageSync([]string{host})
+        if err != nil {
+                log.Println("CertMagic error")
+                log.Println(err)
+        }
+
         m.mutex.Lock()
         m.tunnels[host] = port
         m.mutex.Unlock()
