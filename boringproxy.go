@@ -42,6 +42,8 @@ func NewBoringProxy() *BoringProxy {
 	http.HandleFunc("/", p.handleAdminRequest)
         go http.Serve(adminListener, nil)
 
+        log.Println("BoringProxy ready")
+
         return p
 }
 
@@ -69,16 +71,15 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 }
 
 func (p *BoringProxy) handleTunnels(w http.ResponseWriter, r *http.Request) {
-        fmt.Println("handleTunnels")
 
         query := r.URL.Query()
 
         if r.Method == "GET" {
                 body, err := json.Marshal(p.tunMan.tunnels)
                 if err != nil {
-                w.WriteHeader(500)
-                w.Write([]byte("Error encoding tunnels"))
-                return
+                        w.WriteHeader(500)
+                        w.Write([]byte("Error encoding tunnels"))
+                        return
                 }
                 w.Write([]byte(body))
         } else if r.Method == "POST" {
@@ -96,7 +97,6 @@ func (p *BoringProxy) handleTunnels(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *BoringProxy) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
-        fmt.Println("handleCreateTunnel")
 
         query := r.URL.Query()
 

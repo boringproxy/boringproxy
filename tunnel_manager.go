@@ -4,18 +4,52 @@ import (
         "log"
         "errors"
         "sync"
+        "encoding/json"
+        "io/ioutil"
         "github.com/caddyserver/certmagic"
 )
 
 
+type Tunnel struct {
+        Port int `json:"port"`
+}
+
+type Tunnels map[string]*Tunnel
+
+func NewTunnels() Tunnels {
+        return make(map[string]*Tunnel)
+}
+
 type TunnelManager struct {
-        tunnels map[string]int
+        tunnels Tunnels
         mutex *sync.Mutex
         certConfig *certmagic.Config
 }
 
 func NewTunnelManager(certConfig *certmagic.Config) *TunnelManager {
-        tunnels := make(map[string]int)
+
+        tunnelsJson, err := ioutil.ReadFile("tunnels.json")
+        if err != nil {
+                log.Println("failed reading tunnels.json")
+                tunnelsJson = []byte("{}")
+        }
+
+        var tunnels Tunnels
+
+        err = json.Unmarshal(tunnelsJson, &tunnels)
+        if err != nil {
+                log.Println(err)
+                tunnels = NewTunnels()
+        }
+
+        for domainName := range tunnels {
+                err = certConfig.ManageSync([]string{domainName})
+                if err != nil {
+                        log.Println("CertMagic error at startup")
+                        log.Println(err)
+                }
+        }
+
         mutex := &sync.Mutex{}
         return &TunnelManager{tunnels, mutex, certConfig}
 }
@@ -27,25 +61,44 @@ func (m *TunnelManager) SetTunnel(host string, port int) {
                 log.Println(err)
         }
 
+        tunnel := &Tunnel{port}
         m.mutex.Lock()
-        m.tunnels[host] = port
+        m.tunnels[host] = tunnel
         m.mutex.Unlock()
+
+        m.persistTunnels()
 }
 
 func (m *TunnelManager) DeleteTunnel(host string) {
         m.mutex.Lock()
         delete(m.tunnels, host)
         m.mutex.Unlock()
+
+        m.persistTunnels()
 }
 
 func (m *TunnelManager) GetPort(serverName string) (int, error) {
         m.mutex.Lock()
-        port, exists := m.tunnels[serverName]
+        tunnel, exists := m.tunnels[serverName]
         m.mutex.Unlock()
 
         if !exists {
                 return 0, errors.New("Doesn't exist")
         }
 
-        return port, nil
+        return tunnel.Port, nil
+}
+
+func (m *TunnelManager) persistTunnels() error {
+        tunnelsStr, err := json.MarshalIndent(m.tunnels, "", "  ")
+        if err != nil {
+                return err
+        }
+
+        err = ioutil.WriteFile("tunnels.json", tunnelsStr, 0644)
+        if err != nil {
+                return err
+        }
+
+        return nil
 }
