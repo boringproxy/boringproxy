@@ -4,3 +4,4 @@
   requests.
 * Might want to proxy requests at the HTTP level since it lets us do things
   like terminating HTTP/2.
+* Implement a custom SSH server in Go and connect the sockets directly?
