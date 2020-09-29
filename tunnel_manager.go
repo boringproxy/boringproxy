@@ -64,17 +64,15 @@ func (m *TunnelManager) SetTunnel(host string, port int) {
         tunnel := &Tunnel{port}
         m.mutex.Lock()
         m.tunnels[host] = tunnel
+        saveJson(m.tunnels, "tunnels.json")
         m.mutex.Unlock()
-
-        m.persistTunnels()
 }
 
 func (m *TunnelManager) DeleteTunnel(host string) {
         m.mutex.Lock()
         delete(m.tunnels, host)
+        saveJson(m.tunnels, "tunnels.json")
         m.mutex.Unlock()
-
-        m.persistTunnels()
 }
 
 func (m *TunnelManager) GetPort(serverName string) (int, error) {
@@ -87,18 +85,4 @@ func (m *TunnelManager) GetPort(serverName string) (int, error) {
         }
 
         return tunnel.Port, nil
-}
-
-func (m *TunnelManager) persistTunnels() error {
-        tunnelsStr, err := json.MarshalIndent(m.tunnels, "", "  ")
-        if err != nil {
-                return err
-        }
-
-        err = ioutil.WriteFile("tunnels.json", tunnelsStr, 0644)
-        if err != nil {
-                return err
-        }
-
-        return nil
 }
