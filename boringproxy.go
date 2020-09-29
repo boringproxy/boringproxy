@@ -30,6 +30,7 @@ type SmtpConfig struct {
 
 type BoringProxy struct {
         config *BoringProxyConfig
+        auth *Auth
         tunMan *TunnelManager
         adminListener *AdminListener
         certConfig *certmagic.Config
@@ -64,8 +65,10 @@ func NewBoringProxy() *BoringProxy {
                 log.Println(err)
         }
 
+        auth := NewAuth()
 
-        p := &BoringProxy{config, tunMan, adminListener, certConfig}
+
+        p := &BoringProxy{config, auth, tunMan, adminListener, certConfig}
 
 	http.HandleFunc("/", p.handleAdminRequest)
         go http.Serve(adminListener, nil)
@@ -93,8 +96,32 @@ func (p *BoringProxy) Run() {
 }
 
 func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request) {
-        if r.URL.Path == "/tunnels" {
+
+        switch r.URL.Path {
+        case "/login":
+                p.handleLogin(w, r)
+        case "/verify":
+                p.handleVerify(w, r)
+        case "/tunnels":
+
+                token, err := extractToken("access_token", r)
+                if err != nil {
+                        w.WriteHeader(401)
+                        w.Write([]byte("No token provided"))
+                        return
+                }
+
+                if !p.auth.Authorized(token) {
+                        w.WriteHeader(403)
+                        w.Write([]byte("Not authorized"))
+                        return
+                }
+
                 p.handleTunnels(w, r)
+        default:
+                w.WriteHeader(400)
+                w.Write([]byte("Invalid endpoint"))
+                return
         }
 }
 
@@ -122,6 +149,56 @@ func (p *BoringProxy) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
                 p.tunMan.DeleteTunnel(host)
         }
+}
+
+func (p *BoringProxy) handleLogin(w http.ResponseWriter, r *http.Request) {
+        //io.WriteString(w, "login")
+        if r.Method != "POST" {
+                w.WriteHeader(405)
+                w.Write([]byte("Invalid method for login"))
+                return
+        }
+
+        query := r.URL.Query()
+
+        toEmail, ok := query["email"]
+
+        if !ok {
+                w.WriteHeader(400)
+                w.Write([]byte("Email required for login"))
+                return
+        }
+
+        token, err := p.auth.Login(toEmail[0], p.config, r.Context().Done())
+
+        if err != nil {
+                w.WriteHeader(400)
+                //w.Write(err)
+                return
+        }
+
+        w.Write([]byte(token))
+}
+
+func (p *BoringProxy) handleVerify(w http.ResponseWriter, r *http.Request) {
+        query := r.URL.Query()
+        key, exists := query["key"]
+
+        if !exists {
+                w.WriteHeader(400)
+                fmt.Fprintf(w, "Must provide key for verification")
+                return
+        }
+
+        err := p.auth.Verify(key[0])
+
+        if err != nil {
+                w.WriteHeader(400)
+                fmt.Fprintf(w, "Invalid key")
+                return
+        }
+
+        fmt.Fprintf(w, "Verification successful. You can close this tab and return to your original session.")
 }
 
 func (p *BoringProxy) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
@@ -219,3 +296,5 @@ func (p *BoringProxy) handleTunnelConnection(decryptedConn net.Conn, serverName 
 
         wg.Wait()
 }
+
+
