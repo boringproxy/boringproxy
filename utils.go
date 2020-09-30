@@ -1,27 +1,25 @@
 package main
 
 import (
-        "io/ioutil"
+	"encoding/json"
+	"errors"
+	"io/ioutil"
 	"net/http"
-        "errors"
-        "strings"
-        "encoding/json"
+	"strings"
 )
 
-
 func saveJson(data interface{}, filePath string) error {
-        jsonStr, err := json.MarshalIndent(data, "", "  ")
-        if err != nil {
-                return errors.New("Error serializing JSON")
-        } else {
-                err := ioutil.WriteFile(filePath, jsonStr, 0644)
-                if err != nil {
-                        return errors.New("Error saving JSON")
-                }
-        }
-        return nil
+	jsonStr, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return errors.New("Error serializing JSON")
+	} else {
+		err := ioutil.WriteFile(filePath, jsonStr, 0644)
+		if err != nil {
+			return errors.New("Error saving JSON")
+		}
+	}
+	return nil
 }
-
 
 // Looks for auth token in cookie, then header, then query string
 func extractToken(tokenName string, r *http.Request) (string, error) {
