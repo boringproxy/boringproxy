@@ -98,13 +98,27 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 	switch r.URL.Path {
 	case "/login":
 		p.handleLogin(w, r)
-	case "/verify":
-		p.handleVerify(w, r)
 	case "/":
+                box, err := rice.FindBox("webui")
+                if err != nil {
+			w.WriteHeader(500)
+                        io.WriteString(w, "Error opening webui")
+			return
+                }
+
 		token, err := extractToken("access_token", r)
 		if err != nil {
+
+                        loginTemplate, err := box.String("login.tmpl")
+                        if err != nil {
+                                log.Println(err)
+                                w.WriteHeader(500)
+                                io.WriteString(w, "Error reading login.tmpl")
+                                return
+                        }
+
 			w.WriteHeader(401)
-			w.Write([]byte("No token provided"))
+                        io.WriteString(w, loginTemplate)
 			return
 		}
 
@@ -114,12 +128,6 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
-                box, err := rice.FindBox("webui")
-                if err != nil {
-			w.WriteHeader(500)
-                        io.WriteString(w, "Error opening webui")
-			return
-                }
 
                 indexTemplate, err := box.String("index.tmpl")
                 if err != nil {
@@ -127,7 +135,8 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
                         io.WriteString(w, "Error reading index.tmpl")
 			return
                 }
-                fmt.Println(indexTemplate)
+
+                io.WriteString(w, indexTemplate)
 
 	case "/tunnels":
 
@@ -179,53 +188,53 @@ func (p *BoringProxy) handleTunnels(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *BoringProxy) handleLogin(w http.ResponseWriter, r *http.Request) {
-	//io.WriteString(w, "login")
-	if r.Method != "POST" {
+
+        switch r.Method {
+        case "GET":
+                query := r.URL.Query()
+                key, exists := query["key"]
+
+                if !exists {
+                        w.WriteHeader(400)
+                        fmt.Fprintf(w, "Must provide key for verification")
+                        return
+                }
+
+                token, err := p.auth.Verify(key[0])
+
+                if err != nil {
+                        w.WriteHeader(400)
+                        fmt.Fprintf(w, "Invalid key")
+                        return
+                }
+
+                cookie := &http.Cookie{Name: "access_token", Value: token, Secure: true, HttpOnly: true}
+                http.SetCookie(w, cookie)
+
+                http.Redirect(w, r, "/", 307)
+
+
+        case "POST":
+
+                r.ParseForm()
+
+                toEmail, ok := r.Form["email"]
+
+                if !ok {
+                        w.WriteHeader(400)
+                        w.Write([]byte("Email required for login"))
+                        return
+                }
+
+                // run in goroutine because it can take some time to send the
+                // email
+                go p.auth.Login(toEmail[0], p.config)
+
+                io.WriteString(w, "Check your email to finish logging in")
+        default:
 		w.WriteHeader(405)
 		w.Write([]byte("Invalid method for login"))
-		return
 	}
-
-	query := r.URL.Query()
-
-	toEmail, ok := query["email"]
-
-	if !ok {
-		w.WriteHeader(400)
-		w.Write([]byte("Email required for login"))
-		return
-	}
-
-	token, err := p.auth.Login(toEmail[0], p.config, r.Context().Done())
-
-	if err != nil {
-		w.WriteHeader(400)
-		//w.Write(err)
-		return
-	}
-
-	w.Write([]byte(token))
-}
-
-func (p *BoringProxy) handleVerify(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
-	key, exists := query["key"]
-
-	if !exists {
-		w.WriteHeader(400)
-		fmt.Fprintf(w, "Must provide key for verification")
-		return
-	}
-
-	err := p.auth.Verify(key[0])
-
-	if err != nil {
-		w.WriteHeader(400)
-		fmt.Fprintf(w, "Invalid key")
-		return
-	}
-
-	fmt.Fprintf(w, "Verification successful. You can close this tab and return to your original session.")
 }
 
 func (p *BoringProxy) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {

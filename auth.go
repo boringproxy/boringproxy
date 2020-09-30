@@ -10,13 +10,17 @@ import (
 	"math/big"
 	"net/smtp"
 	"sync"
-	"time"
+	//"time"
 )
 
 type Auth struct {
-	pendingRequests map[string]chan struct{}
+	pendingRequests map[string]*LoginRequest
 	sessions        map[string]*Session
 	mutex           *sync.Mutex
+}
+
+type LoginRequest struct {
+        Email string
 }
 
 type Session struct {
@@ -39,7 +43,7 @@ func NewAuth() *Auth {
 		sessions = make(map[string]*Session)
 	}
 
-	pendingRequests := make(map[string]chan struct{})
+	pendingRequests := make(map[string]*LoginRequest)
 	mutex := &sync.Mutex{}
 
 	return &Auth{pendingRequests, sessions, mutex}
@@ -57,20 +61,20 @@ func (a *Auth) Authorized(token string) bool {
 	return false
 }
 
-func (a *Auth) Login(email string, config *BoringProxyConfig, canceled <-chan struct{}) (string, error) {
+func (a *Auth) Login(email string, config *BoringProxyConfig) (string, error) {
 
 	key, err := genRandomKey()
 	if err != nil {
 		return "", errors.New("Error generating key")
 	}
 
-	link := fmt.Sprintf("https://%s/verify?key=%s", config.AdminDomain, key)
+	link := fmt.Sprintf("https://%s/login?key=%s", config.AdminDomain, key)
 
 	bodyTemplate := "From: %s <%s>\r\n" +
 		"To: %s\r\n" +
 		"Subject: Email Verification\r\n" +
 		"\r\n" +
-		"This is an email verification request from %s. Please click the following link to complete the verification:\r\n" +
+		"This is email verification request from %s. Please click the following link to complete the verification:\r\n" +
 		"\r\n" +
 		"%s\r\n"
 
@@ -86,58 +90,35 @@ func (a *Auth) Login(email string, config *BoringProxyConfig, canceled <-chan st
 		return "", errors.New("Sending email failed. Probably a bad email address.")
 	}
 
-	doneChan := make(chan struct{})
-
 	a.mutex.Lock()
-	a.pendingRequests[key] = doneChan
+	a.pendingRequests[key] = &LoginRequest{email}
 	a.mutex.Unlock()
-
-	// Starting timeout here after sending the email, because sometimes it takes
-	// a few seconds to send.
-	timeout := time.After(time.Duration(60) * time.Second)
-
-	select {
-	case <-doneChan:
-		token, err := genRandomKey()
-		if err != nil {
-			return "", errors.New("Error generating key")
-		}
-
-		a.mutex.Lock()
-		a.sessions[token] = &Session{Id: email}
-		a.mutex.Unlock()
-
-		saveJson(a.sessions, "sessions.json")
-
-		return token, nil
-	case <-timeout:
-		a.mutex.Lock()
-		delete(a.pendingRequests, key)
-		a.mutex.Unlock()
-		return "", errors.New("Timeout")
-	case <-canceled:
-		a.mutex.Lock()
-		delete(a.pendingRequests, key)
-		a.mutex.Unlock()
-	}
 
 	return "", nil
 }
 
-func (a *Auth) Verify(key string) error {
+func (a *Auth) Verify(key string) (string, error) {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 
-	doneChan, ok := a.pendingRequests[key]
+	request, ok := a.pendingRequests[key]
 
 	if !ok {
-		return errors.New("No pending request for that key. It may have expired.")
+		return "", errors.New("No pending request for that key. It may have expired.")
 	}
 
 	delete(a.pendingRequests, key)
-	close(doneChan)
 
-	return nil
+        token, err := genRandomKey()
+        if err != nil {
+                return "", errors.New("Error generating key")
+        }
+
+        a.sessions[token] = &Session{Id: request.Email}
+
+        saveJson(a.sessions, "sessions.json")
+
+        return token, nil
 }
 
 const chars string = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
