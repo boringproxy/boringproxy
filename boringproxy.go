@@ -166,6 +166,32 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 		}
 
 		p.handleTunnels(w, r)
+	case "/delete-tunnel":
+                token, err := extractToken("access_token", r)
+		if err != nil {
+			w.WriteHeader(401)
+			w.Write([]byte("No token provided"))
+			return
+		}
+
+		if !p.auth.Authorized(token) {
+			w.WriteHeader(403)
+			w.Write([]byte("Not authorized"))
+			return
+		}
+
+                r.ParseForm()
+
+		if len(r.Form["host"]) != 1 {
+			w.WriteHeader(400)
+			w.Write([]byte("Invalid host parameter"))
+			return
+		}
+		host := r.Form["host"][0]
+
+		p.tunMan.DeleteTunnel(host)
+
+                http.Redirect(w, r, "/", 307)
 	default:
 		w.WriteHeader(400)
 		w.Write([]byte("Invalid endpoint"))
@@ -251,22 +277,22 @@ func (p *BoringProxy) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 func (p *BoringProxy) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 
-	query := r.URL.Query()
+        r.ParseForm()
 
-	if len(query["host"]) != 1 {
+	if len(r.Form["host"]) != 1 {
 		w.WriteHeader(400)
 		w.Write([]byte("Invalid host parameter"))
 		return
 	}
-	host := query["host"][0]
+	host := r.Form["host"][0]
 
-	if len(query["port"]) != 1 {
+	if len(r.Form["port"]) != 1 {
 		w.WriteHeader(400)
 		w.Write([]byte("Invalid port parameter"))
 		return
 	}
 
-	port, err := strconv.Atoi(query["port"][0])
+	port, err := strconv.Atoi(r.Form["port"][0])
 	if err != nil {
 		w.WriteHeader(400)
 		w.Write([]byte("Invalid port parameter"))
@@ -274,6 +300,8 @@ func (p *BoringProxy) handleCreateTunnel(w http.ResponseWriter, r *http.Request)
 	}
 
 	p.tunMan.SetTunnel(host, port)
+
+        http.Redirect(w, r, "/", 303)
 }
 
 func (p *BoringProxy) handleConnection(clientConn net.Conn) {

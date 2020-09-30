@@ -11,22 +11,59 @@
     <style>
       body {
         font-family: Helvetica;
+        display: flex;
+        justify-content: center;
       }
+
+      main {
+        max-width: 900px;
+      }
+
       .tunnel-list {
         display: flex;
         flex-direction: column;
       }
+
+      .tunnel {
+        padding: 5px;
+        border-bottom: 1px solid black;
+        display: flex;
+        justify-content: space-between;
+      }
+      .tunnel:hover {
+        background-color: #ddd;
+      }
+
+      .tunnel-adder {
+        padding: 5px;
+      }
+
     </style>
 
   </head>
 
   <body>
-    <div class='tunnel-list'>
-      {{range $domain, $tunnel:= .}}
-      <div class='tunnel'>
-        {{$domain}} {{$tunnel.Port}}
+    <main>
+      <div class='tunnel-list'>
+        {{range $domain, $tunnel:= .}}
+        <div class='tunnel'>
+          <div>
+            <a href="https://{{$domain}}">{{$domain}}</a> -> {{$tunnel.Port}}
+          </div>
+          <a href="/delete-tunnel?host={{$domain}}">Delete</a>
+        </div>
+        {{end}}
+        
+        <div class='tunnel-adder'>
+          <form action="/tunnels" method="POST">
+             <label for="domain">Domain:</label>
+             <input type="text" id="domain" name="host">
+             <label for="port">Port:</label>
+             <input type="text" id="port" name="port">
+             <button type="submit">Add/Update Tunnel</button>
+          </form>
+        </div>
       </div>
-      {{end}}
-    </div>
+    </main>
   </body>
 </html>
