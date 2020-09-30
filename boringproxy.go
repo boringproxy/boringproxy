@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/caddyserver/certmagic"
 	"io"
 	"io/ioutil"
 	"log"
@@ -12,6 +11,8 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"github.com/caddyserver/certmagic"
+        "github.com/GeertJohan/go.rice"
 )
 
 type BoringProxyConfig struct {
@@ -99,6 +100,35 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 		p.handleLogin(w, r)
 	case "/verify":
 		p.handleVerify(w, r)
+	case "/":
+		token, err := extractToken("access_token", r)
+		if err != nil {
+			w.WriteHeader(401)
+			w.Write([]byte("No token provided"))
+			return
+		}
+
+		if !p.auth.Authorized(token) {
+			w.WriteHeader(403)
+			w.Write([]byte("Not authorized"))
+			return
+		}
+
+                box, err := rice.FindBox("webui")
+                if err != nil {
+			w.WriteHeader(500)
+                        io.WriteString(w, "Error opening webui")
+			return
+                }
+
+                indexTemplate, err := box.String("index.tmpl")
+                if err != nil {
+			w.WriteHeader(500)
+                        io.WriteString(w, "Error reading index.tmpl")
+			return
+                }
+                fmt.Println(indexTemplate)
+
 	case "/tunnels":
 
 		token, err := extractToken("access_token", r)
