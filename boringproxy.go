@@ -299,7 +299,12 @@ func (p *BoringProxy) handleCreateTunnel(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	p.tunMan.SetTunnel(host, port)
+	err = p.tunMan.SetTunnel(host, port)
+        if err != nil {
+		w.WriteHeader(400)
+                io.WriteString(w, "Failed to get cert. Ensure your domain is valid")
+		return
+        }
 
         http.Redirect(w, r, "/", 303)
 }
