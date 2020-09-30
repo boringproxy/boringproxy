@@ -53,11 +53,11 @@ func NewTunnelManager(certConfig *certmagic.Config) *TunnelManager {
 	return &TunnelManager{tunnels, mutex, certConfig}
 }
 
-func (m *TunnelManager) SetTunnel(host string, port int) {
+func (m *TunnelManager) SetTunnel(host string, port int) error {
 	err := m.certConfig.ManageSync([]string{host})
 	if err != nil {
-		log.Println("CertMagic error")
 		log.Println(err)
+                return errors.New("Failed to get cert")
 	}
 
 	tunnel := &Tunnel{port}
@@ -65,6 +65,8 @@ func (m *TunnelManager) SetTunnel(host string, port int) {
 	m.tunnels[host] = tunnel
 	saveJson(m.tunnels, "tunnels.json")
 	m.mutex.Unlock()
+
+        return nil
 }
 
 func (m *TunnelManager) DeleteTunnel(host string) {
