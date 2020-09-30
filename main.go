@@ -1,13 +1,12 @@
 package main
 
 import (
-        "log"
+	"log"
 )
 
-
 func main() {
-        log.Println("Starting up")
+	log.Println("Starting up")
 
-        proxy := NewBoringProxy()
-        proxy.Run()
+	proxy := NewBoringProxy()
+	proxy.Run()
 }
