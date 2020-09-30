@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>boringproxy</title>
+
+    <link rel="icon" href="data:image/gif;base64,R0lGODlhEAAQAAAAACwAAAAAAQABAAACASgAOw==">
+
+    <style>
+      body {
+        font-family: Helvetica;
+      }
+      .tunnel-list {
+        display: flex;
+        flex-direction: column;
+      }
+    </style>
+
+  </head>
+
+  <body>
+    <div class='tunnel-list'>
+      {{range $domain, $tunnel:= .}}
+      <div class='tunnel'>
+        {{$domain}} {{$tunnel.Port}}
+      </div>
+      {{end}}
+    </div>
+  </body>
+</html>

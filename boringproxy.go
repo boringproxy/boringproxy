@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+        "html/template"
 	"strconv"
 	"sync"
 	"github.com/caddyserver/certmagic"
@@ -136,7 +137,18 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 			return
                 }
 
-                io.WriteString(w, indexTemplate)
+                tmpl, err := template.New("test").Parse(indexTemplate)
+                if err != nil {
+			w.WriteHeader(500)
+                        log.Println(err)
+                        io.WriteString(w, "Error compiling index.tmpl")
+			return
+                }
+
+
+                tmpl.Execute(w, p.tunMan.tunnels)
+
+                //io.WriteString(w, indexTemplate)
 
 	case "/tunnels":
 
