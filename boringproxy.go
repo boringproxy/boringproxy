@@ -166,6 +166,7 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 		}
 
 		p.handleTunnels(w, r)
+
 	case "/delete-tunnel":
                 token, err := extractToken("access_token", r)
 		if err != nil {
