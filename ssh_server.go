@@ -16,14 +16,7 @@ type SshServer struct {
 
 
 func NewSshServer() *SshServer {
-        config := &ssh.ServerConfig{
-		PasswordCallback: func(c ssh.ConnMetadata, pass []byte) (*ssh.Permissions, error) {
-			if c.User() == "user" && string(pass) == "yolo" {
-				return nil, nil
-			}
-			return nil, fmt.Errorf("password rejected for %q", c.User())
-		},
-	}
+        config := &ssh.ServerConfig{}
 
         privateBytes, err := ioutil.ReadFile("id_rsa_boringproxy")
 	if err != nil {
@@ -63,11 +56,23 @@ func (s *SshServer) acceptAll() {
 
 func (s *SshServer) handleServerConn(nConn net.Conn) {
 
+        var password string
+
+        s.config.PasswordCallback = func(c ssh.ConnMetadata, pass []byte) (*ssh.Permissions, error) {
+                password = string(pass)
+                if c.User() == "user" && string(pass) == "yolo" {
+                        return nil, nil
+                }
+                return nil, fmt.Errorf("password rejected for %q", c.User())
+        }
+
         conn, chans, reqs, err := ssh.NewServerConn(nConn, s.config)
 	if err != nil {
 		log.Print("failed to handshake: ", err)
                 return
 	}
+
+        fmt.Println(password)
 
 	go ssh.DiscardRequests(reqs)
 
