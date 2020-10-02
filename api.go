@@ -9,6 +9,7 @@ import (
 )
 
 type Api struct {
+	config        *BoringProxyConfig
         auth *Auth
         tunMan *TunnelManager
         mux *http.ServeMux
@@ -23,9 +24,9 @@ type CreateTunnelResponse struct {
 }
 
 
-func NewApi(auth *Auth, tunMan *TunnelManager) *Api {
+func NewApi(config *BoringProxyConfig, auth *Auth, tunMan *TunnelManager) *Api {
 
-        api := &Api{auth, tunMan, nil}
+        api := &Api{config, auth, tunMan, nil}
 
         mux := http.NewServeMux()
 
@@ -69,7 +70,7 @@ func (a *Api) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
         }
 
         response := &CreateTunnelResponse{
-                ServerAddress: "anders.boringproxy.io",
+                ServerAddress: a.config.AdminDomain,
                 ServerPort: 22,
                 ServerPublicKey: "",
                 TunnelPort: port,

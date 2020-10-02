@@ -73,7 +73,7 @@ func NewBoringProxy() *BoringProxy {
                 p.handleAdminRequest(w, r)
         })
 
-        api := NewApi(auth, tunMan)
+        api := NewApi(config, auth, tunMan)
 	http.Handle("/api/", http.StripPrefix("/api", api))
 
 	go http.Serve(adminListener, nil)
