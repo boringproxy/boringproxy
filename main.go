@@ -1,31 +1,31 @@
 package main
 
 import (
-        "fmt"
+	"fmt"
 	"log"
-        "os"
+	"os"
 )
 
 func main() {
 
-        if len(os.Args) < 2 {
-                fmt.Println("Invalid arguments")
-                os.Exit(1)
-        }
+	if len(os.Args) < 2 {
+		fmt.Println("Invalid arguments")
+		os.Exit(1)
+	}
 
-        command := os.Args[1]
+	command := os.Args[1]
 
-        switch command {
-        case "server":
-                log.Println("Starting up")
-                proxy := NewBoringProxy()
-                proxy.Run()
+	switch command {
+	case "server":
+		log.Println("Starting up")
+		proxy := NewBoringProxy()
+		proxy.Run()
 
-        case "client":
-                client := NewBoringProxyClient()
-                client.Run()
-        default:
-                fmt.Println("Invalid command " + command)
-                os.Exit(1)
-        }
+	case "client":
+		client := NewBoringProxyClient()
+		client.Run()
+	default:
+		fmt.Println("Invalid command " + command)
+		os.Exit(1)
+	}
 }
