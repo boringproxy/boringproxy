@@ -34,7 +34,6 @@ type BoringProxy struct {
 	tunMan        *TunnelManager
 	adminListener *AdminListener
 	certConfig    *certmagic.Config
-        sshServer     *SshServer
 }
 
 func NewBoringProxy() *BoringProxy {
@@ -68,11 +67,15 @@ func NewBoringProxy() *BoringProxy {
 
 	auth := NewAuth()
 
-        sshServer := NewSshServer()
+	p := &BoringProxy{config, auth, tunMan, adminListener, certConfig}
 
-	p := &BoringProxy{config, auth, tunMan, adminListener, certConfig, sshServer}
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+                p.handleAdminRequest(w, r)
+        })
 
-	http.HandleFunc("/", p.handleAdminRequest)
+        api := NewApi(auth, tunMan)
+	http.Handle("/api/", http.StripPrefix("/api", api))
+
 	go http.Serve(adminListener, nil)
 
 	log.Println("BoringProxy ready")
