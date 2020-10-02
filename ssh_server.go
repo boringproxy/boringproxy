@@ -1,24 +1,22 @@
 package main
 
 import (
-        "fmt"
-        "log"
-        "net"
-        "io/ioutil"
-        "golang.org/x/crypto/ssh"
+	"fmt"
+	"golang.org/x/crypto/ssh"
+	"io/ioutil"
+	"log"
+	"net"
 )
 
-
 type SshServer struct {
-        config *ssh.ServerConfig
-        listener net.Listener
+	config   *ssh.ServerConfig
+	listener net.Listener
 }
 
-
 func NewSshServer() *SshServer {
-        config := &ssh.ServerConfig{}
+	config := &ssh.ServerConfig{}
 
-        privateBytes, err := ioutil.ReadFile("id_rsa_boringproxy")
+	privateBytes, err := ioutil.ReadFile("id_rsa_boringproxy")
 	if err != nil {
 		log.Fatal("Failed to load private key: ", err)
 	}
@@ -30,66 +28,66 @@ func NewSshServer() *SshServer {
 
 	config.AddHostKey(private)
 
-        listener, err := net.Listen("tcp", "0.0.0.0:2022")
+	listener, err := net.Listen("tcp", "0.0.0.0:2022")
 	if err != nil {
 		log.Fatal("failed to listen for connection: ", err)
 	}
 
-        server := &SshServer{config, listener}
+	server := &SshServer{config, listener}
 
-        go server.acceptAll()
+	go server.acceptAll()
 
-        return server
+	return server
 }
 
 func (s *SshServer) acceptAll() {
-        for {
-                nConn, err := s.listener.Accept()
-                if err != nil {
-                        log.Print("failed to accept incoming connection: ", err)
-                        continue
-                }
+	for {
+		nConn, err := s.listener.Accept()
+		if err != nil {
+			log.Print("failed to accept incoming connection: ", err)
+			continue
+		}
 
-                go s.handleServerConn(nConn)
-        }
+		go s.handleServerConn(nConn)
+	}
 }
 
 func (s *SshServer) handleServerConn(nConn net.Conn) {
 
-        var password string
+	var password string
 
-        s.config.PasswordCallback = func(c ssh.ConnMetadata, pass []byte) (*ssh.Permissions, error) {
-                password = string(pass)
-                if c.User() == "user" && string(pass) == "yolo" {
-                        return nil, nil
-                }
-                return nil, fmt.Errorf("password rejected for %q", c.User())
-        }
-
-        conn, chans, reqs, err := ssh.NewServerConn(nConn, s.config)
-	if err != nil {
-		log.Print("failed to handshake: ", err)
-                return
+	s.config.PasswordCallback = func(c ssh.ConnMetadata, pass []byte) (*ssh.Permissions, error) {
+		password = string(pass)
+		if c.User() == "user" && string(pass) == "yolo" {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("password rejected for %q", c.User())
 	}
 
-        fmt.Println(password)
+	conn, chans, reqs, err := ssh.NewServerConn(nConn, s.config)
+	if err != nil {
+		log.Print("failed to handshake: ", err)
+		return
+	}
+
+	fmt.Println(password)
 
 	go ssh.DiscardRequests(reqs)
 
-        go func() {
-                for newChannel := range chans {
-                        newChannel.Reject(ssh.ResourceShortage, "too bad")
-                }
-        }()
+	go func() {
+		for newChannel := range chans {
+			newChannel.Reject(ssh.ResourceShortage, "too bad")
+		}
+	}()
 
-        ch, cReqs, err := conn.OpenChannel("boringproxy-tunnel", []byte{25, 25})
-        if err != nil {
-                log.Print(err)
-                return
-        }
+	ch, cReqs, err := conn.OpenChannel("boringproxy-tunnel", []byte{25, 25})
+	if err != nil {
+		log.Print(err)
+		return
+	}
 
-        go ssh.DiscardRequests(cReqs)
+	go ssh.DiscardRequests(cReqs)
 
-        ch.Write([]byte("Hi there"))
-        ch.Close()
+	ch.Write([]byte("Hi there"))
+	ch.Close()
 }

@@ -4,16 +4,16 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/GeertJohan/go.rice"
+	"github.com/caddyserver/certmagic"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
-        "html/template"
 	"strconv"
 	"sync"
-	"github.com/caddyserver/certmagic"
-        "github.com/GeertJohan/go.rice"
 )
 
 type BoringProxyConfig struct {
@@ -70,10 +70,10 @@ func NewBoringProxy() *BoringProxy {
 	p := &BoringProxy{config, auth, tunMan, adminListener, certConfig}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-                p.handleAdminRequest(w, r)
-        })
+		p.handleAdminRequest(w, r)
+	})
 
-        api := NewApi(config, auth, tunMan)
+	api := NewApi(config, auth, tunMan)
 	http.Handle("/api/", http.StripPrefix("/api", api))
 
 	go http.Serve(adminListener, nil)
@@ -106,26 +106,26 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 	case "/login":
 		p.handleLogin(w, r)
 	case "/":
-                box, err := rice.FindBox("webui")
-                if err != nil {
+		box, err := rice.FindBox("webui")
+		if err != nil {
 			w.WriteHeader(500)
-                        io.WriteString(w, "Error opening webui")
+			io.WriteString(w, "Error opening webui")
 			return
-                }
+		}
 
 		token, err := extractToken("access_token", r)
 		if err != nil {
 
-                        loginTemplate, err := box.String("login.tmpl")
-                        if err != nil {
-                                log.Println(err)
-                                w.WriteHeader(500)
-                                io.WriteString(w, "Error reading login.tmpl")
-                                return
-                        }
+			loginTemplate, err := box.String("login.tmpl")
+			if err != nil {
+				log.Println(err)
+				w.WriteHeader(500)
+				io.WriteString(w, "Error reading login.tmpl")
+				return
+			}
 
 			w.WriteHeader(401)
-                        io.WriteString(w, loginTemplate)
+			io.WriteString(w, loginTemplate)
 			return
 		}
 
@@ -135,26 +135,24 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
-
-                indexTemplate, err := box.String("index.tmpl")
-                if err != nil {
+		indexTemplate, err := box.String("index.tmpl")
+		if err != nil {
 			w.WriteHeader(500)
-                        io.WriteString(w, "Error reading index.tmpl")
+			io.WriteString(w, "Error reading index.tmpl")
 			return
-                }
+		}
 
-                tmpl, err := template.New("test").Parse(indexTemplate)
-                if err != nil {
+		tmpl, err := template.New("test").Parse(indexTemplate)
+		if err != nil {
 			w.WriteHeader(500)
-                        log.Println(err)
-                        io.WriteString(w, "Error compiling index.tmpl")
+			log.Println(err)
+			io.WriteString(w, "Error compiling index.tmpl")
 			return
-                }
+		}
 
+		tmpl.Execute(w, p.tunMan.tunnels)
 
-                tmpl.Execute(w, p.tunMan.tunnels)
-
-                //io.WriteString(w, indexTemplate)
+		//io.WriteString(w, indexTemplate)
 
 	case "/tunnels":
 
@@ -174,7 +172,7 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 		p.handleTunnels(w, r)
 
 	case "/delete-tunnel":
-                token, err := extractToken("access_token", r)
+		token, err := extractToken("access_token", r)
 		if err != nil {
 			w.WriteHeader(401)
 			w.Write([]byte("No token provided"))
@@ -187,7 +185,7 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
-                r.ParseForm()
+		r.ParseForm()
 
 		if len(r.Form["host"]) != 1 {
 			w.WriteHeader(400)
@@ -198,7 +196,7 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 
 		p.tunMan.DeleteTunnel(host)
 
-                http.Redirect(w, r, "/", 307)
+		http.Redirect(w, r, "/", 307)
 	default:
 		w.WriteHeader(400)
 		w.Write([]byte("Invalid endpoint"))
@@ -234,49 +232,48 @@ func (p *BoringProxy) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
 func (p *BoringProxy) handleLogin(w http.ResponseWriter, r *http.Request) {
 
-        switch r.Method {
-        case "GET":
-                query := r.URL.Query()
-                key, exists := query["key"]
+	switch r.Method {
+	case "GET":
+		query := r.URL.Query()
+		key, exists := query["key"]
 
-                if !exists {
-                        w.WriteHeader(400)
-                        fmt.Fprintf(w, "Must provide key for verification")
-                        return
-                }
+		if !exists {
+			w.WriteHeader(400)
+			fmt.Fprintf(w, "Must provide key for verification")
+			return
+		}
 
-                token, err := p.auth.Verify(key[0])
+		token, err := p.auth.Verify(key[0])
 
-                if err != nil {
-                        w.WriteHeader(400)
-                        fmt.Fprintf(w, "Invalid key")
-                        return
-                }
+		if err != nil {
+			w.WriteHeader(400)
+			fmt.Fprintf(w, "Invalid key")
+			return
+		}
 
-                cookie := &http.Cookie{Name: "access_token", Value: token, Secure: true, HttpOnly: true}
-                http.SetCookie(w, cookie)
+		cookie := &http.Cookie{Name: "access_token", Value: token, Secure: true, HttpOnly: true}
+		http.SetCookie(w, cookie)
 
-                http.Redirect(w, r, "/", 307)
+		http.Redirect(w, r, "/", 307)
 
+	case "POST":
 
-        case "POST":
+		r.ParseForm()
 
-                r.ParseForm()
+		toEmail, ok := r.Form["email"]
 
-                toEmail, ok := r.Form["email"]
+		if !ok {
+			w.WriteHeader(400)
+			w.Write([]byte("Email required for login"))
+			return
+		}
 
-                if !ok {
-                        w.WriteHeader(400)
-                        w.Write([]byte("Email required for login"))
-                        return
-                }
+		// run in goroutine because it can take some time to send the
+		// email
+		go p.auth.Login(toEmail[0], p.config)
 
-                // run in goroutine because it can take some time to send the
-                // email
-                go p.auth.Login(toEmail[0], p.config)
-
-                io.WriteString(w, "Check your email to finish logging in")
-        default:
+		io.WriteString(w, "Check your email to finish logging in")
+	default:
 		w.WriteHeader(405)
 		w.Write([]byte("Invalid method for login"))
 	}
@@ -284,7 +281,7 @@ func (p *BoringProxy) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 func (p *BoringProxy) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 
-        r.ParseForm()
+	r.ParseForm()
 
 	if len(r.Form["host"]) != 1 {
 		w.WriteHeader(400)
@@ -307,13 +304,13 @@ func (p *BoringProxy) handleCreateTunnel(w http.ResponseWriter, r *http.Request)
 	}
 
 	err = p.tunMan.SetTunnel(host, port)
-        if err != nil {
+	if err != nil {
 		w.WriteHeader(400)
-                io.WriteString(w, "Failed to get cert. Ensure your domain is valid")
+		io.WriteString(w, "Failed to get cert. Ensure your domain is valid")
 		return
-        }
+	}
 
-        http.Redirect(w, r, "/", 303)
+	http.Redirect(w, r, "/", 303)
 }
 
 func (p *BoringProxy) handleConnection(clientConn net.Conn) {

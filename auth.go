@@ -20,7 +20,7 @@ type Auth struct {
 }
 
 type LoginRequest struct {
-        Email string
+	Email string
 }
 
 type Session struct {
@@ -109,16 +109,16 @@ func (a *Auth) Verify(key string) (string, error) {
 
 	delete(a.pendingRequests, key)
 
-        token, err := genRandomKey()
-        if err != nil {
-                return "", errors.New("Error generating key")
-        }
+	token, err := genRandomKey()
+	if err != nil {
+		return "", errors.New("Error generating key")
+	}
 
-        a.sessions[token] = &Session{Id: request.Email}
+	a.sessions[token] = &Session{Id: request.Email}
 
-        saveJson(a.sessions, "sessions.json")
+	saveJson(a.sessions, "sessions.json")
 
-        return token, nil
+	return token, nil
 }
 
 const chars string = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
