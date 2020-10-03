@@ -141,10 +141,11 @@ func (m *TunnelManager) addToAuthorizedKeys(port int) (string, error) {
 		return "", err
 	}
 
-	options := fmt.Sprintf(`command="echo This key permits tunnels only",permitopen="fakehost:1",permitlisten="localhost:%d"`, port)
+	options := fmt.Sprintf(`command="echo This key permits tunnels only",permitopen="fakehost:1",permitlisten="127.0.0.1:%d"`, port)
 
 	pubKeyNoNewline := pubKey[:len(pubKey)-1]
 	newAk := fmt.Sprintf("%s%s %s %s%d\n", akStr, options, pubKeyNoNewline, "boringproxy-", port)
+	//newAk := fmt.Sprintf("%s%s %s%d\n", akStr, pubKeyNoNewline, "boringproxy-", port)
 
 	err = ioutil.WriteFile("/home/anders/.ssh/authorized_keys", []byte(newAk), 0600)
 	if err != nil {
