@@ -70,7 +70,7 @@ func (c *BoringProxyClient) Run() {
 	//var hostKey ssh.PublicKey
 
 	config := &ssh.ClientConfig{
-		User: "anders",
+		User: createTunnelResponse.Username,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer),
 		},
