@@ -14,6 +14,7 @@ import (
 	"log"
 	"strings"
 	"sync"
+        "os/user"
 )
 
 type Tunnel struct {
@@ -31,9 +32,15 @@ type TunnelManager struct {
 	tunnels    Tunnels
 	mutex      *sync.Mutex
 	certConfig *certmagic.Config
+        user *user.User
 }
 
 func NewTunnelManager(certConfig *certmagic.Config) *TunnelManager {
+
+        user, err := user.Current()
+        if err != nil {
+                log.Fatalf("Unable to get current user: %v", err)
+        }
 
 	tunnelsJson, err := ioutil.ReadFile("tunnels.json")
 	if err != nil {
@@ -60,7 +67,7 @@ func NewTunnelManager(certConfig *certmagic.Config) *TunnelManager {
 	nextPort := 9001
 
 	mutex := &sync.Mutex{}
-	return &TunnelManager{nextPort, tunnels, mutex, certConfig}
+	return &TunnelManager{nextPort, tunnels, mutex, certConfig, user}
 }
 
 func (m *TunnelManager) SetTunnel(host string, port int) error {
@@ -114,7 +121,9 @@ func (m *TunnelManager) DeleteTunnel(domain string) error {
 
 	tunnel := m.tunnels[domain]
 
-	akBytes, err := ioutil.ReadFile("/home/anders/.ssh/authorized_keys")
+        authKeysPath := fmt.Sprintf("%s/.ssh/authorized_keys", m.user.HomeDir)
+
+	akBytes, err := ioutil.ReadFile(authKeysPath)
 	if err != nil {
 		return err
 	}
@@ -137,7 +146,7 @@ func (m *TunnelManager) DeleteTunnel(domain string) error {
 
 	outStr := strings.Join(outLines, "\n")
 
-	err = ioutil.WriteFile("/home/anders/.ssh/authorized_keys", []byte(outStr), 0600)
+	err = ioutil.WriteFile(authKeysPath, []byte(outStr), 0600)
 	if err != nil {
 		return err
 	}
@@ -162,7 +171,9 @@ func (m *TunnelManager) GetPort(serverName string) (int, error) {
 
 func (m *TunnelManager) addToAuthorizedKeys(domain string, port int) (string, error) {
 
-	akBytes, err := ioutil.ReadFile("/home/anders/.ssh/authorized_keys")
+        authKeysPath := fmt.Sprintf("%s/.ssh/authorized_keys", m.user.HomeDir)
+
+	akBytes, err := ioutil.ReadFile(authKeysPath)
 	if err != nil {
 		return "", err
 	}
@@ -182,7 +193,7 @@ func (m *TunnelManager) addToAuthorizedKeys(domain string, port int) (string, er
 	newAk := fmt.Sprintf("%s%s %s %s\n", akStr, options, pubKeyNoNewline, tunnelId)
 	//newAk := fmt.Sprintf("%s%s %s%d\n", akStr, pubKeyNoNewline, "boringproxy-", port)
 
-	err = ioutil.WriteFile("/home/anders/.ssh/authorized_keys", []byte(newAk), 0600)
+	err = ioutil.WriteFile(authKeysPath, []byte(newAk), 0600)
 	if err != nil {
 		return "", err
 	}
