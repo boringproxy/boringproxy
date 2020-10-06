@@ -24,10 +24,11 @@ type SmtpConfig struct {
 }
 
 type BoringProxy struct {
-	config *BoringProxyConfig
-	db     *Database
-	auth   *Auth
-	tunMan *TunnelManager
+	config     *BoringProxyConfig
+	db         *Database
+	auth       *Auth
+	tunMan     *TunnelManager
+	httpClient *http.Client
 }
 
 func Listen() {
@@ -65,7 +66,9 @@ func Listen() {
 
 	auth := NewAuth(db)
 
-	p := &BoringProxy{config, db, auth, tunMan}
+	httpClient := &http.Client{}
+
+	p := &BoringProxy{config, db, auth, tunMan, httpClient}
 
 	api := NewApi(config, auth, tunMan)
 	http.Handle("/api/", http.StripPrefix("/api", api))
@@ -94,6 +97,8 @@ func Listen() {
 
 func (p *BoringProxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
 
+	log.Println("proxy conn")
+
 	port, err := p.tunMan.GetPort(r.Host)
 	if err != nil {
 		log.Print(err)
@@ -102,8 +107,6 @@ func (p *BoringProxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, errMessage)
 		return
 	}
-
-	httpClient := &http.Client{}
 
 	downstreamReqHeaders := r.Header.Clone()
 
@@ -121,7 +124,7 @@ func (p *BoringProxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
 
 	upstreamReq.Header = downstreamReqHeaders
 
-	upstreamRes, err := httpClient.Do(upstreamReq)
+	upstreamRes, err := p.httpClient.Do(upstreamReq)
 	if err != nil {
 		log.Print(err)
 		errMessage := fmt.Sprintf("%s", err)

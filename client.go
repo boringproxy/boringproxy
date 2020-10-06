@@ -103,6 +103,7 @@ func (c *BoringProxyClient) Run() {
 }
 
 func (c *BoringProxyClient) handleConnection(conn net.Conn, port int) {
+	log.Println("new conn")
 
 	defer conn.Close()
 
