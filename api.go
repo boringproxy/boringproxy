@@ -44,6 +44,14 @@ func (a *Api) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
+        case "GET":
+		body, err := json.Marshal(a.tunMan.GetTunnels())
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte("Error encoding tunnels"))
+			return
+		}
+		w.Write([]byte(body))
 	case "POST":
 		a.validateSession(http.HandlerFunc(a.handleCreateTunnel)).ServeHTTP(w, r)
 	default:

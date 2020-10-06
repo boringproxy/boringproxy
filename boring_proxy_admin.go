@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/GeertJohan/go.rice"
 	"html/template"
@@ -119,17 +118,10 @@ func (p *BoringProxy) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query()
 
-	if r.Method == "GET" {
-		body, err := json.Marshal(p.db.GetTunnels())
-		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte("Error encoding tunnels"))
-			return
-		}
-		w.Write([]byte(body))
-	} else if r.Method == "POST" {
+        switch r.Method {
+        case "POST":
 		p.handleCreateTunnel(w, r)
-	} else if r.Method == "DELETE" {
+        case "DELETE":
 		if len(query["host"]) != 1 {
 			w.WriteHeader(400)
 			w.Write([]byte("Invalid host parameter"))
@@ -138,7 +130,11 @@ func (p *BoringProxy) handleTunnels(w http.ResponseWriter, r *http.Request) {
 		host := query["host"][0]
 
 		p.tunMan.DeleteTunnel(host)
-	}
+        default:
+                w.WriteHeader(405)
+                w.Write([]byte("Invalid method for /tunnels"))
+                return
+        }
 }
 
 func (p *BoringProxy) handleLogin(w http.ResponseWriter, r *http.Request) {

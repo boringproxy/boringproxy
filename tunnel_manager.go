@@ -45,6 +45,10 @@ func NewTunnelManager(db *Database, certConfig *certmagic.Config) *TunnelManager
 	return &TunnelManager{db, nextPort, mutex, certConfig, user}
 }
 
+func (m *TunnelManager) GetTunnels() map[string]Tunnel {
+        return m.db.GetTunnels()
+}
+
 func (m *TunnelManager) SetTunnel(host string, port int) error {
 	err := m.certConfig.ManageSync([]string{host})
 	if err != nil {
@@ -94,6 +98,8 @@ func (m *TunnelManager) DeleteTunnel(domain string) error {
 	if !exists {
 		return errors.New("Tunnel doesn't exist")
 	}
+
+        m.db.DeleteTunnel(domain)
 
 	authKeysPath := fmt.Sprintf("%s/.ssh/authorized_keys", m.user.HomeDir)
 
