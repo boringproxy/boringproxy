@@ -8,9 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
-	"sync"
 )
 
 type BoringProxyConfig struct {
@@ -29,11 +27,9 @@ type BoringProxy struct {
 	config        *BoringProxyConfig
 	auth          *Auth
 	tunMan        *TunnelManager
-	adminListener *AdminListener
-	certConfig    *certmagic.Config
 }
 
-func NewBoringProxy() *BoringProxy {
+func Listen() {
 
 	config := &BoringProxyConfig{}
 
@@ -54,7 +50,6 @@ func NewBoringProxy() *BoringProxy {
 	certConfig := certmagic.NewDefault()
 
 	tunMan := NewTunnelManager(certConfig)
-	adminListener := NewAdminListener()
 
 	err = certConfig.ManageSync([]string{config.AdminDomain})
 	if err != nil {
@@ -64,106 +59,78 @@ func NewBoringProxy() *BoringProxy {
 
 	auth := NewAuth()
 
-	p := &BoringProxy{config, auth, tunMan, adminListener, certConfig}
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		p.handleAdminRequest(w, r)
-	})
+	p := &BoringProxy{config, auth, tunMan}
 
 	api := NewApi(config, auth, tunMan)
 	http.Handle("/api/", http.StripPrefix("/api", api))
 
-	go http.Serve(adminListener, nil)
-
-	log.Println("BoringProxy ready")
-
-	return p
-}
-
-func (p *BoringProxy) Run() {
-
-	listener, err := net.Listen("tcp", ":443")
+        tlsConfig := &tls.Config{
+		GetCertificate: certConfig.GetCertificate,
+                NextProtos: []string{"h2"},
+        }
+        tlsListener, err := tls.Listen("tcp", ":443", tlsConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			log.Print(err)
-			continue
-		}
-		go p.handleConnection(conn)
-	}
-}
-
-func (p *BoringProxy) handleConnection(clientConn net.Conn) {
-	// TODO: does this need to be closed manually, or is it handled when decryptedConn is closed?
-	//defer clientConn.Close()
-
-        log.Println("handleConnection")
-
-	var serverName string
-
-	decryptedConn := tls.Server(clientConn, &tls.Config{
-		GetCertificate: func(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-
-			serverName = clientHello.ServerName
-
-			return p.certConfig.GetCertificate(clientHello)
-		},
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+                if r.Host == config.AdminDomain {
+                        p.handleAdminRequest(w, r)
+                } else {
+                        p.proxyRequest(w, r)
+                }
 	})
-	//defer decryptedConn.Close()
 
-	// Need to manually do handshake to ensure serverName is populated by this point. Usually Handshake()
-	// is automatically called on first read/write
-	decryptedConn.Handshake()
+	log.Println("BoringProxy ready")
 
-	if serverName == p.config.AdminDomain {
-		p.handleAdminConnection(decryptedConn)
-	} else {
-		p.handleTunnelConnection(decryptedConn, serverName)
-	}
+        http.Serve(tlsListener, nil)
 }
 
-func (p *BoringProxy) handleAdminConnection(decryptedConn net.Conn) {
-	p.adminListener.connChan <- decryptedConn
-}
+func (p *BoringProxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
 
-func (p *BoringProxy) handleTunnelConnection(decryptedConn net.Conn, serverName string) {
-
-	defer decryptedConn.Close()
-
-	port, err := p.tunMan.GetPort(serverName)
+	port, err := p.tunMan.GetPort(r.Host)
 	if err != nil {
 		log.Print(err)
-		errMessage := fmt.Sprintf("HTTP/1.1 500 Internal server error\n\nNo tunnel attached to %s", serverName)
-		decryptedConn.Write([]byte(errMessage))
+		errMessage := fmt.Sprintf("No tunnel attached to %s", r.Host)
+                w.WriteHeader(500)
+		io.WriteString(w, errMessage)
 		return
 	}
 
-	upstreamAddr := fmt.Sprintf("127.0.0.1:%d", port)
+        httpClient := &http.Client{}
 
-	upstreamConn, err := net.Dial("tcp", upstreamAddr)
-	if err != nil {
+        downstreamReqHeaders := r.Header.Clone()
+
+        upstreamAddr := fmt.Sprintf("localhost:%d", port)
+        upstreamUrl := fmt.Sprintf("http://%s%s", upstreamAddr, r.URL.RequestURI())
+
+        upstreamReq, err := http.NewRequest(r.Method, upstreamUrl, r.Body)
+        if err != nil {
 		log.Print(err)
+		errMessage := fmt.Sprintf("%s", err)
+                w.WriteHeader(500)
+		io.WriteString(w, errMessage)
 		return
-	}
-	defer upstreamConn.Close()
+        }
 
-	var wg sync.WaitGroup
-	wg.Add(2)
+        upstreamReq.Header = downstreamReqHeaders
 
-	go func() {
-		io.Copy(decryptedConn, upstreamConn)
-		//decryptedConn.(*net.TCPConn).CloseWrite()
-		wg.Done()
-	}()
-	go func() {
-		io.Copy(upstreamConn, decryptedConn)
-		//upstreamConn.(*net.TCPConn).CloseWrite()
-		wg.Done()
-	}()
+        upstreamRes, err := httpClient.Do(upstreamReq)
+        if err != nil {
+		log.Print(err)
+		errMessage := fmt.Sprintf("%s", err)
+                w.WriteHeader(502)
+		io.WriteString(w, errMessage)
+		return
+        }
+        defer upstreamRes.Body.Close()
 
-	wg.Wait()
+        downstreamResHeaders := w.Header()
+
+        for k, v := range upstreamRes.Header {
+                downstreamResHeaders[k] = v
+        }
+
+        w.WriteHeader(upstreamRes.StatusCode)
+        io.Copy(w, upstreamRes.Body)
 }
