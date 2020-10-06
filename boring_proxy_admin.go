@@ -1,16 +1,15 @@
 package main
 
 import (
-	"io"
+	"encoding/json"
 	"fmt"
+	"github.com/GeertJohan/go.rice"
+	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
-	"html/template"
-	"encoding/json"
-	"github.com/GeertJohan/go.rice"
 )
-
 
 func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request) {
 
@@ -62,7 +61,7 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
-		tmpl.Execute(w, p.tunMan.tunnels)
+		tmpl.Execute(w, p.db.GetTunnels())
 
 		//io.WriteString(w, indexTemplate)
 
@@ -121,7 +120,7 @@ func (p *BoringProxy) handleTunnels(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
 	if r.Method == "GET" {
-		body, err := json.Marshal(p.tunMan.tunnels)
+		body, err := json.Marshal(p.db.GetTunnels())
 		if err != nil {
 			w.WriteHeader(500)
 			w.Write([]byte("Error encoding tunnels"))

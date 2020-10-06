@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -12,51 +11,27 @@ import (
 	"golang.org/x/crypto/ssh"
 	"io/ioutil"
 	"log"
+	"os/user"
 	"strings"
 	"sync"
-        "os/user"
 )
 
-type Tunnel struct {
-	Port int `json:"port"`
-}
-
-type Tunnels map[string]*Tunnel
-
-func NewTunnels() Tunnels {
-	return make(map[string]*Tunnel)
-}
-
 type TunnelManager struct {
+	db         *Database
 	nextPort   int
-	tunnels    Tunnels
 	mutex      *sync.Mutex
 	certConfig *certmagic.Config
-        user *user.User
+	user       *user.User
 }
 
-func NewTunnelManager(certConfig *certmagic.Config) *TunnelManager {
+func NewTunnelManager(db *Database, certConfig *certmagic.Config) *TunnelManager {
 
-        user, err := user.Current()
-        if err != nil {
-                log.Fatalf("Unable to get current user: %v", err)
-        }
-
-	tunnelsJson, err := ioutil.ReadFile("tunnels.json")
+	user, err := user.Current()
 	if err != nil {
-		log.Println("failed reading tunnels.json")
-		tunnelsJson = []byte("{}")
+		log.Fatalf("Unable to get current user: %v", err)
 	}
 
-	var tunnels Tunnels
-
-	err = json.Unmarshal(tunnelsJson, &tunnels)
-	if err != nil {
-		log.Println(err)
-		tunnels = NewTunnels()
-	}
-
-	for domainName := range tunnels {
+	for domainName := range db.GetTunnels() {
 		err = certConfig.ManageSync([]string{domainName})
 		if err != nil {
 			log.Println("CertMagic error at startup")
@@ -67,7 +42,7 @@ func NewTunnelManager(certConfig *certmagic.Config) *TunnelManager {
 	nextPort := 9001
 
 	mutex := &sync.Mutex{}
-	return &TunnelManager{nextPort, tunnels, mutex, certConfig, user}
+	return &TunnelManager{db, nextPort, mutex, certConfig, user}
 }
 
 func (m *TunnelManager) SetTunnel(host string, port int) error {
@@ -77,11 +52,8 @@ func (m *TunnelManager) SetTunnel(host string, port int) error {
 		return errors.New("Failed to get cert")
 	}
 
-	tunnel := &Tunnel{port}
-	m.mutex.Lock()
-	m.tunnels[host] = tunnel
-	saveJson(m.tunnels, "tunnels.json")
-	m.mutex.Unlock()
+	tunnel := Tunnel{port}
+	m.db.SetTunnel(host, tunnel)
 
 	return nil
 }
@@ -96,16 +68,15 @@ func (m *TunnelManager) CreateTunnel(domain string) (int, string, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	_, exists := m.tunnels[domain]
+	_, exists := m.db.GetTunnel(domain)
 	if exists {
 		return 0, "", errors.New("Tunnel exists for domain " + domain)
 	}
 
 	port := m.nextPort
 	m.nextPort += 1
-	tunnel := &Tunnel{port}
-	m.tunnels[domain] = tunnel
-	saveJson(m.tunnels, "tunnels.json")
+	tunnel := Tunnel{port}
+	m.db.SetTunnel(domain, tunnel)
 
 	privKey, err := m.addToAuthorizedKeys(domain, port)
 	if err != nil {
@@ -119,9 +90,12 @@ func (m *TunnelManager) DeleteTunnel(domain string) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	tunnel := m.tunnels[domain]
+	tunnel, exists := m.db.GetTunnel(domain)
+	if !exists {
+		return errors.New("Tunnel doesn't exist")
+	}
 
-        authKeysPath := fmt.Sprintf("%s/.ssh/authorized_keys", m.user.HomeDir)
+	authKeysPath := fmt.Sprintf("%s/.ssh/authorized_keys", m.user.HomeDir)
 
 	akBytes, err := ioutil.ReadFile(authKeysPath)
 	if err != nil {
@@ -151,16 +125,11 @@ func (m *TunnelManager) DeleteTunnel(domain string) error {
 		return err
 	}
 
-	delete(m.tunnels, domain)
-	saveJson(m.tunnels, "tunnels.json")
-
 	return nil
 }
 
-func (m *TunnelManager) GetPort(serverName string) (int, error) {
-	m.mutex.Lock()
-	tunnel, exists := m.tunnels[serverName]
-	m.mutex.Unlock()
+func (m *TunnelManager) GetPort(domain string) (int, error) {
+	tunnel, exists := m.db.GetTunnel(domain)
 
 	if !exists {
 		return 0, errors.New("Doesn't exist")
@@ -171,7 +140,7 @@ func (m *TunnelManager) GetPort(serverName string) (int, error) {
 
 func (m *TunnelManager) addToAuthorizedKeys(domain string, port int) (string, error) {
 
-        authKeysPath := fmt.Sprintf("%s/.ssh/authorized_keys", m.user.HomeDir)
+	authKeysPath := fmt.Sprintf("%s/.ssh/authorized_keys", m.user.HomeDir)
 
 	akBytes, err := ioutil.ReadFile(authKeysPath)
 	if err != nil {

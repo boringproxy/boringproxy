@@ -2,20 +2,16 @@ package main
 
 import (
 	"crypto/rand"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"math/big"
 	"net/smtp"
 	"sync"
-	//"time"
 )
 
 type Auth struct {
+	db              *Database
 	pendingRequests map[string]*LoginRequest
-	sessions        map[string]*Session
 	mutex           *sync.Mutex
 }
 
@@ -23,36 +19,16 @@ type LoginRequest struct {
 	Email string
 }
 
-type Session struct {
-	Id string `json:"id"`
-}
-
-func NewAuth() *Auth {
-
-	sessionsJson, err := ioutil.ReadFile("sessions.json")
-	if err != nil {
-		log.Println("failed reading sessions.json")
-		sessionsJson = []byte("{}")
-	}
-
-	var sessions map[string]*Session
-
-	err = json.Unmarshal(sessionsJson, &sessions)
-	if err != nil {
-		log.Println(err)
-		sessions = make(map[string]*Session)
-	}
+func NewAuth(db *Database) *Auth {
 
 	pendingRequests := make(map[string]*LoginRequest)
 	mutex := &sync.Mutex{}
 
-	return &Auth{pendingRequests, sessions, mutex}
+	return &Auth{db, pendingRequests, mutex}
 }
 
 func (a *Auth) Authorized(token string) bool {
-	a.mutex.Lock()
-	_, exists := a.sessions[token]
-	a.mutex.Unlock()
+	_, exists := a.db.GetSession(token)
 
 	if exists {
 		return true
@@ -114,9 +90,7 @@ func (a *Auth) Verify(key string) (string, error) {
 		return "", errors.New("Error generating key")
 	}
 
-	a.sessions[token] = &Session{Id: request.Email}
-
-	saveJson(a.sessions, "sessions.json")
+	a.db.SetSession(token, Session{Id: request.Email})
 
 	return token, nil
 }

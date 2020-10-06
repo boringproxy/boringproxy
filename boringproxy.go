@@ -24,9 +24,10 @@ type SmtpConfig struct {
 }
 
 type BoringProxy struct {
-	config        *BoringProxyConfig
-	auth          *Auth
-	tunMan        *TunnelManager
+	config *BoringProxyConfig
+	db     *Database
+	auth   *Auth
+	tunMan *TunnelManager
 }
 
 func Listen() {
@@ -44,12 +45,17 @@ func Listen() {
 		config = &BoringProxyConfig{}
 	}
 
+	db, err := NewDatabase()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	//certmagic.DefaultACME.DisableHTTPChallenge = true
 	certmagic.DefaultACME.DisableTLSALPNChallenge = true
 	//certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
 	certConfig := certmagic.NewDefault()
 
-	tunMan := NewTunnelManager(certConfig)
+	tunMan := NewTunnelManager(db, certConfig)
 
 	err = certConfig.ManageSync([]string{config.AdminDomain})
 	if err != nil {
@@ -57,33 +63,33 @@ func Listen() {
 		log.Println(err)
 	}
 
-	auth := NewAuth()
+	auth := NewAuth(db)
 
-	p := &BoringProxy{config, auth, tunMan}
+	p := &BoringProxy{config, db, auth, tunMan}
 
 	api := NewApi(config, auth, tunMan)
 	http.Handle("/api/", http.StripPrefix("/api", api))
 
-        tlsConfig := &tls.Config{
+	tlsConfig := &tls.Config{
 		GetCertificate: certConfig.GetCertificate,
-                NextProtos: []string{"h2"},
-        }
-        tlsListener, err := tls.Listen("tcp", ":443", tlsConfig)
+		NextProtos:     []string{"h2"},
+	}
+	tlsListener, err := tls.Listen("tcp", ":443", tlsConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-                if r.Host == config.AdminDomain {
-                        p.handleAdminRequest(w, r)
-                } else {
-                        p.proxyRequest(w, r)
-                }
+		if r.Host == config.AdminDomain {
+			p.handleAdminRequest(w, r)
+		} else {
+			p.proxyRequest(w, r)
+		}
 	})
 
 	log.Println("BoringProxy ready")
 
-        http.Serve(tlsListener, nil)
+	http.Serve(tlsListener, nil)
 }
 
 func (p *BoringProxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
@@ -92,45 +98,45 @@ func (p *BoringProxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Print(err)
 		errMessage := fmt.Sprintf("No tunnel attached to %s", r.Host)
-                w.WriteHeader(500)
+		w.WriteHeader(500)
 		io.WriteString(w, errMessage)
 		return
 	}
 
-        httpClient := &http.Client{}
+	httpClient := &http.Client{}
 
-        downstreamReqHeaders := r.Header.Clone()
+	downstreamReqHeaders := r.Header.Clone()
 
-        upstreamAddr := fmt.Sprintf("localhost:%d", port)
-        upstreamUrl := fmt.Sprintf("http://%s%s", upstreamAddr, r.URL.RequestURI())
+	upstreamAddr := fmt.Sprintf("localhost:%d", port)
+	upstreamUrl := fmt.Sprintf("http://%s%s", upstreamAddr, r.URL.RequestURI())
 
-        upstreamReq, err := http.NewRequest(r.Method, upstreamUrl, r.Body)
-        if err != nil {
+	upstreamReq, err := http.NewRequest(r.Method, upstreamUrl, r.Body)
+	if err != nil {
 		log.Print(err)
 		errMessage := fmt.Sprintf("%s", err)
-                w.WriteHeader(500)
+		w.WriteHeader(500)
 		io.WriteString(w, errMessage)
 		return
-        }
+	}
 
-        upstreamReq.Header = downstreamReqHeaders
+	upstreamReq.Header = downstreamReqHeaders
 
-        upstreamRes, err := httpClient.Do(upstreamReq)
-        if err != nil {
+	upstreamRes, err := httpClient.Do(upstreamReq)
+	if err != nil {
 		log.Print(err)
 		errMessage := fmt.Sprintf("%s", err)
-                w.WriteHeader(502)
+		w.WriteHeader(502)
 		io.WriteString(w, errMessage)
 		return
-        }
-        defer upstreamRes.Body.Close()
+	}
+	defer upstreamRes.Body.Close()
 
-        downstreamResHeaders := w.Header()
+	downstreamResHeaders := w.Header()
 
-        for k, v := range upstreamRes.Header {
-                downstreamResHeaders[k] = v
-        }
+	for k, v := range upstreamRes.Header {
+		downstreamResHeaders[k] = v
+	}
 
-        w.WriteHeader(upstreamRes.StatusCode)
-        io.Copy(w, upstreamRes.Body)
+	w.WriteHeader(upstreamRes.StatusCode)
+	io.Copy(w, upstreamRes.Body)
 }

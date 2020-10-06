@@ -18,7 +18,7 @@ func main() {
 	switch command {
 	case "server":
 		log.Println("Starting up")
-                Listen()
+		Listen()
 
 	case "client":
 		client := NewBoringProxyClient()
