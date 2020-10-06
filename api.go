@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-        "os/user"
+	"os/user"
 )
 
 type Api struct {
@@ -20,7 +20,7 @@ type CreateTunnelResponse struct {
 	ServerAddress    string `json:"server_address"`
 	ServerPort       int    `json:"server_port"`
 	ServerPublicKey  string `json:"server_public_key"`
-        Username string `json:"username"`
+	Username         string `json:"username"`
 	TunnelPort       int    `json:"tunnel_port"`
 	TunnelPrivateKey string `json:"tunnel_private_key"`
 }
@@ -69,13 +69,12 @@ func (a *Api) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
-        user, err := user.Current()
-        if err != nil {
+	user, err := user.Current()
+	if err != nil {
 		w.WriteHeader(400)
 		io.WriteString(w, err.Error())
 		return
-        }
+	}
 
 	response := &CreateTunnelResponse{
 		ServerAddress:    a.config.AdminDomain,
@@ -83,7 +82,7 @@ func (a *Api) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 		ServerPublicKey:  "",
 		TunnelPort:       port,
 		TunnelPrivateKey: privKey,
-                Username: user.Username,
+		Username:         user.Username,
 	}
 
 	responseJson, err := json.MarshalIndent(response, "", "  ")
