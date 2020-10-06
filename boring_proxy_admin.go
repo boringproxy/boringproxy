@@ -118,10 +118,10 @@ func (p *BoringProxy) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query()
 
-        switch r.Method {
-        case "POST":
+	switch r.Method {
+	case "POST":
 		p.handleCreateTunnel(w, r)
-        case "DELETE":
+	case "DELETE":
 		if len(query["host"]) != 1 {
 			w.WriteHeader(400)
 			w.Write([]byte("Invalid host parameter"))
@@ -130,11 +130,11 @@ func (p *BoringProxy) handleTunnels(w http.ResponseWriter, r *http.Request) {
 		host := query["host"][0]
 
 		p.tunMan.DeleteTunnel(host)
-        default:
-                w.WriteHeader(405)
-                w.Write([]byte("Invalid method for /tunnels"))
-                return
-        }
+	default:
+		w.WriteHeader(405)
+		w.Write([]byte("Invalid method for /tunnels"))
+		return
+	}
 }
 
 func (p *BoringProxy) handleLogin(w http.ResponseWriter, r *http.Request) {

@@ -44,7 +44,7 @@ func (a *Api) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
-        case "GET":
+	case "GET":
 		body, err := json.Marshal(a.tunMan.GetTunnels())
 		if err != nil {
 			w.WriteHeader(500)
