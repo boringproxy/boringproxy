@@ -124,6 +124,8 @@ func (p *BoringProxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
 
 	upstreamReq.Header = downstreamReqHeaders
 
+	upstreamReq.Header["X-Forwarded-Host"] = []string{r.Host}
+
 	upstreamRes, err := p.httpClient.Do(upstreamReq)
 	if err != nil {
 		log.Print(err)
