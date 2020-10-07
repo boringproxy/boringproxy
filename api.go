@@ -116,12 +116,12 @@ func (a *Api) handleDeleteTunnel(w http.ResponseWriter, r *http.Request) {
 	}
 	domain := query["domain"][0]
 
-        err := a.tunMan.DeleteTunnel(domain)
-        if err != nil {
+	err := a.tunMan.DeleteTunnel(domain)
+	if err != nil {
 		w.WriteHeader(500)
 		io.WriteString(w, "Failed to delete tunnel")
 		return
-        }
+	}
 }
 
 func (a *Api) validateSession(h http.Handler) http.Handler {
