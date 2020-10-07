@@ -51,8 +51,8 @@ func Listen() {
 		log.Fatal(err)
 	}
 
-	//certmagic.DefaultACME.DisableHTTPChallenge = true
-	certmagic.DefaultACME.DisableTLSALPNChallenge = true
+	certmagic.DefaultACME.DisableHTTPChallenge = true
+	//certmagic.DefaultACME.DisableTLSALPNChallenge = true
 	//certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
 	certConfig := certmagic.NewDefault()
 
@@ -75,7 +75,7 @@ func Listen() {
 
 	tlsConfig := &tls.Config{
 		GetCertificate: certConfig.GetCertificate,
-		NextProtos:     []string{"h2"},
+		NextProtos:     []string{"h2", "acme-tls/1"},
 	}
 	tlsListener, err := tls.Listen("tcp", ":443", tlsConfig)
 	if err != nil {
@@ -89,6 +89,13 @@ func Listen() {
 			p.proxyRequest(w, r)
 		}
 	})
+
+        // taken from: https://stackoverflow.com/a/37537134/943814
+        go func() {
+            if err := http.ListenAndServe(":80", http.HandlerFunc(redirectTLS)); err != nil {
+                log.Fatalf("ListenAndServe error: %v", err)
+            }
+        }()
 
 	log.Println("BoringProxy ready")
 
@@ -144,4 +151,10 @@ func (p *BoringProxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(upstreamRes.StatusCode)
 	io.Copy(w, upstreamRes.Body)
+}
+
+func redirectTLS(w http.ResponseWriter, r *http.Request) {
+        url := fmt.Sprintf("https://%s:443%s", r.Host, r.RequestURI)
+        log.Println("redir", url)
+        http.Redirect(w, r, url, http.StatusMovedPermanently)
 }
