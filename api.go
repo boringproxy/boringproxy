@@ -54,6 +54,8 @@ func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(body))
 	case "POST":
 		a.validateSession(http.HandlerFunc(a.handleCreateTunnel)).ServeHTTP(w, r)
+	case "DELETE":
+		a.validateSession(http.HandlerFunc(a.handleDeleteTunnel)).ServeHTTP(w, r)
 	default:
 		w.WriteHeader(405)
 		w.Write([]byte("Invalid method for /tunnels"))
@@ -101,6 +103,25 @@ func (a *Api) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(responseJson)
+}
+
+func (a *Api) handleDeleteTunnel(w http.ResponseWriter, r *http.Request) {
+
+	query := r.URL.Query()
+
+	if len(query["domain"]) != 1 {
+		w.WriteHeader(400)
+		w.Write([]byte("Invalid domain parameter"))
+		return
+	}
+	domain := query["domain"][0]
+
+        err := a.tunMan.DeleteTunnel(domain)
+        if err != nil {
+		w.WriteHeader(500)
+		io.WriteString(w, "Failed to delete tunnel")
+		return
+        }
 }
 
 func (a *Api) validateSession(h http.Handler) http.Handler {
