@@ -18,9 +18,14 @@ type Session struct {
 }
 
 type Tunnel struct {
-	Port int `json:"port"`
+	ServerAddress    string `json:"server_address"`
+	ServerPort       int    `json:"server_port"`
+	ServerPublicKey  string `json:"server_public_key"`
+	Username         string `json:"username"`
+	TunnelPort       int    `json:"tunnel_port"`
+	TunnelPrivateKey string `json:"tunnel_private_key"`
 }
-type Tunnels map[string]*Tunnel
+
 
 func NewDatabase() (*Database, error) {
 

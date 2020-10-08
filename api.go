@@ -1,12 +1,9 @@
 package main
 
 import (
-	//"fmt"
-	//"strings"
 	"encoding/json"
 	"io"
 	"net/http"
-	"os/user"
 )
 
 type Api struct {
@@ -16,14 +13,6 @@ type Api struct {
 	mux    *http.ServeMux
 }
 
-type CreateTunnelResponse struct {
-	ServerAddress    string `json:"server_address"`
-	ServerPort       int    `json:"server_port"`
-	ServerPublicKey  string `json:"server_public_key"`
-	Username         string `json:"username"`
-	TunnelPort       int    `json:"tunnel_port"`
-	TunnelPrivateKey string `json:"tunnel_private_key"`
-}
 
 func NewApi(config *BoringProxyConfig, auth *Auth, tunMan *TunnelManager) *Api {
 
@@ -72,37 +61,21 @@ func (a *Api) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 	}
 	domain := query["domain"][0]
 
-	port, privKey, err := a.tunMan.CreateTunnel(domain)
+	tunnel, err := a.tunMan.CreateTunnel(domain)
 	if err != nil {
 		w.WriteHeader(400)
 		io.WriteString(w, err.Error())
 		return
 	}
 
-	user, err := user.Current()
-	if err != nil {
-		w.WriteHeader(400)
-		io.WriteString(w, err.Error())
-		return
-	}
-
-	response := &CreateTunnelResponse{
-		ServerAddress:    a.config.AdminDomain,
-		ServerPort:       22,
-		ServerPublicKey:  "",
-		TunnelPort:       port,
-		TunnelPrivateKey: privKey,
-		Username:         user.Username,
-	}
-
-	responseJson, err := json.MarshalIndent(response, "", "  ")
+	tunnelJson, err := json.MarshalIndent(tunnel, "", "  ")
 	if err != nil {
 		w.WriteHeader(500)
-		io.WriteString(w, "Error encoding response")
+		io.WriteString(w, "Error encoding tunnel")
 		return
 	}
 
-	w.Write(responseJson)
+	w.Write(tunnelJson)
 }
 
 func (a *Api) handleDeleteTunnel(w http.ResponseWriter, r *http.Request) {
