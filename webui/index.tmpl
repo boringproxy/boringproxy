@@ -48,7 +48,7 @@
         {{range $domain, $tunnel:= .}}
         <div class='tunnel'>
           <div>
-            <a href="https://{{$domain}}">{{$domain}}</a> -> {{$tunnel.Port}}
+            <a href="https://{{$domain}}">{{$domain}}</a> -> {{$tunnel.TunnelPort}}
           </div>
           <a href="/delete-tunnel?host={{$domain}}">Delete</a>
         </div>

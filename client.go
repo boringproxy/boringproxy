@@ -55,14 +55,14 @@ func (c *BoringProxyClient) Run() {
 		log.Fatal("Failed to create tunnel: " + string(body))
 	}
 
-	createTunnelResponse := &CreateTunnelResponse{}
+	tunnel := &Tunnel{}
 
-	err = json.Unmarshal(body, &createTunnelResponse)
+	err = json.Unmarshal(body, &tunnel)
 	if err != nil {
 		log.Fatal("Failed to parse response", err)
 	}
 
-	signer, err := ssh.ParsePrivateKey([]byte(createTunnelResponse.TunnelPrivateKey))
+	signer, err := ssh.ParsePrivateKey([]byte(tunnel.TunnelPrivateKey))
 	if err != nil {
 		log.Fatalf("unable to parse private key: %v", err)
 	}
@@ -70,7 +70,7 @@ func (c *BoringProxyClient) Run() {
 	//var hostKey ssh.PublicKey
 
 	config := &ssh.ClientConfig{
-		User: createTunnelResponse.Username,
+		User: tunnel.Username,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer),
 		},
@@ -78,14 +78,14 @@ func (c *BoringProxyClient) Run() {
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	sshHost := fmt.Sprintf("%s:%d", createTunnelResponse.ServerAddress, createTunnelResponse.ServerPort)
+	sshHost := fmt.Sprintf("%s:%d", tunnel.ServerAddress, tunnel.ServerPort)
 	client, err := ssh.Dial("tcp", sshHost, config)
 	if err != nil {
 		log.Fatal("Failed to dial: ", err)
 	}
 	defer client.Close()
 
-	tunnelAddr := fmt.Sprintf("127.0.0.1:%d", createTunnelResponse.TunnelPort)
+	tunnelAddr := fmt.Sprintf("127.0.0.1:%d", tunnel.TunnelPort)
 	l, err := client.Listen("tcp", tunnelAddr)
 	if err != nil {
 		log.Fatal("unable to register tcp forward: ", err)

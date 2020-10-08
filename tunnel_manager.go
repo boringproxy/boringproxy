@@ -17,6 +17,7 @@ import (
 )
 
 type TunnelManager struct {
+        config *BoringProxyConfig
 	db         *Database
 	nextPort   int
 	mutex      *sync.Mutex
@@ -24,7 +25,7 @@ type TunnelManager struct {
 	user       *user.User
 }
 
-func NewTunnelManager(db *Database, certConfig *certmagic.Config) *TunnelManager {
+func NewTunnelManager(config *BoringProxyConfig, db *Database, certConfig *certmagic.Config) *TunnelManager {
 
 	user, err := user.Current()
 	if err != nil {
@@ -42,13 +43,14 @@ func NewTunnelManager(db *Database, certConfig *certmagic.Config) *TunnelManager
 	nextPort := 9001
 
 	mutex := &sync.Mutex{}
-	return &TunnelManager{db, nextPort, mutex, certConfig, user}
+	return &TunnelManager{config, db, nextPort, mutex, certConfig, user}
 }
 
 func (m *TunnelManager) GetTunnels() map[string]Tunnel {
 	return m.db.GetTunnels()
 }
 
+// TODO: Update this
 func (m *TunnelManager) SetTunnel(host string, port int) error {
 	err := m.certConfig.ManageSync([]string{host})
 	if err != nil {
@@ -56,17 +58,17 @@ func (m *TunnelManager) SetTunnel(host string, port int) error {
 		return errors.New("Failed to get cert")
 	}
 
-	tunnel := Tunnel{port}
+        tunnel := Tunnel{TunnelPort: port}
 	m.db.SetTunnel(host, tunnel)
 
 	return nil
 }
 
-func (m *TunnelManager) CreateTunnel(domain string) (int, string, error) {
+func (m *TunnelManager) CreateTunnel(domain string) (Tunnel, error) {
 	err := m.certConfig.ManageSync([]string{domain})
 	if err != nil {
 		log.Println(err)
-		return 0, "", errors.New("Failed to get cert")
+		return Tunnel{}, errors.New("Failed to get cert")
 	}
 
 	m.mutex.Lock()
@@ -74,20 +76,29 @@ func (m *TunnelManager) CreateTunnel(domain string) (int, string, error) {
 
 	_, exists := m.db.GetTunnel(domain)
 	if exists {
-		return 0, "", errors.New("Tunnel exists for domain " + domain)
+		return Tunnel{}, errors.New("Tunnel exists for domain " + domain)
 	}
 
 	port := m.nextPort
 	m.nextPort += 1
-	tunnel := Tunnel{port}
-	m.db.SetTunnel(domain, tunnel)
 
 	privKey, err := m.addToAuthorizedKeys(domain, port)
 	if err != nil {
-		return 0, "", err
+		return Tunnel{}, err
 	}
 
-	return port, privKey, nil
+        tunnel := Tunnel{
+		ServerAddress:    m.config.AdminDomain,
+		ServerPort:       22,
+		ServerPublicKey:  "",
+		TunnelPort:       port,
+		TunnelPrivateKey: privKey,
+		Username:         m.user.Username,
+	}
+
+	m.db.SetTunnel(domain, tunnel)
+
+	return tunnel, nil
 }
 
 func (m *TunnelManager) DeleteTunnel(domain string) error {
@@ -112,7 +123,7 @@ func (m *TunnelManager) DeleteTunnel(domain string) error {
 
 	lines := strings.Split(akStr, "\n")
 
-	tunnelId := fmt.Sprintf("boringproxy-%s-%d", domain, tunnel.Port)
+	tunnelId := fmt.Sprintf("boringproxy-%s-%d", domain, tunnel.TunnelPort)
 
 	outLines := []string{}
 
@@ -141,7 +152,7 @@ func (m *TunnelManager) GetPort(domain string) (int, error) {
 		return 0, errors.New("Doesn't exist")
 	}
 
-	return tunnel.Port, nil
+	return tunnel.TunnelPort, nil
 }
 
 func (m *TunnelManager) addToAuthorizedKeys(domain string, port int) (string, error) {

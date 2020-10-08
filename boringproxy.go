@@ -56,7 +56,7 @@ func Listen() {
 	//certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
 	certConfig := certmagic.NewDefault()
 
-	tunMan := NewTunnelManager(db, certConfig)
+	tunMan := NewTunnelManager(config, db, certConfig)
 
 	err = certConfig.ManageSync([]string{config.AdminDomain})
 	if err != nil {
