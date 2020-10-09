@@ -22,7 +22,7 @@ func main() {
 
 	case "client":
 		client := NewBoringProxyClient()
-		client.Run()
+		client.RunPuppetClient()
 	default:
 		fmt.Println("Invalid command " + command)
 		os.Exit(1)

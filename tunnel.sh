@@ -32,4 +32,4 @@ ssh -i $keyFile \
 echo "Cleaning up"
 
 rm $keyFile
-curl -s -H "Authorization: bearer $token" -X DELETE "$api/tunnels?domain=$domain"
+#curl -s -H "Authorization: bearer $token" -X DELETE "$api/tunnels?domain=$domain"

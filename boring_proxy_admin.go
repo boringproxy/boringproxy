@@ -190,27 +190,35 @@ func (p *BoringProxy) handleCreateTunnel(w http.ResponseWriter, r *http.Request)
 
 	r.ParseForm()
 
-	if len(r.Form["host"]) != 1 {
+	if len(r.Form["domain"]) != 1 {
 		w.WriteHeader(400)
-		w.Write([]byte("Invalid host parameter"))
+		w.Write([]byte("Invalid domain parameter"))
 		return
 	}
-	host := r.Form["host"][0]
+	domain := r.Form["domain"][0]
 
-	if len(r.Form["port"]) != 1 {
+	if len(r.Form["client-name"]) != 1 {
 		w.WriteHeader(400)
-		w.Write([]byte("Invalid port parameter"))
+		w.Write([]byte("Invalid client-name parameter"))
+		return
+	}
+	clientName := r.Form["client-name"][0]
+
+	if len(r.Form["client-port"]) != 1 {
+		w.WriteHeader(400)
+		w.Write([]byte("Invalid client-port parameter"))
 		return
 	}
 
-	port, err := strconv.Atoi(r.Form["port"][0])
+	clientPort, err := strconv.Atoi(r.Form["client-port"][0])
 	if err != nil {
 		w.WriteHeader(400)
-		w.Write([]byte("Invalid port parameter"))
+		w.Write([]byte("Invalid client-port parameter"))
 		return
 	}
 
-	err = p.tunMan.SetTunnel(host, port)
+	fmt.Println(domain, clientName, clientPort)
+	_, err = p.tunMan.CreateTunnelForClient(domain, clientName, clientPort)
 	if err != nil {
 		w.WriteHeader(400)
 		io.WriteString(w, "Failed to get cert. Ensure your domain is valid")
