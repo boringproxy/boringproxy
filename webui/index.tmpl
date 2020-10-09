@@ -50,7 +50,9 @@
           <div>
             <a href="https://{{$domain}}">{{$domain}}</a>:{{$tunnel.TunnelPort}} -> {{$tunnel.ClientName}}:{{$tunnel.ClientPort}}
           </div>
-          <a href="/delete-tunnel?host={{$domain}}">Delete</a>
+          <a href="/delete-tunnel?host={{$domain}}">
+            <button>Delete</button>
+          </a>
         </div>
         {{end}}
         
