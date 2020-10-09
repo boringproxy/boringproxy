@@ -17,7 +17,7 @@ import (
 )
 
 type TunnelManager struct {
-        config *BoringProxyConfig
+	config     *BoringProxyConfig
 	db         *Database
 	nextPort   int
 	mutex      *sync.Mutex
@@ -50,18 +50,20 @@ func (m *TunnelManager) GetTunnels() map[string]Tunnel {
 	return m.db.GetTunnels()
 }
 
-// TODO: Update this
-func (m *TunnelManager) SetTunnel(host string, port int) error {
-	err := m.certConfig.ManageSync([]string{host})
+func (m *TunnelManager) CreateTunnelForClient(domain string, clientName string, clientPort int) (Tunnel, error) {
+	tun, err := m.CreateTunnel(domain)
 	if err != nil {
-		log.Println(err)
-		return errors.New("Failed to get cert")
+		return Tunnel{}, err
 	}
 
-        tunnel := Tunnel{TunnelPort: port}
-	m.db.SetTunnel(host, tunnel)
+	tun.ClientName = clientName
+	tun.ClientPort = clientPort
 
-	return nil
+	// TODO: It's a bit hacky that we call db.SetTunnel in CreateTunnel and
+	// then again here
+	m.db.SetTunnel(domain, tun)
+
+	return tun, nil
 }
 
 func (m *TunnelManager) CreateTunnel(domain string) (Tunnel, error) {
@@ -87,7 +89,7 @@ func (m *TunnelManager) CreateTunnel(domain string) (Tunnel, error) {
 		return Tunnel{}, err
 	}
 
-        tunnel := Tunnel{
+	tunnel := Tunnel{
 		ServerAddress:    m.config.AdminDomain,
 		ServerPort:       22,
 		ServerPublicKey:  "",

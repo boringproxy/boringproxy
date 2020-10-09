@@ -13,7 +13,6 @@ type Api struct {
 	mux    *http.ServeMux
 }
 
-
 func NewApi(config *BoringProxyConfig, auth *Auth, tunMan *TunnelManager) *Api {
 
 	api := &Api{config, auth, tunMan, nil}
@@ -34,7 +33,20 @@ func (a *Api) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		body, err := json.Marshal(a.tunMan.GetTunnels())
+		query := r.URL.Query()
+
+		tunnels := a.tunMan.GetTunnels()
+
+		if len(query["client-name"]) == 1 {
+			clientName := query["client-name"][0]
+			for k, tun := range tunnels {
+				if tun.ClientName != clientName {
+					delete(tunnels, k)
+				}
+			}
+		}
+
+		body, err := json.Marshal(tunnels)
 		if err != nil {
 			w.WriteHeader(500)
 			w.Write([]byte("Error encoding tunnels"))

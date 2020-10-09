@@ -24,8 +24,9 @@ type Tunnel struct {
 	Username         string `json:"username"`
 	TunnelPort       int    `json:"tunnel_port"`
 	TunnelPrivateKey string `json:"tunnel_private_key"`
+	ClientName       string `json:"client_name"`
+	ClientPort       int    `json:"client_port"`
 }
-
 
 func NewDatabase() (*Database, error) {
 

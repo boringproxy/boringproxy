@@ -48,7 +48,7 @@
         {{range $domain, $tunnel:= .}}
         <div class='tunnel'>
           <div>
-            <a href="https://{{$domain}}">{{$domain}}</a> -> {{$tunnel.TunnelPort}}
+            <a href="https://{{$domain}}">{{$domain}}</a>:{{$tunnel.TunnelPort}} -> {{$tunnel.ClientName}}:{{$tunnel.ClientPort}}
           </div>
           <a href="/delete-tunnel?host={{$domain}}">Delete</a>
         </div>
@@ -57,9 +57,11 @@
         <div class='tunnel-adder'>
           <form action="/tunnels" method="POST">
              <label for="domain">Domain:</label>
-             <input type="text" id="domain" name="host">
-             <label for="port">Port:</label>
-             <input type="text" id="port" name="port">
+             <input type="text" id="domain" name="domain">
+             <label for="client-name">Client Name:</label>
+             <input type="text" id="client-name" name="client-name">
+             <label for="client-port">Client Port:</label>
+             <input type="text" id="client-port" name="client-port">
              <button type="submit">Add/Update Tunnel</button>
           </form>
         </div>

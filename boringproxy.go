@@ -90,12 +90,12 @@ func Listen() {
 		}
 	})
 
-        // taken from: https://stackoverflow.com/a/37537134/943814
-        go func() {
-            if err := http.ListenAndServe(":80", http.HandlerFunc(redirectTLS)); err != nil {
-                log.Fatalf("ListenAndServe error: %v", err)
-            }
-        }()
+	// taken from: https://stackoverflow.com/a/37537134/943814
+	go func() {
+		if err := http.ListenAndServe(":80", http.HandlerFunc(redirectTLS)); err != nil {
+			log.Fatalf("ListenAndServe error: %v", err)
+		}
+	}()
 
 	log.Println("BoringProxy ready")
 
@@ -154,7 +154,7 @@ func (p *BoringProxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func redirectTLS(w http.ResponseWriter, r *http.Request) {
-        url := fmt.Sprintf("https://%s:443%s", r.Host, r.RequestURI)
-        log.Println("redir", url)
-        http.Redirect(w, r, url, http.StatusMovedPermanently)
+	url := fmt.Sprintf("https://%s:443%s", r.Host, r.RequestURI)
+	log.Println("redir", url)
+	http.Redirect(w, r, url, http.StatusMovedPermanently)
 }
