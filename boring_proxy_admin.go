@@ -221,7 +221,7 @@ func (p *BoringProxy) handleCreateTunnel(w http.ResponseWriter, r *http.Request)
 	_, err = p.tunMan.CreateTunnelForClient(domain, clientName, clientPort)
 	if err != nil {
 		w.WriteHeader(400)
-		io.WriteString(w, "Failed to get cert. Ensure your domain is valid")
+		io.WriteString(w, err.Error())
 		return
 	}
 
