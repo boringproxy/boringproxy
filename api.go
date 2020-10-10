@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/md5"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 )
@@ -52,6 +54,12 @@ func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte("Error encoding tunnels"))
 			return
 		}
+
+		hash := md5.Sum(body)
+		hashStr := fmt.Sprintf("%x", hash)
+
+		w.Header()["ETag"] = []string{hashStr}
+
 		w.Write([]byte(body))
 	case "POST":
 		a.validateSession(http.HandlerFunc(a.handleCreateTunnel)).ServeHTTP(w, r)
