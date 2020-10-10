@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+        "errors"
 	"flag"
 	"fmt"
 	"golang.org/x/crypto/ssh"
@@ -55,17 +56,20 @@ func NewBoringProxyClient() *BoringProxyClient {
 func (c *BoringProxyClient) RunPuppetClient() {
 
 	for {
-		c.PollTunnels()
+		err := c.PollTunnels()
+		if err != nil {
+			log.Print(err)
+		}
 		time.Sleep(2 * time.Second)
 	}
 }
 
-func (c *BoringProxyClient) PollTunnels() {
+func (c *BoringProxyClient) PollTunnels() error {
 	url := fmt.Sprintf("https://%s/api/tunnels?client-name=%s", c.server, c.clientName)
 
 	listenReq, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Fatal("Failed making request", err)
+		return err
 	}
 
 	if len(c.token) > 0 {
@@ -74,12 +78,12 @@ func (c *BoringProxyClient) PollTunnels() {
 
 	resp, err := c.httpClient.Do(listenReq)
 	if err != nil {
-		log.Fatal("Failed listen request", err)
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		log.Fatal("Failed to listen (not 200 status)")
+		return errors.New("Failed to listen (not 200 status)")
 	}
 
 	etag := resp.Header["Etag"][0]
@@ -92,7 +96,7 @@ func (c *BoringProxyClient) PollTunnels() {
 
 		err = json.Unmarshal(body, &tunnels)
 		if err != nil {
-			log.Fatal("Failed to parse response", err)
+			return err
 		}
 
 		c.SyncTunnels(tunnels)
@@ -100,6 +104,7 @@ func (c *BoringProxyClient) PollTunnels() {
 		c.previousEtag = etag
 	}
 
+        return nil
 }
 
 func (c *BoringProxyClient) SyncTunnels(serverTunnels map[string]Tunnel) {
