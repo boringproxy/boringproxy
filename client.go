@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -12,18 +13,22 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"os/signal"
 	"sync"
+	"time"
 )
 
 type BoringProxyClient struct {
+	httpClient       *http.Client
+	tunnels          map[string]Tunnel
+	previousEtag     string
+	server           string
+	token            string
+	clientName       string
+	cancelFuncs      map[string]context.CancelFunc
+	cancelFuncsMutex *sync.Mutex
 }
 
 func NewBoringProxyClient() *BoringProxyClient {
-	return &BoringProxyClient{}
-}
-
-func (c *BoringProxyClient) RunPuppetClient() {
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	server := flagSet.String("server", "", "boringproxy server")
 	token := flagSet.String("token", "", "Access token")
@@ -31,57 +36,112 @@ func (c *BoringProxyClient) RunPuppetClient() {
 	flagSet.Parse(os.Args[2:])
 
 	httpClient := &http.Client{}
+	tunnels := make(map[string]Tunnel)
+	cancelFuncs := make(map[string]context.CancelFunc)
+	cancelFuncsMutex := &sync.Mutex{}
 
-	url := fmt.Sprintf("https://%s/api/tunnels?client-name=%s", *server, *name)
+	return &BoringProxyClient{
+		httpClient:       httpClient,
+		tunnels:          tunnels,
+		previousEtag:     "",
+		server:           *server,
+		token:            *token,
+		clientName:       *name,
+		cancelFuncs:      cancelFuncs,
+		cancelFuncsMutex: cancelFuncsMutex,
+	}
+}
+
+func (c *BoringProxyClient) RunPuppetClient() {
+
+	for {
+		c.PollTunnels()
+		time.Sleep(2 * time.Second)
+	}
+}
+
+func (c *BoringProxyClient) PollTunnels() {
+	url := fmt.Sprintf("https://%s/api/tunnels?client-name=%s", c.server, c.clientName)
 
 	listenReq, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Fatal("Failed making request", err)
 	}
 
-	if len(*token) > 0 {
-		listenReq.Header.Add("Authorization", "bearer "+*token)
+	if len(c.token) > 0 {
+		listenReq.Header.Add("Authorization", "bearer "+c.token)
 	}
 
-	resp, err := httpClient.Do(listenReq)
+	resp, err := c.httpClient.Do(listenReq)
 	if err != nil {
-		log.Fatal("Failed make tunnel request", err)
+		log.Fatal("Failed listen request", err)
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
-
 	if resp.StatusCode != 200 {
-		log.Fatal("Failed to create tunnel: " + string(body))
+		log.Fatal("Failed to listen (not 200 status)")
 	}
 
-	tunnels := make(map[string]Tunnel)
+	etag := resp.Header["Etag"][0]
 
-	err = json.Unmarshal(body, &tunnels)
-	if err != nil {
-		log.Fatal("Failed to parse response", err)
+	if etag != c.previousEtag {
+
+		body, err := ioutil.ReadAll(resp.Body)
+
+		tunnels := make(map[string]Tunnel)
+
+		err = json.Unmarshal(body, &tunnels)
+		if err != nil {
+			log.Fatal("Failed to parse response", err)
+		}
+
+		c.SyncTunnels(tunnels)
+
+		c.previousEtag = etag
 	}
 
-	for _, tun := range tunnels {
-		go c.BoreTunnel(tun)
+}
+
+func (c *BoringProxyClient) SyncTunnels(serverTunnels map[string]Tunnel) {
+	fmt.Println("SyncTunnels")
+
+	// update tunnels to match server
+	for k, newTun := range serverTunnels {
+
+		tun, exists := c.tunnels[k]
+		if !exists {
+			log.Println("New tunnel", k)
+			c.tunnels[k] = newTun
+			cancel := c.BoreTunnel(newTun)
+			c.cancelFuncs[k] = cancel
+		} else if newTun != tun {
+			log.Println("Restart tunnel", k)
+			c.cancelFuncs[k]()
+			cancel := c.BoreTunnel(newTun)
+			c.cancelFuncs[k] = cancel
+		}
 	}
 
-	//go c.BoreTunnel(tunnels["apitman.com"])
-
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt)
-	for range sigChan {
-		break
+	// delete any tunnels that no longer exist on server
+	for k, _ := range c.tunnels {
+		_, exists := serverTunnels[k]
+		if !exists {
+			log.Println("Kill tunnel", k)
+			c.cancelFuncs[k]()
+			delete(c.tunnels, k)
+			delete(c.cancelFuncs, k)
+		}
 	}
 }
 
-func (c *BoringProxyClient) BoreTunnel(tun Tunnel) {
+func (c *BoringProxyClient) BoreTunnel(tun Tunnel) context.CancelFunc {
+
+	//log.Println("BoreTunnel", tun)
+
 	privKeyFile, err := ioutil.TempFile("", "")
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	defer os.Remove(privKeyFile.Name())
 
 	if _, err := privKeyFile.Write([]byte(tun.TunnelPrivateKey)); err != nil {
 		log.Fatal(err)
@@ -93,12 +153,23 @@ func (c *BoringProxyClient) BoreTunnel(tun Tunnel) {
 	tunnelSpec := fmt.Sprintf("127.0.0.1:%d:127.0.0.1:%d", tun.TunnelPort, tun.ClientPort)
 	sshLogin := fmt.Sprintf("%s@%s", tun.Username, tun.ServerAddress)
 	serverPortStr := fmt.Sprintf("%d", tun.ServerPort)
-	fmt.Println(tunnelSpec, sshLogin, serverPortStr)
-	cmd := exec.Command("ssh", "-i", privKeyFile.Name(), "-NR", tunnelSpec, sshLogin, "-p", serverPortStr)
-	err = cmd.Run()
-	if err != nil {
-		log.Fatal(err)
-	}
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+
+	privKeyPath := privKeyFile.Name()
+
+	go func() {
+		// TODO: Clean up private key files on exit
+		defer os.Remove(privKeyPath)
+		fmt.Println(privKeyPath, tunnelSpec, sshLogin, serverPortStr)
+		cmd := exec.CommandContext(ctx, "ssh", "-i", privKeyPath, "-NR", tunnelSpec, sshLogin, "-p", serverPortStr)
+		err = cmd.Run()
+		if err != nil {
+			log.Print(err)
+		}
+	}()
+
+	return cancelFunc
 }
 
 func (c *BoringProxyClient) Run() {
