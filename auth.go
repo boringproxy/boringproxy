@@ -44,7 +44,7 @@ func (a *Auth) Login(email string, config *BoringProxyConfig) (string, error) {
 		return "", errors.New("Error generating key")
 	}
 
-	link := fmt.Sprintf("https://%s/login?key=%s", config.AdminDomain, key)
+	link := fmt.Sprintf("https://%s/login?key=%s", config.WebUiDomain, key)
 
 	bodyTemplate := "From: %s <%s>\r\n" +
 		"To: %s\r\n" +
@@ -55,8 +55,8 @@ func (a *Auth) Login(email string, config *BoringProxyConfig) (string, error) {
 		"%s\r\n"
 
 	fromText := "boringproxy email verifier"
-	fromEmail := fmt.Sprintf("auth@%s", config.AdminDomain)
-	emailBody := fmt.Sprintf(bodyTemplate, fromText, fromEmail, email, config.AdminDomain, link)
+	fromEmail := fmt.Sprintf("auth@%s", config.WebUiDomain)
+	emailBody := fmt.Sprintf(bodyTemplate, fromText, fromEmail, email, config.WebUiDomain, link)
 
 	emailAuth := smtp.PlainAuth("", config.Smtp.Username, config.Smtp.Password, config.Smtp.Server)
 	srv := fmt.Sprintf("%s:%d", config.Smtp.Server, config.Smtp.Port)

@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
-        "errors"
+	"errors"
 	"flag"
 	"fmt"
 	"golang.org/x/crypto/ssh"
@@ -104,7 +104,7 @@ func (c *BoringProxyClient) PollTunnels() error {
 		c.previousEtag = etag
 	}
 
-        return nil
+	return nil
 }
 
 func (c *BoringProxyClient) SyncTunnels(serverTunnels map[string]Tunnel) {

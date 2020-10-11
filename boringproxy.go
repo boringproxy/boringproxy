@@ -12,7 +12,7 @@ import (
 )
 
 type BoringProxyConfig struct {
-	AdminDomain string      `json:"admin_domain"`
+	WebUiDomain string      `json:"webui_domain"`
 	Smtp        *SmtpConfig `json:"smtp"`
 }
 
@@ -58,13 +58,15 @@ func Listen() {
 
 	tunMan := NewTunnelManager(config, db, certConfig)
 
-	err = certConfig.ManageSync([]string{config.AdminDomain})
+	err = certConfig.ManageSync([]string{config.WebUiDomain})
 	if err != nil {
 		log.Println("CertMagic error")
 		log.Println(err)
 	}
 
 	auth := NewAuth(db)
+
+	webUiHandler := NewWebUiHandler(config, db, auth, tunMan)
 
 	httpClient := &http.Client{}
 
@@ -83,8 +85,8 @@ func Listen() {
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Host == config.AdminDomain {
-			p.handleAdminRequest(w, r)
+		if r.Host == config.WebUiDomain {
+			webUiHandler.handleWebUiRequest(w, r)
 		} else {
 			p.proxyRequest(w, r)
 		}

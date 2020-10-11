@@ -90,7 +90,7 @@ func (m *TunnelManager) CreateTunnel(domain string) (Tunnel, error) {
 	}
 
 	tunnel := Tunnel{
-		ServerAddress:    m.config.AdminDomain,
+		ServerAddress:    m.config.WebUiDomain,
 		ServerPort:       22,
 		ServerPublicKey:  "",
 		TunnelPort:       port,

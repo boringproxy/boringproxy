@@ -10,38 +10,53 @@ import (
 	"strconv"
 )
 
+type WebUiHandler struct {
+	config *BoringProxyConfig
+	db     *Database
+	auth   *Auth
+	tunMan *TunnelManager
+}
 
 type IndexData struct {
-        Styles template.CSS
-        Tunnels map[string]Tunnel
+	Styles  template.CSS
+	Tunnels map[string]Tunnel
 }
 
 type ConfirmData struct {
-        Styles template.CSS
-        Message string
-        ConfirmUrl string
-        CancelUrl string
+	Styles     template.CSS
+	Message    string
+	ConfirmUrl string
+	CancelUrl  string
 }
 
-func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request) {
+func NewWebUiHandler(config *BoringProxyConfig, db *Database, auth *Auth, tunMan *TunnelManager) *WebUiHandler {
+	return &WebUiHandler{
+		config,
+		db,
+		auth,
+		tunMan,
+	}
+}
 
-        box, err := rice.FindBox("webui")
-        if err != nil {
-                w.WriteHeader(500)
-                io.WriteString(w, "Error opening webui")
-                return
-        }
+func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request) {
 
-        stylesText, err := box.String("styles.css")
-        if err != nil {
-                w.WriteHeader(500)
-                io.WriteString(w, "Error reading styles.css")
-                return
-        }
+	box, err := rice.FindBox("webui")
+	if err != nil {
+		w.WriteHeader(500)
+		io.WriteString(w, "Error opening webui")
+		return
+	}
+
+	stylesText, err := box.String("styles.css")
+	if err != nil {
+		w.WriteHeader(500)
+		io.WriteString(w, "Error reading styles.css")
+		return
+	}
 
 	switch r.URL.Path {
 	case "/login":
-		p.handleLogin(w, r)
+		h.handleLogin(w, r)
 	case "/":
 
 		token, err := extractToken("access_token", r)
@@ -60,7 +75,7 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
-		if !p.auth.Authorized(token) {
+		if !h.auth.Authorized(token) {
 			w.WriteHeader(403)
 			w.Write([]byte("Not authorized"))
 			return
@@ -81,10 +96,10 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
-                indexData := IndexData {
-                        Styles: template.CSS(stylesText),
-                        Tunnels: p.db.GetTunnels(),
-                }
+		indexData := IndexData{
+			Styles:  template.CSS(stylesText),
+			Tunnels: h.db.GetTunnels(),
+		}
 
 		tmpl.Execute(w, indexData)
 
@@ -99,15 +114,15 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
-		if !p.auth.Authorized(token) {
+		if !h.auth.Authorized(token) {
 			w.WriteHeader(403)
 			w.Write([]byte("Not authorized"))
 			return
 		}
 
-		p.handleTunnels(w, r)
+		h.handleTunnels(w, r)
 
-        case "/confirm-delete-tunnel":
+	case "/confirm-delete-tunnel":
 		box, err := rice.FindBox("webui")
 		if err != nil {
 			w.WriteHeader(500)
@@ -115,7 +130,7 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
-                confirmTemplate, err := box.String("confirm.tmpl")
+		confirmTemplate, err := box.String("confirm.tmpl")
 		if err != nil {
 			w.WriteHeader(500)
 			io.WriteString(w, "Error reading confirm.tmpl")
@@ -130,7 +145,7 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
-                r.ParseForm()
+		r.ParseForm()
 
 		if len(r.Form["domain"]) != 1 {
 			w.WriteHeader(400)
@@ -139,15 +154,14 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 		}
 		domain := r.Form["domain"][0]
 
-                data := &ConfirmData{
-                        Styles: template.CSS(stylesText),
-                        Message: fmt.Sprintf("Are you sure you want to delete %s?", domain),
-                        ConfirmUrl: fmt.Sprintf("/delete-tunnel?domain=%s", domain),
-                        CancelUrl: "/",
-                }
+		data := &ConfirmData{
+			Styles:     template.CSS(stylesText),
+			Message:    fmt.Sprintf("Are you sure you want to delete %s?", domain),
+			ConfirmUrl: fmt.Sprintf("/delete-tunnel?domain=%s", domain),
+			CancelUrl:  "/",
+		}
 
 		tmpl.Execute(w, data)
-
 
 	case "/delete-tunnel":
 		token, err := extractToken("access_token", r)
@@ -157,7 +171,7 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
-		if !p.auth.Authorized(token) {
+		if !h.auth.Authorized(token) {
 			w.WriteHeader(403)
 			w.Write([]byte("Not authorized"))
 			return
@@ -172,7 +186,7 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 		}
 		domain := r.Form["domain"][0]
 
-		p.tunMan.DeleteTunnel(domain)
+		h.tunMan.DeleteTunnel(domain)
 
 		http.Redirect(w, r, "/", 307)
 	default:
@@ -182,11 +196,11 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func (p *BoringProxy) handleTunnels(w http.ResponseWriter, r *http.Request) {
+func (h *WebUiHandler) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "POST":
-		p.handleCreateTunnel(w, r)
+		h.handleCreateTunnel(w, r)
 	default:
 		w.WriteHeader(405)
 		w.Write([]byte("Invalid method for /tunnels"))
@@ -194,7 +208,7 @@ func (p *BoringProxy) handleTunnels(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p *BoringProxy) handleLogin(w http.ResponseWriter, r *http.Request) {
+func (h *WebUiHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "GET":
@@ -207,7 +221,7 @@ func (p *BoringProxy) handleLogin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		token, err := p.auth.Verify(key[0])
+		token, err := h.auth.Verify(key[0])
 
 		if err != nil {
 			w.WriteHeader(400)
@@ -234,7 +248,7 @@ func (p *BoringProxy) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 		// run in goroutine because it can take some time to send the
 		// email
-		go p.auth.Login(toEmail[0], p.config)
+		go h.auth.Login(toEmail[0], h.config)
 
 		io.WriteString(w, "Check your email to finish logging in")
 	default:
@@ -243,7 +257,7 @@ func (p *BoringProxy) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p *BoringProxy) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
+func (h *WebUiHandler) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 
 	r.ParseForm()
 
@@ -275,7 +289,7 @@ func (p *BoringProxy) handleCreateTunnel(w http.ResponseWriter, r *http.Request)
 	}
 
 	fmt.Println(domain, clientName, clientPort)
-	_, err = p.tunMan.CreateTunnelForClient(domain, clientName, clientPort)
+	_, err = h.tunMan.CreateTunnelForClient(domain, clientName, clientPort)
 	if err != nil {
 		w.WriteHeader(400)
 		io.WriteString(w, err.Error())
