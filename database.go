@@ -8,12 +8,12 @@ import (
 )
 
 type Database struct {
-	Sessions map[string]Session `json:"sessions"`
-	Tunnels  map[string]Tunnel  `json:"tunnels"`
-	mutex    *sync.Mutex
+	Tokens  map[string]TokenData `json:"tokens"`
+	Tunnels map[string]Tunnel    `json:"tunnels"`
+	mutex   *sync.Mutex
 }
 
-type Session struct {
+type TokenData struct {
 	Id string `json:"id"`
 }
 
@@ -44,8 +44,8 @@ func NewDatabase() (*Database, error) {
 		db = &Database{}
 	}
 
-	if db.Sessions == nil {
-		db.Sessions = make(map[string]Session)
+	if db.Tokens == nil {
+		db.Tokens = make(map[string]TokenData)
 	}
 
 	if db.Tunnels == nil {
@@ -61,24 +61,24 @@ func NewDatabase() (*Database, error) {
 	return db, nil
 }
 
-func (d *Database) GetSession(token string) (Session, bool) {
+func (d *Database) GetTokenData(token string) (TokenData, bool) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	sesh, exists := d.Sessions[token]
+	tokenData, exists := d.Tokens[token]
 
 	if !exists {
-		return Session{}, false
+		return TokenData{}, false
 	}
 
-	return sesh, true
+	return tokenData, true
 }
 
-func (d *Database) SetSession(token string, sesh Session) {
+func (d *Database) SetTokenData(token string, tokenData TokenData) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	d.Sessions[token] = sesh
+	d.Tokens[token] = tokenData
 	d.persist()
 }
 
