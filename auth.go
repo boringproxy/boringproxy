@@ -28,7 +28,7 @@ func NewAuth(db *Database) *Auth {
 }
 
 func (a *Auth) Authorized(token string) bool {
-	_, exists := a.db.GetSession(token)
+	_, exists := a.db.GetTokenData(token)
 
 	if exists {
 		return true
@@ -90,7 +90,7 @@ func (a *Auth) Verify(key string) (string, error) {
 		return "", errors.New("Error generating key")
 	}
 
-	a.db.SetSession(token, Session{Id: request.Email})
+	a.db.SetTokenData(token, TokenData{Id: request.Email})
 
 	return token, nil
 }

@@ -62,9 +62,9 @@ func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
 		w.Write([]byte(body))
 	case "POST":
-		a.validateSession(http.HandlerFunc(a.handleCreateTunnel)).ServeHTTP(w, r)
+		a.validateToken(http.HandlerFunc(a.handleCreateTunnel)).ServeHTTP(w, r)
 	case "DELETE":
-		a.validateSession(http.HandlerFunc(a.handleDeleteTunnel)).ServeHTTP(w, r)
+		a.validateToken(http.HandlerFunc(a.handleDeleteTunnel)).ServeHTTP(w, r)
 	default:
 		w.WriteHeader(405)
 		w.Write([]byte("Invalid method for /tunnels"))
@@ -117,7 +117,7 @@ func (a *Api) handleDeleteTunnel(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *Api) validateSession(h http.Handler) http.Handler {
+func (a *Api) validateToken(h http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, err := extractToken("access_token", r)
