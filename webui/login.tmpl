@@ -8,13 +8,21 @@
 
     <link rel="icon" href="data:image/gif;base64,R0lGODlhEAAQAAAAACwAAAAAAQABAAACASgAOw==">
 
+    <style>
+      {{.Styles}}
+
+      button {
+        display: block;
+      }
+    </style>
+
   </head>
 
   <body>
-    <form action="/login" method="post">
+    <form class='dialog' action="/login" method="post">
        <label for="mail">E-mail:</label>
        <input type="email" id="mail" name="email">
-       <button type="submit">Login</button>
+       <button class='button green-button' type="submit">Login</button>
     </form>
   </body>
 </html>
