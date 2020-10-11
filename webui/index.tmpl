@@ -19,6 +19,24 @@
         max-width: 900px;
       }
 
+      .button {
+        background: #ccc;
+        border: none;
+        border-radius: .25em;
+        padding: .4em .8em;
+        cursor: pointer;
+      }
+
+      .add-button {
+        background: #4CAF50;
+        color: #fff;
+      }
+
+      .delete-button {
+        background: #f44336;
+        color: #fff;
+      }
+
       .tunnel-list {
         display: flex;
         flex-direction: column;
@@ -29,6 +47,7 @@
         border-bottom: 1px solid black;
         display: flex;
         justify-content: space-between;
+        align-items: center;
       }
       .tunnel:hover {
         background-color: #ddd;
@@ -51,7 +70,7 @@
             <a href="https://{{$domain}}">{{$domain}}</a>:{{$tunnel.TunnelPort}} -> {{$tunnel.ClientName}}:{{$tunnel.ClientPort}}
           </div>
           <a href="/delete-tunnel?host={{$domain}}">
-            <button>Delete</button>
+            <button class='button delete-button'>Delete</button>
           </a>
         </div>
         {{end}}
@@ -64,7 +83,7 @@
              <input type="text" id="client-name" name="client-name">
              <label for="client-port">Client Port:</label>
              <input type="text" id="client-port" name="client-port">
-             <button type="submit">Add/Update Tunnel</button>
+             <button class='button add-button' type="submit">Add/Update Tunnel</button>
           </form>
         </div>
       </div>
