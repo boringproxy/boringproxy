@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>boringproxy</title>
+
+    <link rel="icon" href="data:image/gif;base64,R0lGODlhEAAQAAAAACwAAAAAAQABAAACASgAOw==">
+
+    <style>
+      {{.Styles}}
+
+      .dialog {
+        margin: 20px;
+        padding: 20px;
+        font-size: 18px;
+        border: 1px solid black;
+      }
+
+    </style>
+
+  </head>
+
+  <body>
+    <main>
+      <div class='dialog'>
+        <p>
+        {{.Message}}
+        </p>
+        <div class='button-row'>
+          <a href="{{.ConfirmUrl}}">
+            <button class='button red-button'>Confirm</button>
+          </a>
+          <a href="{{.CancelUrl}}">
+            <button class='button green-button'>Cancel</button>
+          </a>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>
