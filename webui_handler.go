@@ -226,50 +226,32 @@ func (h *WebUiHandler) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
 func (h *WebUiHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 
-	switch r.Method {
-	case "GET":
-		query := r.URL.Query()
-		key, exists := query["key"]
-
-		if !exists {
-			w.WriteHeader(400)
-			fmt.Fprintf(w, "Must provide key for verification")
-			return
-		}
-
-		token, err := h.auth.Verify(key[0])
-
-		if err != nil {
-			w.WriteHeader(400)
-			fmt.Fprintf(w, "Invalid key")
-			return
-		}
-
-		cookie := &http.Cookie{Name: "access_token", Value: token, Secure: true, HttpOnly: true}
-		http.SetCookie(w, cookie)
-
-		http.Redirect(w, r, "/", 307)
-
-	case "POST":
-
-		r.ParseForm()
-
-		toEmail, ok := r.Form["email"]
-
-		if !ok {
-			w.WriteHeader(400)
-			w.Write([]byte("Email required for login"))
-			return
-		}
-
-		// run in goroutine because it can take some time to send the
-		// email
-		go h.auth.Login(toEmail[0], h.config)
-
-		io.WriteString(w, "Check your email to finish logging in")
-	default:
+	// Using GET requests to avoid form resubmission warnings in browsers
+	if r.Method != "GET" {
 		w.WriteHeader(405)
 		w.Write([]byte("Invalid method for login"))
+	}
+
+	r.ParseForm()
+
+	tokenList, ok := r.Form["token"]
+
+	if !ok {
+		w.WriteHeader(400)
+		w.Write([]byte("Token required for login"))
+		return
+	}
+
+	token := tokenList[0]
+
+	if h.auth.Authorized(token) {
+		cookie := &http.Cookie{Name: "access_token", Value: token, Secure: true, HttpOnly: true}
+		http.SetCookie(w, cookie)
+		http.Redirect(w, r, "/", 307)
+	} else {
+		w.WriteHeader(401)
+		w.Write([]byte("Invalid token"))
+		return
 	}
 }
 
