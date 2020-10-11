@@ -29,6 +29,10 @@ type ConfirmData struct {
 	CancelUrl  string
 }
 
+type LoginData struct {
+	Styles  template.CSS
+}
+
 func NewWebUiHandler(config *BoringProxyConfig, db *Database, auth *Auth, tunMan *TunnelManager) *WebUiHandler {
 	return &WebUiHandler{
 		config,
@@ -62,7 +66,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		token, err := extractToken("access_token", r)
 		if err != nil {
 
-			loginTemplate, err := box.String("login.tmpl")
+			loginTemplateStr, err := box.String("login.tmpl")
 			if err != nil {
 				log.Println(err)
 				w.WriteHeader(500)
@@ -70,8 +74,21 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 				return
 			}
 
+                        loginTemplate, err := template.New("test").Parse(loginTemplateStr)
+                        if err != nil {
+                                w.WriteHeader(500)
+                                log.Println(err)
+                                io.WriteString(w, "Error compiling login.tmpl")
+                                return
+                        }
+
+                        loginData := LoginData{
+                                Styles:  template.CSS(stylesText),
+                        }
+
+
 			w.WriteHeader(401)
-			io.WriteString(w, loginTemplate)
+                        loginTemplate.Execute(w, loginData)
 			return
 		}
 
