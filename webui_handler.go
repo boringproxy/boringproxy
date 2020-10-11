@@ -15,6 +15,11 @@ type WebUiHandler struct {
 	db     *Database
 	auth   *Auth
 	tunMan *TunnelManager
+
+        stylesText string
+        indexTemplate *template.Template
+        confirmTemplate *template.Template
+        loginTemplate *template.Template
 }
 
 type IndexData struct {
@@ -29,30 +34,65 @@ type ConfirmData struct {
 	CancelUrl  string
 }
 
+type LoginTemplateData struct {
+	Styles     template.CSS
+}
+
 func NewWebUiHandler(config *BoringProxyConfig, db *Database, auth *Auth, tunMan *TunnelManager) *WebUiHandler {
+
+        box, err := rice.FindBox("webui")
+	if err != nil {
+                log.Fatal(err)
+	}
+
+	stylesText, err := box.String("styles.css")
+	if err != nil {
+                log.Fatal(err)
+	}
+
+        indexTemplateStr, err := box.String("index.tmpl")
+        if err != nil {
+                log.Fatal(err)
+        }
+
+        indexTemplate, err := template.New("indexhtml").Parse(indexTemplateStr)
+        if err != nil {
+                log.Fatal(err)
+        }
+
+        confirmTemplateStr, err := box.String("confirm.tmpl")
+	if err != nil {
+                log.Fatal(err)
+        }
+
+        confirmTemplate, err := template.New("confirmhtml").Parse(confirmTemplateStr)
+        if err != nil {
+                log.Fatal(err)
+        }
+
+        loginTemplateStr, err := box.String("login.tmpl")
+        if err != nil {
+                log.Fatal(err)
+        }
+
+        loginTemplate, err := template.New("loginhtml").Parse(loginTemplateStr)
+        if err != nil {
+                log.Fatal(err)
+        }
+
 	return &WebUiHandler{
 		config,
 		db,
 		auth,
 		tunMan,
+                stylesText,
+                indexTemplate,
+                confirmTemplate,
+                loginTemplate,
 	}
 }
 
 func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request) {
-
-	box, err := rice.FindBox("webui")
-	if err != nil {
-		w.WriteHeader(500)
-		io.WriteString(w, "Error opening webui")
-		return
-	}
-
-	stylesText, err := box.String("styles.css")
-	if err != nil {
-		w.WriteHeader(500)
-		io.WriteString(w, "Error reading styles.css")
-		return
-	}
 
 	switch r.URL.Path {
 	case "/login":
@@ -62,16 +102,12 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		token, err := extractToken("access_token", r)
 		if err != nil {
 
-			loginTemplate, err := box.String("login.tmpl")
-			if err != nil {
-				log.Println(err)
-				w.WriteHeader(500)
-				io.WriteString(w, "Error reading login.tmpl")
-				return
-			}
+                        loginTemplateData := LoginTemplateData{
+                                Styles:  template.CSS(h.stylesText),
+                        }
 
 			w.WriteHeader(401)
-			io.WriteString(w, loginTemplate)
+                        h.loginTemplate.Execute(w, loginTemplateData)
 			return
 		}
 
@@ -81,27 +117,12 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			return
 		}
 
-		indexTemplate, err := box.String("index.tmpl")
-		if err != nil {
-			w.WriteHeader(500)
-			io.WriteString(w, "Error reading index.tmpl")
-			return
-		}
-
-		tmpl, err := template.New("test").Parse(indexTemplate)
-		if err != nil {
-			w.WriteHeader(500)
-			log.Println(err)
-			io.WriteString(w, "Error compiling index.tmpl")
-			return
-		}
-
 		indexData := IndexData{
-			Styles:  template.CSS(stylesText),
+			Styles:  template.CSS(h.stylesText),
 			Tunnels: h.db.GetTunnels(),
 		}
 
-		tmpl.Execute(w, indexData)
+		h.indexTemplate.Execute(w, indexData)
 
 		//io.WriteString(w, indexTemplate)
 
@@ -123,27 +144,6 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		h.handleTunnels(w, r)
 
 	case "/confirm-delete-tunnel":
-		box, err := rice.FindBox("webui")
-		if err != nil {
-			w.WriteHeader(500)
-			io.WriteString(w, "Error opening webui")
-			return
-		}
-
-		confirmTemplate, err := box.String("confirm.tmpl")
-		if err != nil {
-			w.WriteHeader(500)
-			io.WriteString(w, "Error reading confirm.tmpl")
-			return
-		}
-
-		tmpl, err := template.New("test").Parse(confirmTemplate)
-		if err != nil {
-			w.WriteHeader(500)
-			log.Println(err)
-			io.WriteString(w, "Error compiling confirm.tmpl")
-			return
-		}
 
 		r.ParseForm()
 
@@ -155,13 +155,13 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		domain := r.Form["domain"][0]
 
 		data := &ConfirmData{
-			Styles:     template.CSS(stylesText),
+			Styles:     template.CSS(h.stylesText),
 			Message:    fmt.Sprintf("Are you sure you want to delete %s?", domain),
 			ConfirmUrl: fmt.Sprintf("/delete-tunnel?domain=%s", domain),
 			CancelUrl:  "/",
 		}
 
-		tmpl.Execute(w, data)
+		h.confirmTemplate.Execute(w, data)
 
 	case "/delete-tunnel":
 		token, err := extractToken("access_token", r)
