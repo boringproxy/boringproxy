@@ -10,18 +10,39 @@ import (
 	"strconv"
 )
 
+
+type IndexData struct {
+        Styles template.CSS
+        Tunnels map[string]Tunnel
+}
+
+type ConfirmData struct {
+        Styles template.CSS
+        Message string
+        ConfirmUrl string
+        CancelUrl string
+}
+
 func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request) {
+
+        box, err := rice.FindBox("webui")
+        if err != nil {
+                w.WriteHeader(500)
+                io.WriteString(w, "Error opening webui")
+                return
+        }
+
+        stylesText, err := box.String("styles.css")
+        if err != nil {
+                w.WriteHeader(500)
+                io.WriteString(w, "Error reading styles.css")
+                return
+        }
 
 	switch r.URL.Path {
 	case "/login":
 		p.handleLogin(w, r)
 	case "/":
-		box, err := rice.FindBox("webui")
-		if err != nil {
-			w.WriteHeader(500)
-			io.WriteString(w, "Error opening webui")
-			return
-		}
 
 		token, err := extractToken("access_token", r)
 		if err != nil {
@@ -60,7 +81,12 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
-		tmpl.Execute(w, p.db.GetTunnels())
+                indexData := IndexData {
+                        Styles: template.CSS(stylesText),
+                        Tunnels: p.db.GetTunnels(),
+                }
+
+		tmpl.Execute(w, indexData)
 
 		//io.WriteString(w, indexTemplate)
 
@@ -81,6 +107,48 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 
 		p.handleTunnels(w, r)
 
+        case "/confirm-delete-tunnel":
+		box, err := rice.FindBox("webui")
+		if err != nil {
+			w.WriteHeader(500)
+			io.WriteString(w, "Error opening webui")
+			return
+		}
+
+                confirmTemplate, err := box.String("confirm.tmpl")
+		if err != nil {
+			w.WriteHeader(500)
+			io.WriteString(w, "Error reading confirm.tmpl")
+			return
+		}
+
+		tmpl, err := template.New("test").Parse(confirmTemplate)
+		if err != nil {
+			w.WriteHeader(500)
+			log.Println(err)
+			io.WriteString(w, "Error compiling confirm.tmpl")
+			return
+		}
+
+                r.ParseForm()
+
+		if len(r.Form["domain"]) != 1 {
+			w.WriteHeader(400)
+			w.Write([]byte("Invalid domain parameter"))
+			return
+		}
+		domain := r.Form["domain"][0]
+
+                data := &ConfirmData{
+                        Styles: template.CSS(stylesText),
+                        Message: fmt.Sprintf("Are you sure you want to delete %s?", domain),
+                        ConfirmUrl: fmt.Sprintf("/delete-tunnel?domain=%s", domain),
+                        CancelUrl: "/",
+                }
+
+		tmpl.Execute(w, data)
+
+
 	case "/delete-tunnel":
 		token, err := extractToken("access_token", r)
 		if err != nil {
@@ -97,14 +165,14 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 
 		r.ParseForm()
 
-		if len(r.Form["host"]) != 1 {
+		if len(r.Form["domain"]) != 1 {
 			w.WriteHeader(400)
-			w.Write([]byte("Invalid host parameter"))
+			w.Write([]byte("Invalid domain parameter"))
 			return
 		}
-		host := r.Form["host"][0]
+		domain := r.Form["domain"][0]
 
-		p.tunMan.DeleteTunnel(host)
+		p.tunMan.DeleteTunnel(domain)
 
 		http.Redirect(w, r, "/", 307)
 	default:
@@ -116,20 +184,9 @@ func (p *BoringProxy) handleAdminRequest(w http.ResponseWriter, r *http.Request)
 
 func (p *BoringProxy) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
-	query := r.URL.Query()
-
 	switch r.Method {
 	case "POST":
 		p.handleCreateTunnel(w, r)
-	case "DELETE":
-		if len(query["host"]) != 1 {
-			w.WriteHeader(400)
-			w.Write([]byte("Invalid host parameter"))
-			return
-		}
-		host := query["host"][0]
-
-		p.tunMan.DeleteTunnel(host)
 	default:
 		w.WriteHeader(405)
 		w.Write([]byte("Invalid method for /tunnels"))

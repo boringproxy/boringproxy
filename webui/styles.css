@@ -1,0 +1,100 @@
+:root {
+  --hover-color: #ddd;
+}
+
+body {
+  font-family: Helvetica;
+  display: flex;
+  justify-content: center;
+}
+
+main {
+  max-width: 900px;
+}
+
+#menu-label {
+  font-size: 18px;
+  font-weight: bold;
+  display: block;
+  width: 100%;
+  border: 1px solid black;
+  cursor: pointer;
+  padding: 5px;
+  user-select: none;
+}
+#menu-label:hover {
+  background: var(--hover-color);
+}
+
+.menu {
+  display: none;
+  flex-direction: column;
+  position: absolute;
+  background: #fff;
+  border: 1px solid black;
+  min-width: 256px;
+}
+
+.menu-item {
+  border-bottom: 1px solid black;
+  padding: 5px;
+  text-decoration: none;
+}
+.menu-item:hover {
+  background: var(--hover-color);
+}
+.menu-item:visited {
+  color: #000;
+}
+
+#menu-toggle {
+  display: none;
+}
+
+#menu-toggle:checked ~ .menu {
+  display: flex;
+}
+
+.button {
+  background: #ccc;
+  border: none;
+  border-radius: .25em;
+  margin: .5em;
+  padding: .4em .8em;
+  cursor: pointer;
+}
+
+.green-button {
+  background: #4CAF50;
+  color: #fff;
+}
+
+.red-button {
+  background: #f44336;
+  color: #fff;
+}
+
+.button-row {
+  display: flex;
+  justify-content: center;
+}
+
+.tunnel-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.tunnel {
+  padding: 5px;
+  border-bottom: 1px solid black;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.tunnel:hover {
+  background: var(--hover-color);
+}
+
+.tunnel-adder {
+  padding: 5px;
+}
