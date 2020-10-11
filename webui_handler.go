@@ -226,8 +226,7 @@ func (h *WebUiHandler) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
 func (h *WebUiHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 
-	// Using GET requests to avoid form resubmission warnings in browsers
-	if r.Method != "GET" {
+	if r.Method != "POST" {
 		w.WriteHeader(405)
 		w.Write([]byte("Invalid method for login"))
 	}
@@ -247,7 +246,7 @@ func (h *WebUiHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if h.auth.Authorized(token) {
 		cookie := &http.Cookie{Name: "access_token", Value: token, Secure: true, HttpOnly: true}
 		http.SetCookie(w, cookie)
-		http.Redirect(w, r, "/", 307)
+		http.Redirect(w, r, "/", 303)
 	} else {
 		w.WriteHeader(401)
 		w.Write([]byte("Invalid token"))
