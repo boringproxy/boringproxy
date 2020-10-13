@@ -16,7 +16,7 @@ type Database struct {
 }
 
 type TokenData struct {
-	Id string `json:"id"`
+	Owner string `json:"owner"`
 }
 
 type User struct {
@@ -69,6 +69,27 @@ func NewDatabase() (*Database, error) {
 	db.persist()
 
 	return db, nil
+}
+
+func (d *Database) AddToken(owner string) (string, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	_, exists := d.Users[owner]
+	if !exists {
+		return "", errors.New("Owner doesn't exist")
+	}
+
+	token, err := genRandomCode(32)
+	if err != nil {
+		return "", errors.New("Could not generat token")
+	}
+
+	d.Tokens[token] = TokenData{owner}
+
+	d.persist()
+
+	return token, nil
 }
 
 func (d *Database) GetTokenData(token string) (TokenData, bool) {

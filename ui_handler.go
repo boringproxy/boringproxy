@@ -34,8 +34,8 @@ type ConfirmData struct {
 }
 
 type AlertData struct {
-	Head       template.HTML
-	Message    string
+	Head        template.HTML
+	Message     string
 	RedirectUrl string
 }
 
@@ -116,9 +116,9 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 	case "/users":
 		h.users(w, r)
 	case "/confirm-delete-user":
-                h.confirmDeleteUser(w, r)
+		h.confirmDeleteUser(w, r)
 	case "/delete-user":
-                h.deleteUser(w, r)
+		h.deleteUser(w, r)
 	case "/":
 
 		indexTemplate, err := box.String("index.tmpl")
@@ -158,12 +158,12 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		}
 		domain := r.Form["domain"][0]
 
-                tmpl, err := h.loadTemplate("confirm.tmpl")
-                if err != nil {
+		tmpl, err := h.loadTemplate("confirm.tmpl")
+		if err != nil {
 			w.WriteHeader(500)
 			io.WriteString(w, err.Error())
 			return
-                }
+		}
 
 		data := &ConfirmData{
 			Head:       h.headHtml,
@@ -316,20 +316,20 @@ func (h *WebUiHandler) users(w http.ResponseWriter, r *http.Request) {
 		}
 		username := r.Form["username"][0]
 
-                minUsernameLen := 6
-                if len(username) < minUsernameLen {
+		minUsernameLen := 6
+		if len(username) < minUsernameLen {
 			w.WriteHeader(400)
-                        errStr := fmt.Sprintf("Username must be at least %d characters", minUsernameLen)
-                        h.alertDialog(w, r, errStr, "/users")
+			errStr := fmt.Sprintf("Username must be at least %d characters", minUsernameLen)
+			h.alertDialog(w, r, errStr, "/users")
 			return
-                }
+		}
 
 		isAdmin := len(r.Form["is-admin"]) == 1 && r.Form["is-admin"][0] == "on"
 
 		err := h.db.AddUser(username, isAdmin)
 		if err != nil {
 			w.WriteHeader(500)
-                        h.alertDialog(w, r, err.Error(), "/users")
+			h.alertDialog(w, r, err.Error(), "/users")
 			return
 		}
 
@@ -351,21 +351,21 @@ func (h *WebUiHandler) users(w http.ResponseWriter, r *http.Request) {
 
 func (h *WebUiHandler) confirmDeleteUser(w http.ResponseWriter, r *http.Request) {
 
-        r.ParseForm()
+	r.ParseForm()
 
-        if len(r.Form["username"]) != 1 {
-                w.WriteHeader(400)
-                w.Write([]byte("Invalid username parameter"))
-                return
-        }
-        username := r.Form["username"][0]
+	if len(r.Form["username"]) != 1 {
+		w.WriteHeader(400)
+		w.Write([]byte("Invalid username parameter"))
+		return
+	}
+	username := r.Form["username"][0]
 
-        tmpl, err := h.loadTemplate("confirm.tmpl")
-        if err != nil {
+	tmpl, err := h.loadTemplate("confirm.tmpl")
+	if err != nil {
 		w.WriteHeader(500)
 		io.WriteString(w, err.Error())
 		return
-        }
+	}
 
 	data := &ConfirmData{
 		Head:       h.headHtml,
@@ -379,33 +379,33 @@ func (h *WebUiHandler) confirmDeleteUser(w http.ResponseWriter, r *http.Request)
 
 func (h *WebUiHandler) deleteUser(w http.ResponseWriter, r *http.Request) {
 
-        r.ParseForm()
+	r.ParseForm()
 
-        if len(r.Form["username"]) != 1 {
-                w.WriteHeader(400)
-                w.Write([]byte("Invalid username parameter"))
-                return
-        }
-        username := r.Form["username"][0]
+	if len(r.Form["username"]) != 1 {
+		w.WriteHeader(400)
+		w.Write([]byte("Invalid username parameter"))
+		return
+	}
+	username := r.Form["username"][0]
 
-        h.db.DeleteUser(username)
+	h.db.DeleteUser(username)
 
-        http.Redirect(w, r, "/users", 303)
+	http.Redirect(w, r, "/users", 303)
 }
 
 func (h *WebUiHandler) alertDialog(w http.ResponseWriter, r *http.Request, message, redirectUrl string) error {
-        tmpl, err := h.loadTemplate("alert.tmpl")
-        if err != nil {
-                return err
-        }
+	tmpl, err := h.loadTemplate("alert.tmpl")
+	if err != nil {
+		return err
+	}
 
-        tmpl.Execute(w, &AlertData{
-                Head: h.headHtml,
-                Message: message,
-                RedirectUrl: redirectUrl,
-        })
+	tmpl.Execute(w, &AlertData{
+		Head:        h.headHtml,
+		Message:     message,
+		RedirectUrl: redirectUrl,
+	})
 
-        return nil
+	return nil
 }
 
 func (h *WebUiHandler) loadTemplate(name string) (*template.Template, error) {
