@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+  <head>
+    {{.Head}}
+  </head>
+
+  <body>
+    <main>
+      <label id='menu-label' for='menu-toggle'>Menu</label>
+      <input type='checkbox' id='menu-toggle'/>
+      <div class='menu'>
+        <a class='menu-item' href='/'>Tunnels</a>
+        <a class='menu-item' href='/users'>Users</a>
+      </div>
+      <div class='list'>
+        {{range $username, $user := .Users}}
+        <div class='list-item'>
+          {{$username}}
+        </div>
+        {{end}}
+      </div>
+      <div class='user-adder'>
+        <form action="/users" method="POST">
+           <label for="username">Username:</label>
+           <input type="text" id="username" name="username">
+           <label for="is-admin">Is Admin:</label>
+           <input type="checkbox" id="is-admin" name="is-admin">
+           <button class='button green-button' type="submit">Add User</button>
+        </form>
+      </div>
+    </main>
+  </body>
+</html>

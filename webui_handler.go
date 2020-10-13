@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/GeertJohan/go.rice"
 	"html/template"
@@ -38,6 +39,11 @@ type LoginData struct {
 
 type HeadData struct {
 	Styles template.CSS
+}
+
+type UsersData struct {
+	Head  template.HTML
+	Users map[string]User
 }
 
 func NewWebUiHandler(config *BoringProxyConfig, db *Database, auth *Auth, tunMan *TunnelManager) *WebUiHandler {
@@ -303,4 +309,53 @@ func (h *WebUiHandler) sendLoginPage(w http.ResponseWriter, r *http.Request, cod
 }
 
 func (h *WebUiHandler) users(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method == "POST" {
+		r.ParseForm()
+
+		if len(r.Form["username"]) != 1 {
+			w.WriteHeader(400)
+			w.Write([]byte("Invalid username parameter"))
+			return
+		}
+		username := r.Form["username"][0]
+
+		isAdmin := len(r.Form["is-admin"]) == 1 && r.Form["is-admin"][0] == "on"
+
+		err := h.db.AddUser(username, isAdmin)
+		if err != nil {
+			w.WriteHeader(500)
+			io.WriteString(w, err.Error())
+			return
+		}
+
+		http.Redirect(w, r, "/users", 303)
+	}
+
+	tmpl, err := h.loadTemplate("users.tmpl")
+	if err != nil {
+		w.WriteHeader(500)
+		io.WriteString(w, err.Error())
+		return
+	}
+
+	tmpl.Execute(w, UsersData{
+		Head:  h.headHtml,
+		Users: h.db.GetUsers(),
+	})
+}
+
+func (h *WebUiHandler) loadTemplate(name string) (*template.Template, error) {
+
+	tmplStr, err := h.box.String(name)
+	if err != nil {
+		return nil, errors.New("Error reading template " + name)
+	}
+
+	tmpl, err := template.New(name).Parse(tmplStr)
+	if err != nil {
+		return nil, errors.New("Error compiling template " + name)
+	}
+
+	return tmpl, nil
 }

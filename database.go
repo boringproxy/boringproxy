@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"log"
 	"sync"
@@ -10,6 +11,7 @@ import (
 type Database struct {
 	Tokens  map[string]TokenData `json:"tokens"`
 	Tunnels map[string]Tunnel    `json:"tunnels"`
+	Users   map[string]User      `json:"users"`
 	mutex   *sync.Mutex
 }
 
@@ -54,6 +56,10 @@ func NewDatabase() (*Database, error) {
 
 	if db.Tunnels == nil {
 		db.Tunnels = make(map[string]Tunnel)
+	}
+
+	if db.Users == nil {
+		db.Users = make(map[string]User)
 	}
 
 	db.mutex = &sync.Mutex{}
@@ -127,6 +133,38 @@ func (d *Database) DeleteTunnel(domain string) {
 	delete(d.Tunnels, domain)
 
 	d.persist()
+}
+
+func (d *Database) GetUsers() map[string]User {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	users := make(map[string]User)
+
+	for k, v := range d.Users {
+		users[k] = v
+	}
+
+	return users
+}
+
+func (d *Database) AddUser(username string, isAdmin bool) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	_, exists := d.Users[username]
+
+	if exists {
+		return errors.New("User exists")
+	}
+
+	d.Users[username] = User{
+		isAdmin,
+	}
+
+	d.persist()
+
+	return nil
 }
 
 func (d *Database) persist() {
