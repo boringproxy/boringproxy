@@ -86,12 +86,12 @@ main {
   border: 1px solid black;
 }
 
-.tunnel-list {
+.list {
   display: flex;
   flex-direction: column;
 }
 
-.tunnel {
+.list-item {
   padding: 5px;
   border-bottom: 1px solid black;
   display: flex;
