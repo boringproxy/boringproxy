@@ -2,6 +2,8 @@
 <input type='checkbox' id='menu-toggle'/>
 <div class='menu'>
   <a class='menu-item' href='/'>Tunnels</a>
-  <a class='menu-item' href='/users'>Users</a>
   <a class='menu-item' href='/tokens'>Tokens</a>
+  {{if .IsAdmin}}
+  <a class='menu-item' href='/users'>Users</a>
+  {{end}}
 </div>
