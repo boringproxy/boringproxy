@@ -12,10 +12,12 @@ import (
 )
 
 type WebUiHandler struct {
-	config *BoringProxyConfig
-	db     *Database
-	auth   *Auth
-	tunMan *TunnelManager
+	config   *BoringProxyConfig
+	db       *Database
+	auth     *Auth
+	tunMan   *TunnelManager
+	box      *rice.Box
+	headHtml template.HTML
 }
 
 type IndexData struct {
@@ -40,10 +42,10 @@ type HeadData struct {
 
 func NewWebUiHandler(config *BoringProxyConfig, db *Database, auth *Auth, tunMan *TunnelManager) *WebUiHandler {
 	return &WebUiHandler{
-		config,
-		db,
-		auth,
-		tunMan,
+		config: config,
+		db:     db,
+		auth:   auth,
+		tunMan: tunMan,
 	}
 }
 
@@ -55,6 +57,8 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		io.WriteString(w, "Error opening webui")
 		return
 	}
+
+	h.box = box
 
 	stylesText, err := box.String("styles.css")
 	if err != nil {
@@ -81,44 +85,25 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 	var headBuilder strings.Builder
 	headTmpl.Execute(&headBuilder, HeadData{Styles: template.CSS(stylesText)})
 
+	h.headHtml = template.HTML(headBuilder.String())
+
+	token, err := extractToken("access_token", r)
+	if err != nil {
+		h.sendLoginPage(w, r, 401)
+		return
+	}
+
+	if !h.auth.Authorized(token) {
+		h.sendLoginPage(w, r, 403)
+		return
+	}
+
 	switch r.URL.Path {
 	case "/login":
 		h.handleLogin(w, r)
+	case "/users":
+		h.users(w, r)
 	case "/":
-
-		token, err := extractToken("access_token", r)
-		if err != nil {
-
-			loginTemplateStr, err := box.String("login.tmpl")
-			if err != nil {
-				log.Println(err)
-				w.WriteHeader(500)
-				io.WriteString(w, "Error reading login.tmpl")
-				return
-			}
-
-			loginTemplate, err := template.New("test").Parse(loginTemplateStr)
-			if err != nil {
-				w.WriteHeader(500)
-				log.Println(err)
-				io.WriteString(w, "Error compiling login.tmpl")
-				return
-			}
-
-			loginData := LoginData{
-				Head: template.HTML(headBuilder.String()),
-			}
-
-			w.WriteHeader(401)
-			loginTemplate.Execute(w, loginData)
-			return
-		}
-
-		if !h.auth.Authorized(token) {
-			w.WriteHeader(403)
-			w.Write([]byte("Not authorized"))
-			return
-		}
 
 		indexTemplate, err := box.String("index.tmpl")
 		if err != nil {
@@ -136,28 +121,13 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		}
 
 		indexData := IndexData{
-			Head:    template.HTML(headBuilder.String()),
+			Head:    h.headHtml,
 			Tunnels: h.db.GetTunnels(),
 		}
 
 		tmpl.Execute(w, indexData)
 
-		//io.WriteString(w, indexTemplate)
-
 	case "/tunnels":
-
-		token, err := extractToken("access_token", r)
-		if err != nil {
-			w.WriteHeader(401)
-			w.Write([]byte("No token provided"))
-			return
-		}
-
-		if !h.auth.Authorized(token) {
-			w.WriteHeader(403)
-			w.Write([]byte("Not authorized"))
-			return
-		}
 
 		h.handleTunnels(w, r)
 
@@ -194,7 +164,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		domain := r.Form["domain"][0]
 
 		data := &ConfirmData{
-			Head:       template.HTML(headBuilder.String()),
+			Head:       h.headHtml,
 			Message:    fmt.Sprintf("Are you sure you want to delete %s?", domain),
 			ConfirmUrl: fmt.Sprintf("/delete-tunnel?domain=%s", domain),
 			CancelUrl:  "/",
@@ -203,18 +173,6 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		tmpl.Execute(w, data)
 
 	case "/delete-tunnel":
-		token, err := extractToken("access_token", r)
-		if err != nil {
-			w.WriteHeader(401)
-			w.Write([]byte("No token provided"))
-			return
-		}
-
-		if !h.auth.Authorized(token) {
-			w.WriteHeader(403)
-			w.Write([]byte("Not authorized"))
-			return
-		}
 
 		r.ParseForm()
 
@@ -249,14 +207,14 @@ func (h *WebUiHandler) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
 func (h *WebUiHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 
-	if r.Method != "POST" {
+	if r.Method != "GET" {
 		w.WriteHeader(405)
 		w.Write([]byte("Invalid method for login"))
 	}
 
 	r.ParseForm()
 
-	tokenList, ok := r.Form["token"]
+	tokenList, ok := r.Form["access_token"]
 
 	if !ok {
 		w.WriteHeader(400)
@@ -271,8 +229,7 @@ func (h *WebUiHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, cookie)
 		http.Redirect(w, r, "/", 303)
 	} else {
-		w.WriteHeader(401)
-		w.Write([]byte("Invalid token"))
+		h.sendLoginPage(w, r, 403)
 		return
 	}
 }
@@ -317,4 +274,33 @@ func (h *WebUiHandler) handleCreateTunnel(w http.ResponseWriter, r *http.Request
 	}
 
 	http.Redirect(w, r, "/", 303)
+}
+
+func (h *WebUiHandler) sendLoginPage(w http.ResponseWriter, r *http.Request, code int) {
+
+	loginTemplateStr, err := h.box.String("login.tmpl")
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(500)
+		io.WriteString(w, "Error reading login.tmpl")
+		return
+	}
+
+	loginTemplate, err := template.New("test").Parse(loginTemplateStr)
+	if err != nil {
+		w.WriteHeader(500)
+		log.Println(err)
+		io.WriteString(w, "Error compiling login.tmpl")
+		return
+	}
+
+	loginData := LoginData{
+		Head: h.headHtml,
+	}
+
+	w.WriteHeader(code)
+	loginTemplate.Execute(w, loginData)
+}
+
+func (h *WebUiHandler) users(w http.ResponseWriter, r *http.Request) {
 }

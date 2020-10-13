@@ -10,11 +10,11 @@
       <input type='checkbox' id='menu-toggle'/>
       <div class='menu'>
         <a class='menu-item' href='/'>Tunnels</a>
-        <a class='menu-item' href='/tokens'>Tokens</a>
+        <a class='menu-item' href='/users'>Users</a>
       </div>
-      <div class='tunnel-list'>
+      <div class='list'>
         {{range $domain, $tunnel:= .Tunnels}}
-        <div class='tunnel'>
+        <div class='list-item'>
           <div>
             <a href="https://{{$domain}}">{{$domain}}</a>:{{$tunnel.TunnelPort}} -> {{$tunnel.ClientName}}:{{$tunnel.ClientPort}}
           </div>
