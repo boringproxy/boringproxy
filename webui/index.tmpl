@@ -6,12 +6,7 @@
 
   <body>
     <main>
-      <label id='menu-label' for='menu-toggle'>Menu</label>
-      <input type='checkbox' id='menu-toggle'/>
-      <div class='menu'>
-        <a class='menu-item' href='/'>Tunnels</a>
-        <a class='menu-item' href='/users'>Users</a>
-      </div>
+      {{.Menu}}
       <div class='list'>
         {{range $domain, $tunnel:= .Tunnels}}
         <div class='list-item'>

@@ -19,10 +19,12 @@ type WebUiHandler struct {
 	tunMan   *TunnelManager
 	box      *rice.Box
 	headHtml template.HTML
+	menuHtml template.HTML
 }
 
 type IndexData struct {
 	Head    template.HTML
+	Menu    template.HTML
 	Tunnels map[string]Tunnel
 }
 
@@ -49,6 +51,7 @@ type HeadData struct {
 
 type UsersData struct {
 	Head  template.HTML
+	Menu  template.HTML
 	Users map[string]User
 }
 
@@ -99,6 +102,15 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 	h.headHtml = template.HTML(headBuilder.String())
 
+	menuText, err := box.String("menu.html")
+	if err != nil {
+		w.WriteHeader(500)
+		io.WriteString(w, "Error loading menu.html")
+		return
+	}
+
+	h.menuHtml = template.HTML(menuText)
+
 	token, err := extractToken("access_token", r)
 	if err != nil {
 		h.sendLoginPage(w, r, 401)
@@ -138,6 +150,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 		indexData := IndexData{
 			Head:    h.headHtml,
+			Menu:    h.menuHtml,
 			Tunnels: h.db.GetTunnels(),
 		}
 
@@ -189,8 +202,8 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 		http.Redirect(w, r, "/", 307)
 	default:
-		w.WriteHeader(400)
-		w.Write([]byte("Invalid endpoint"))
+		w.WriteHeader(404)
+		h.alertDialog(w, r, "Unknown page "+r.URL.Path, "/")
 		return
 	}
 }
@@ -345,6 +358,7 @@ func (h *WebUiHandler) users(w http.ResponseWriter, r *http.Request) {
 
 	tmpl.Execute(w, UsersData{
 		Head:  h.headHtml,
+		Menu:  h.menuHtml,
 		Users: h.db.GetUsers(),
 	})
 }
