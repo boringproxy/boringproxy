@@ -167,6 +167,15 @@ func (d *Database) AddUser(username string, isAdmin bool) error {
 	return nil
 }
 
+func (d *Database) DeleteUser(username string) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	delete(d.Users, username)
+
+	d.persist()
+}
+
 func (d *Database) persist() {
 	saveJson(d, "boringproxy_db.json")
 }

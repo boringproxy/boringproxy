@@ -109,6 +109,10 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		h.handleLogin(w, r)
 	case "/users":
 		h.users(w, r)
+	case "/confirm-delete-user":
+                h.confirmDeleteUser(w, r)
+	case "/delete-user":
+                h.deleteUser(w, r)
 	case "/":
 
 		indexTemplate, err := box.String("index.tmpl")
@@ -138,27 +142,6 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		h.handleTunnels(w, r)
 
 	case "/confirm-delete-tunnel":
-		box, err := rice.FindBox("webui")
-		if err != nil {
-			w.WriteHeader(500)
-			io.WriteString(w, "Error opening webui")
-			return
-		}
-
-		confirmTemplate, err := box.String("confirm.tmpl")
-		if err != nil {
-			w.WriteHeader(500)
-			io.WriteString(w, "Error reading confirm.tmpl")
-			return
-		}
-
-		tmpl, err := template.New("test").Parse(confirmTemplate)
-		if err != nil {
-			w.WriteHeader(500)
-			log.Println(err)
-			io.WriteString(w, "Error compiling confirm.tmpl")
-			return
-		}
 
 		r.ParseForm()
 
@@ -168,6 +151,13 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			return
 		}
 		domain := r.Form["domain"][0]
+
+                tmpl, err := h.loadTemplate("confirm.tmpl")
+                if err != nil {
+			w.WriteHeader(500)
+			io.WriteString(w, err.Error())
+			return
+                }
 
 		data := &ConfirmData{
 			Head:       h.headHtml,
@@ -343,6 +333,50 @@ func (h *WebUiHandler) users(w http.ResponseWriter, r *http.Request) {
 		Head:  h.headHtml,
 		Users: h.db.GetUsers(),
 	})
+}
+
+func (h *WebUiHandler) confirmDeleteUser(w http.ResponseWriter, r *http.Request) {
+
+        r.ParseForm()
+
+        if len(r.Form["username"]) != 1 {
+                w.WriteHeader(400)
+                w.Write([]byte("Invalid username parameter"))
+                return
+        }
+        username := r.Form["username"][0]
+
+        tmpl, err := h.loadTemplate("confirm.tmpl")
+        if err != nil {
+		w.WriteHeader(500)
+		io.WriteString(w, err.Error())
+		return
+        }
+
+	data := &ConfirmData{
+		Head:       h.headHtml,
+		Message:    fmt.Sprintf("Are you sure you want to delete user %s?", username),
+		ConfirmUrl: fmt.Sprintf("/delete-user?username=%s", username),
+		CancelUrl:  "/users",
+	}
+
+	tmpl.Execute(w, data)
+}
+
+func (h *WebUiHandler) deleteUser(w http.ResponseWriter, r *http.Request) {
+
+        r.ParseForm()
+
+        if len(r.Form["username"]) != 1 {
+                w.WriteHeader(400)
+                w.Write([]byte("Invalid username parameter"))
+                return
+        }
+        username := r.Form["username"][0]
+
+        h.db.DeleteUser(username)
+
+        http.Redirect(w, r, "/users", 303)
 }
 
 func (h *WebUiHandler) loadTemplate(name string) (*template.Template, error) {
