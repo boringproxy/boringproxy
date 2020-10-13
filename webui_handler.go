@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type WebUiHandler struct {
@@ -18,18 +19,22 @@ type WebUiHandler struct {
 }
 
 type IndexData struct {
-	Styles  template.CSS
+	Head    template.HTML
 	Tunnels map[string]Tunnel
 }
 
 type ConfirmData struct {
-	Styles     template.CSS
+	Head       template.HTML
 	Message    string
 	ConfirmUrl string
 	CancelUrl  string
 }
 
 type LoginData struct {
+	Head template.HTML
+}
+
+type HeadData struct {
 	Styles template.CSS
 }
 
@@ -58,6 +63,24 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	headTmplStr, err := box.String("head.tmpl")
+	if err != nil {
+		w.WriteHeader(500)
+		io.WriteString(w, "Error reading head.tmpl")
+		return
+	}
+
+	headTmpl, err := template.New("head").Parse(headTmplStr)
+	if err != nil {
+		w.WriteHeader(500)
+		log.Println(err)
+		io.WriteString(w, "Error compiling head.tmpl")
+		return
+	}
+
+	var headBuilder strings.Builder
+	headTmpl.Execute(&headBuilder, HeadData{Styles: template.CSS(stylesText)})
+
 	switch r.URL.Path {
 	case "/login":
 		h.handleLogin(w, r)
@@ -83,7 +106,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			}
 
 			loginData := LoginData{
-				Styles: template.CSS(stylesText),
+				Head: template.HTML(headBuilder.String()),
 			}
 
 			w.WriteHeader(401)
@@ -104,7 +127,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			return
 		}
 
-		tmpl, err := template.New("test").Parse(indexTemplate)
+		tmpl, err := template.New("index").Parse(indexTemplate)
 		if err != nil {
 			w.WriteHeader(500)
 			log.Println(err)
@@ -113,7 +136,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		}
 
 		indexData := IndexData{
-			Styles:  template.CSS(stylesText),
+			Head:    template.HTML(headBuilder.String()),
 			Tunnels: h.db.GetTunnels(),
 		}
 
@@ -171,7 +194,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		domain := r.Form["domain"][0]
 
 		data := &ConfirmData{
-			Styles:     template.CSS(stylesText),
+			Head:       template.HTML(headBuilder.String()),
 			Message:    fmt.Sprintf("Are you sure you want to delete %s?", domain),
 			ConfirmUrl: fmt.Sprintf("/delete-tunnel?domain=%s", domain),
 			CancelUrl:  "/",

@@ -18,8 +18,8 @@ type TokenData struct {
 }
 
 type User struct {
-        Name string `json:"name"`
-        IsAdmin bool `json:"is_admin"`
+	Name    string `json:"name"`
+	IsAdmin bool   `json:"is_admin"`
 }
 
 type Tunnel struct {
