@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+  <head>
+    {{.Head}}
+  </head>
+
+  <body>
+    <main>
+      <div class='dialog'>
+        <p>
+        {{.Message}}
+        </p>
+        <div class='button-row'>
+          <a href="{{.RedirectUrl}}">
+            <button class='button green-button'>Ok</button>
+          </a>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>
