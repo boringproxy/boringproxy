@@ -81,7 +81,14 @@ func (a *Api) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 	}
 	domain := query["domain"][0]
 
-	tunnel, err := a.tunMan.CreateTunnel(domain)
+	if len(query["owner"]) != 1 {
+		w.WriteHeader(400)
+		w.Write([]byte("Invalid owner parameter"))
+		return
+	}
+	owner := query["owner"][0]
+
+	tunnel, err := a.tunMan.CreateTunnel(domain, owner)
 	if err != nil {
 		w.WriteHeader(400)
 		io.WriteString(w, err.Error())

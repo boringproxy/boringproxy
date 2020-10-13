@@ -49,6 +49,10 @@ type HeadData struct {
 	Styles template.CSS
 }
 
+type MenuData struct {
+	IsAdmin bool
+}
+
 type UsersData struct {
 	Head  template.HTML
 	Menu  template.HTML
@@ -72,6 +76,20 @@ func NewWebUiHandler(config *BoringProxyConfig, db *Database, auth *Auth, tunMan
 }
 
 func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request) {
+
+	token, err := extractToken("access_token", r)
+	if err != nil {
+		h.sendLoginPage(w, r, 401)
+		return
+	}
+
+	if !h.auth.Authorized(token) {
+		h.sendLoginPage(w, r, 403)
+		return
+	}
+
+	tokenData, _ := h.db.GetTokenData(token)
+	user, _ := h.db.GetUser(tokenData.Owner)
 
 	box, err := rice.FindBox("webui")
 	if err != nil {
@@ -109,35 +127,47 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 	h.headHtml = template.HTML(headBuilder.String())
 
-	menuText, err := box.String("menu.html")
+	menuTmplStr, err := box.String("menu.tmpl")
 	if err != nil {
 		w.WriteHeader(500)
-		io.WriteString(w, "Error loading menu.html")
+		io.WriteString(w, "Error loading menu.tmpl")
 		return
 	}
 
-	h.menuHtml = template.HTML(menuText)
-
-	token, err := extractToken("access_token", r)
+	menuTmpl, err := template.New("menu").Parse(menuTmplStr)
 	if err != nil {
-		h.sendLoginPage(w, r, 401)
+		w.WriteHeader(500)
+		h.alertDialog(w, r, "Failed to parse menu.tmpl", "/")
 		return
 	}
 
-	if !h.auth.Authorized(token) {
-		h.sendLoginPage(w, r, 403)
-		return
-	}
+	var menuBuilder strings.Builder
+	menuTmpl.Execute(&menuBuilder, MenuData{IsAdmin: user.IsAdmin})
+
+	h.menuHtml = template.HTML(menuBuilder.String())
 
 	switch r.URL.Path {
 	case "/login":
 		h.handleLogin(w, r)
 	case "/users":
-		h.users(w, r)
+		if user.IsAdmin {
+			h.usersPage(w, r)
+		} else {
+			w.WriteHeader(403)
+			h.alertDialog(w, r, "Not authorized", "/")
+			return
+		}
+
 	case "/confirm-delete-user":
 		h.confirmDeleteUser(w, r)
 	case "/delete-user":
-		h.deleteUser(w, r)
+		if user.IsAdmin {
+			h.deleteUser(w, r)
+		} else {
+			w.WriteHeader(403)
+			h.alertDialog(w, r, "Not authorized", "/")
+			return
+		}
 	case "/":
 
 		indexTemplate, err := box.String("index.tmpl")
@@ -155,16 +185,30 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			return
 		}
 
+		var tunnels map[string]Tunnel
+
+		if user.IsAdmin {
+			tunnels = h.db.GetTunnels()
+		} else {
+			tunnels = make(map[string]Tunnel)
+
+			for domain, tun := range h.db.GetTunnels() {
+				if tokenData.Owner == tun.Owner {
+					tunnels[domain] = tun
+				}
+			}
+		}
+
 		indexData := IndexData{
 			Head:    h.headHtml,
 			Menu:    h.menuHtml,
-			Tunnels: h.db.GetTunnels(),
+			Tunnels: tunnels,
 		}
 
 		tmpl.Execute(w, indexData)
 
 	case "/tunnels":
-		h.handleTunnels(w, r)
+		h.handleTunnels(w, r, tokenData)
 	case "/confirm-delete-tunnel":
 
 		r.ParseForm()
@@ -208,7 +252,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		http.Redirect(w, r, "/", 307)
 
 	case "/tokens":
-		h.tokensPage(w, r)
+		h.tokensPage(w, r, user, tokenData)
 	case "/confirm-delete-token":
 		h.confirmDeleteToken(w, r)
 	case "/delete-token":
@@ -221,19 +265,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func (h *WebUiHandler) handleTunnels(w http.ResponseWriter, r *http.Request) {
-
-	switch r.Method {
-	case "POST":
-		h.handleCreateTunnel(w, r)
-	default:
-		w.WriteHeader(405)
-		w.Write([]byte("Invalid method for /tunnels"))
-		return
-	}
-}
-
-func (h *WebUiHandler) tokensPage(w http.ResponseWriter, r *http.Request) {
+func (h *WebUiHandler) tokensPage(w http.ResponseWriter, r *http.Request, user User, tokenData TokenData) {
 
 	if r.Method == "POST" {
 		r.ParseForm()
@@ -271,11 +303,30 @@ func (h *WebUiHandler) tokensPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var tokens map[string]TokenData
+	var users map[string]User
+
+	if user.IsAdmin {
+		tokens = h.db.GetTokens()
+		users = h.db.GetUsers()
+	} else {
+		tokens = make(map[string]TokenData)
+
+		for token, td := range h.db.GetTokens() {
+			if tokenData.Owner == td.Owner {
+				tokens[token] = td
+			}
+		}
+
+		users = make(map[string]User)
+		users[tokenData.Owner] = user
+	}
+
 	tmpl.Execute(w, TokensData{
 		Head:   h.headHtml,
 		Menu:   h.menuHtml,
-		Tokens: h.db.GetTokens(),
-		Users:  h.db.GetUsers(),
+		Tokens: tokens,
+		Users:  users,
 	})
 }
 
@@ -308,42 +359,54 @@ func (h *WebUiHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *WebUiHandler) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
+func (h *WebUiHandler) handleTunnels(w http.ResponseWriter, r *http.Request, tokenData TokenData) {
+
+	switch r.Method {
+	case "POST":
+		h.handleCreateTunnel(w, r, tokenData)
+	default:
+		w.WriteHeader(405)
+		w.Write([]byte("Invalid method for /tunnels"))
+		return
+	}
+}
+
+func (h *WebUiHandler) handleCreateTunnel(w http.ResponseWriter, r *http.Request, tokenData TokenData) {
 
 	r.ParseForm()
 
 	if len(r.Form["domain"]) != 1 {
 		w.WriteHeader(400)
-		w.Write([]byte("Invalid domain parameter"))
+		h.alertDialog(w, r, "Invalid domain parameter", "/")
 		return
 	}
 	domain := r.Form["domain"][0]
 
 	if len(r.Form["client-name"]) != 1 {
 		w.WriteHeader(400)
-		w.Write([]byte("Invalid client-name parameter"))
+		h.alertDialog(w, r, "Invalid client-name parameter", "/")
 		return
 	}
 	clientName := r.Form["client-name"][0]
 
 	if len(r.Form["client-port"]) != 1 {
 		w.WriteHeader(400)
-		w.Write([]byte("Invalid client-port parameter"))
+		h.alertDialog(w, r, "Invalid client-port parameter", "/")
 		return
 	}
 
 	clientPort, err := strconv.Atoi(r.Form["client-port"][0])
 	if err != nil {
 		w.WriteHeader(400)
-		w.Write([]byte("Invalid client-port parameter"))
+		h.alertDialog(w, r, "Invalid client-port parameter", "/")
 		return
 	}
 
-	fmt.Println(domain, clientName, clientPort)
-	_, err = h.tunMan.CreateTunnelForClient(domain, clientName, clientPort)
+	//fmt.Println(domain, clientName, clientPort)
+	_, err = h.tunMan.CreateTunnelForClient(domain, tokenData.Owner, clientName, clientPort)
 	if err != nil {
 		w.WriteHeader(400)
-		io.WriteString(w, err.Error())
+		h.alertDialog(w, r, err.Error(), "/")
 		return
 	}
 
@@ -376,7 +439,7 @@ func (h *WebUiHandler) sendLoginPage(w http.ResponseWriter, r *http.Request, cod
 	loginTemplate.Execute(w, loginData)
 }
 
-func (h *WebUiHandler) users(w http.ResponseWriter, r *http.Request) {
+func (h *WebUiHandler) usersPage(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "POST" {
 		r.ParseForm()
