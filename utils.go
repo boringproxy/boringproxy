@@ -1,9 +1,11 @@
 package main
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 	"strings"
 )
@@ -21,26 +23,8 @@ func saveJson(data interface{}, filePath string) error {
 	return nil
 }
 
-// Looks for auth token in cookie, then header, then query string
+// Looks for auth token in query string, then headers, then cookies
 func extractToken(tokenName string, r *http.Request) (string, error) {
-	tokenCookie, err := r.Cookie(tokenName)
-
-	if err == nil {
-		return tokenCookie.Value, nil
-	}
-
-	tokenHeader := r.Header.Get(tokenName)
-
-	if tokenHeader != "" {
-		return tokenHeader, nil
-	}
-
-	authHeader := r.Header.Get("Authorization")
-
-	if authHeader != "" {
-		tokenHeader := strings.Split(authHeader, " ")[1]
-		return tokenHeader, nil
-	}
 
 	query := r.URL.Query()
 
@@ -49,5 +33,35 @@ func extractToken(tokenName string, r *http.Request) (string, error) {
 		return queryToken, nil
 	}
 
+	tokenHeader := r.Header.Get(tokenName)
+	if tokenHeader != "" {
+		return tokenHeader, nil
+	}
+
+	authHeader := r.Header.Get("Authorization")
+	if authHeader != "" {
+		tokenHeader := strings.Split(authHeader, " ")[1]
+		return tokenHeader, nil
+	}
+
+	tokenCookie, err := r.Cookie(tokenName)
+	if err == nil {
+		return tokenCookie.Value, nil
+	}
+
 	return "", errors.New("No token found")
+}
+
+const chars string = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func genRandomCode(length int) (string, error) {
+	id := ""
+	for i := 0; i < length; i++ {
+		randIndex, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		if err != nil {
+			return "", err
+		}
+		id += string(chars[randIndex.Int64()])
+	}
+	return id, nil
 }

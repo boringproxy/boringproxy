@@ -48,6 +48,17 @@ func Listen() {
 		log.Fatal(err)
 	}
 
+	users := db.GetUsers()
+	if len(users) == 0 {
+		db.AddUser("admin", true)
+		token, err := db.AddToken("admin")
+		if err != nil {
+			log.Fatal("Failed to initialize admin user")
+		}
+
+		log.Println("Admin token: " + token)
+	}
+
 	certmagic.DefaultACME.DisableHTTPChallenge = true
 	//certmagic.DefaultACME.DisableTLSALPNChallenge = true
 	//certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
@@ -102,8 +113,6 @@ func Listen() {
 }
 
 func (p *BoringProxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
-
-	log.Println("proxy conn")
 
 	port, err := p.tunMan.GetPort(r.Host)
 	if err != nil {
