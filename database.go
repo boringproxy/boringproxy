@@ -24,6 +24,7 @@ type User struct {
 }
 
 type Tunnel struct {
+	Owner            string `json:"owner"`
 	ServerAddress    string `json:"server_address"`
 	ServerPort       int    `json:"server_port"`
 	ServerPublicKey  string `json:"server_public_key"`
@@ -189,6 +190,19 @@ func (d *Database) GetUsers() map[string]User {
 	}
 
 	return users
+}
+
+func (d *Database) GetUser(username string) (User, bool) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	user, exists := d.Users[username]
+
+	if !exists {
+		return User{}, false
+	}
+
+	return user, true
 }
 
 func (d *Database) AddUser(username string, isAdmin bool) error {

@@ -50,8 +50,8 @@ func (m *TunnelManager) GetTunnels() map[string]Tunnel {
 	return m.db.GetTunnels()
 }
 
-func (m *TunnelManager) CreateTunnelForClient(domain string, clientName string, clientPort int) (Tunnel, error) {
-	tun, err := m.CreateTunnel(domain)
+func (m *TunnelManager) CreateTunnelForClient(domain, owner, clientName string, clientPort int) (Tunnel, error) {
+	tun, err := m.CreateTunnel(domain, owner)
 	if err != nil {
 		return Tunnel{}, err
 	}
@@ -66,7 +66,7 @@ func (m *TunnelManager) CreateTunnelForClient(domain string, clientName string, 
 	return tun, nil
 }
 
-func (m *TunnelManager) CreateTunnel(domain string) (Tunnel, error) {
+func (m *TunnelManager) CreateTunnel(domain, owner string) (Tunnel, error) {
 	err := m.certConfig.ManageSync([]string{domain})
 	if err != nil {
 		log.Println(err)
@@ -90,6 +90,7 @@ func (m *TunnelManager) CreateTunnel(domain string) (Tunnel, error) {
 	}
 
 	tunnel := Tunnel{
+		Owner:            owner,
 		ServerAddress:    m.config.WebUiDomain,
 		ServerPort:       22,
 		ServerPublicKey:  "",
