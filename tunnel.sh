@@ -18,7 +18,7 @@ tunnelPort=$(echo "$json" | jq -r '.tunnel_port')
 tunnelPrivateKey=$(echo "$json" | jq -r '.tunnel_private_key')
 
 # TODO: It would be nice if we could avoid writing the private key to disk.
-# I tried process substition but it didn't work.
+# I tried process substitution but it didn't work.
 keyFile=$(mktemp)
 chmod 0600 $keyFile
 printf -- "$tunnelPrivateKey" > $keyFile

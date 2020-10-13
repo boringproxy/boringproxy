@@ -17,6 +17,11 @@ type TokenData struct {
 	Id string `json:"id"`
 }
 
+type User struct {
+        Name string `json:"name"`
+        IsAdmin bool `json:"is_admin"`
+}
+
 type Tunnel struct {
 	ServerAddress    string `json:"server_address"`
 	ServerPort       int    `json:"server_port"`

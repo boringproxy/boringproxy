@@ -24,9 +24,6 @@ type SmtpConfig struct {
 }
 
 type BoringProxy struct {
-	config     *BoringProxyConfig
-	db         *Database
-	auth       *Auth
 	tunMan     *TunnelManager
 	httpClient *http.Client
 }
@@ -70,7 +67,7 @@ func Listen() {
 
 	httpClient := &http.Client{}
 
-	p := &BoringProxy{config, db, auth, tunMan, httpClient}
+	p := &BoringProxy{tunMan, httpClient}
 
 	api := NewApi(config, auth, tunMan)
 	http.Handle("/api/", http.StripPrefix("/api", api))
