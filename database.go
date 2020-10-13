@@ -92,6 +92,19 @@ func (d *Database) AddToken(owner string) (string, error) {
 	return token, nil
 }
 
+func (d *Database) GetTokens() map[string]TokenData {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	tokens := make(map[string]TokenData)
+
+	for k, v := range d.Tokens {
+		tokens[k] = v
+	}
+
+	return tokens
+}
+
 func (d *Database) GetTokenData(token string) (TokenData, bool) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
@@ -110,6 +123,15 @@ func (d *Database) SetTokenData(token string, tokenData TokenData) {
 	defer d.mutex.Unlock()
 
 	d.Tokens[token] = tokenData
+	d.persist()
+}
+
+func (d *Database) DeleteTokenData(token string) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	delete(d.Tokens, token)
+
 	d.persist()
 }
 

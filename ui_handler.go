@@ -55,6 +55,13 @@ type UsersData struct {
 	Users map[string]User
 }
 
+type TokensData struct {
+	Head   template.HTML
+	Menu   template.HTML
+	Tokens map[string]TokenData
+	Users  map[string]User
+}
+
 func NewWebUiHandler(config *BoringProxyConfig, db *Database, auth *Auth, tunMan *TunnelManager) *WebUiHandler {
 	return &WebUiHandler{
 		config: config,
@@ -157,9 +164,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		tmpl.Execute(w, indexData)
 
 	case "/tunnels":
-
 		h.handleTunnels(w, r)
-
 	case "/confirm-delete-tunnel":
 
 		r.ParseForm()
@@ -201,6 +206,14 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		h.tunMan.DeleteTunnel(domain)
 
 		http.Redirect(w, r, "/", 307)
+
+	case "/tokens":
+		h.tokensPage(w, r)
+	case "/confirm-delete-token":
+		h.confirmDeleteToken(w, r)
+	case "/delete-token":
+		h.deleteToken(w, r)
+
 	default:
 		w.WriteHeader(404)
 		h.alertDialog(w, r, "Unknown page "+r.URL.Path, "/")
@@ -218,6 +231,52 @@ func (h *WebUiHandler) handleTunnels(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Invalid method for /tunnels"))
 		return
 	}
+}
+
+func (h *WebUiHandler) tokensPage(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method == "POST" {
+		r.ParseForm()
+
+		if len(r.Form["owner"]) != 1 {
+			w.WriteHeader(400)
+			h.alertDialog(w, r, "Invalid owner parameter", "/tokens")
+			return
+		}
+		owner := r.Form["owner"][0]
+
+		users := h.db.GetUsers()
+
+		_, exists := users[owner]
+		if !exists {
+			w.WriteHeader(400)
+			h.alertDialog(w, r, "Owner doesn't exist", "/tokens")
+			return
+		}
+
+		_, err := h.db.AddToken(owner)
+		if err != nil {
+			w.WriteHeader(500)
+			h.alertDialog(w, r, "Failed creating token", "/tokens")
+			return
+		}
+
+		http.Redirect(w, r, "/tokens", 303)
+	}
+
+	tmpl, err := h.loadTemplate("tokens.tmpl")
+	if err != nil {
+		w.WriteHeader(500)
+		io.WriteString(w, err.Error())
+		return
+	}
+
+	tmpl.Execute(w, TokensData{
+		Head:   h.headHtml,
+		Menu:   h.menuHtml,
+		Tokens: h.db.GetTokens(),
+		Users:  h.db.GetUsers(),
+	})
 }
 
 func (h *WebUiHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -405,6 +464,50 @@ func (h *WebUiHandler) deleteUser(w http.ResponseWriter, r *http.Request) {
 	h.db.DeleteUser(username)
 
 	http.Redirect(w, r, "/users", 303)
+}
+
+func (h *WebUiHandler) confirmDeleteToken(w http.ResponseWriter, r *http.Request) {
+
+	r.ParseForm()
+
+	if len(r.Form["token"]) != 1 {
+		w.WriteHeader(400)
+		w.Write([]byte("Invalid token parameter"))
+		return
+	}
+	token := r.Form["token"][0]
+
+	tmpl, err := h.loadTemplate("confirm.tmpl")
+	if err != nil {
+		w.WriteHeader(500)
+		io.WriteString(w, err.Error())
+		return
+	}
+
+	data := &ConfirmData{
+		Head:       h.headHtml,
+		Message:    fmt.Sprintf("Are you sure you want to delete token %s?", token),
+		ConfirmUrl: fmt.Sprintf("/delete-token?token=%s", token),
+		CancelUrl:  "/tokens",
+	}
+
+	tmpl.Execute(w, data)
+}
+
+func (h *WebUiHandler) deleteToken(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+
+	if len(r.Form["token"]) != 1 {
+		w.WriteHeader(400)
+		w.Write([]byte("Invalid token parameter"))
+		return
+	}
+	token := r.Form["token"][0]
+
+	h.db.DeleteTokenData(token)
+
+	http.Redirect(w, r, "/tokens", 303)
+
 }
 
 func (h *WebUiHandler) alertDialog(w http.ResponseWriter, r *http.Request, message, redirectUrl string) error {

@@ -5,3 +5,4 @@
 * Use HTML redirects for showing errors then refreshing. Maybe for polling 
   after login and submitting a new tunnel too.
 * Save next port in db
+* On unknown page, redirect to referer if possible
