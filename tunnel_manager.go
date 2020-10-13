@@ -213,8 +213,7 @@ func MakeSSHKeyPair() (string, string, error) {
 		return "", "", err
 	}
 
-	var pubKeyBuf strings.Builder
-	pubKeyBuf.Write(ssh.MarshalAuthorizedKey(pub))
+	pubKey := string(ssh.MarshalAuthorizedKey(pub))
 
-	return pubKeyBuf.String(), privKeyBuf.String(), nil
+	return pubKey, privKeyBuf.String(), nil
 }
