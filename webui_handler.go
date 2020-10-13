@@ -33,6 +33,12 @@ type ConfirmData struct {
 	CancelUrl  string
 }
 
+type AlertData struct {
+	Head       template.HTML
+	Message    string
+	RedirectUrl string
+}
+
 type LoginData struct {
 	Head template.HTML
 }
@@ -310,12 +316,20 @@ func (h *WebUiHandler) users(w http.ResponseWriter, r *http.Request) {
 		}
 		username := r.Form["username"][0]
 
+                minUsernameLen := 6
+                if len(username) < minUsernameLen {
+			w.WriteHeader(400)
+                        errStr := fmt.Sprintf("Username must be at least %d characters", minUsernameLen)
+                        h.alertDialog(w, r, errStr, "/users")
+			return
+                }
+
 		isAdmin := len(r.Form["is-admin"]) == 1 && r.Form["is-admin"][0] == "on"
 
 		err := h.db.AddUser(username, isAdmin)
 		if err != nil {
 			w.WriteHeader(500)
-			io.WriteString(w, err.Error())
+                        h.alertDialog(w, r, err.Error(), "/users")
 			return
 		}
 
@@ -377,6 +391,21 @@ func (h *WebUiHandler) deleteUser(w http.ResponseWriter, r *http.Request) {
         h.db.DeleteUser(username)
 
         http.Redirect(w, r, "/users", 303)
+}
+
+func (h *WebUiHandler) alertDialog(w http.ResponseWriter, r *http.Request, message, redirectUrl string) error {
+        tmpl, err := h.loadTemplate("alert.tmpl")
+        if err != nil {
+                return err
+        }
+
+        tmpl.Execute(w, &AlertData{
+                Head: h.headHtml,
+                Message: message,
+                RedirectUrl: redirectUrl,
+        })
+
+        return nil
 }
 
 func (h *WebUiHandler) loadTemplate(name string) (*template.Template, error) {
