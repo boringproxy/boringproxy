@@ -16,6 +16,9 @@
         {{range $username, $user := .Users}}
         <div class='list-item'>
           {{$username}}
+          <a href="/confirm-delete-user?username={{$username}}">
+            <button class='button red-button'>Delete</button>
+          </a>
         </div>
         {{end}}
       </div>
