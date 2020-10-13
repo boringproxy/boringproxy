@@ -105,3 +105,7 @@ main {
 .tunnel-adder {
   padding: 5px;
 }
+
+.token {
+  font-family: Monospace;
+}
