@@ -57,21 +57,17 @@ func (a *Api) GetTunnels(tokenData TokenData) map[string]Tunnel {
 
 func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, error) {
 
-	if len(params["domain"]) != 1 {
+	domain := params.Get("domain")
+	if domain == "" {
 		return nil, errors.New("Invalid domain parameter")
 	}
-	domain := params["domain"][0]
 
-	if len(params["client-name"]) != 1 {
+	clientName := params.Get("client-name")
+	if clientName == "" {
 		return nil, errors.New("Invalid client-name parameter")
 	}
-	clientName := params["client-name"][0]
 
-	if len(params["client-port"]) != 1 {
-		return nil, errors.New("Invalid client-port parameter")
-	}
-
-	clientPort, err := strconv.Atoi(params["client-port"][0])
+	clientPort, err := strconv.Atoi(params.Get("client-port"))
 	if err != nil {
 		return nil, errors.New("Invalid client-port parameter")
 	}
