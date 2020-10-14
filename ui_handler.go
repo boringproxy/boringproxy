@@ -204,14 +204,12 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 		r.ParseForm()
 
-		if len(r.Form["domain"]) != 1 {
+		err := h.api.DeleteTunnel(tokenData, r.Form)
+		if err != nil {
 			w.WriteHeader(400)
-			w.Write([]byte("Invalid domain parameter"))
+			h.alertDialog(w, r, err.Error(), "/tunnels")
 			return
 		}
-		domain := r.Form["domain"][0]
-
-		h.tunMan.DeleteTunnel(domain)
 
 		http.Redirect(w, r, "/", 307)
 
