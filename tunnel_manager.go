@@ -11,7 +11,9 @@ import (
 	"golang.org/x/crypto/ssh"
 	"io/ioutil"
 	"log"
+	"net"
 	"os/user"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -19,7 +21,6 @@ import (
 type TunnelManager struct {
 	config     *BoringProxyConfig
 	db         *Database
-	nextPort   int
 	mutex      *sync.Mutex
 	certConfig *certmagic.Config
 	user       *user.User
@@ -40,10 +41,8 @@ func NewTunnelManager(config *BoringProxyConfig, db *Database, certConfig *certm
 		}
 	}
 
-	nextPort := 9001
-
 	mutex := &sync.Mutex{}
-	return &TunnelManager{config, db, nextPort, mutex, certConfig, user}
+	return &TunnelManager{config, db, mutex, certConfig, user}
 }
 
 func (m *TunnelManager) GetTunnels() map[string]Tunnel {
@@ -81,8 +80,10 @@ func (m *TunnelManager) CreateTunnel(domain, owner string) (Tunnel, error) {
 		return Tunnel{}, errors.New("Tunnel exists for domain " + domain)
 	}
 
-	port := m.nextPort
-	m.nextPort += 1
+	port, err := randomPort()
+	if err != nil {
+		return Tunnel{}, err
+	}
 
 	privKey, err := m.addToAuthorizedKeys(domain, port)
 	if err != nil {
@@ -217,4 +218,21 @@ func MakeSSHKeyPair() (string, string, error) {
 	pubKey := string(ssh.MarshalAuthorizedKey(pub))
 
 	return pubKey, privKeyBuf.String(), nil
+}
+
+func randomPort() (int, error) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return 0, err
+	}
+
+	addrParts := strings.Split(listener.Addr().String(), ":")
+	port, err := strconv.Atoi(addrParts[len(addrParts)-1])
+	if err != nil {
+		return 0, err
+	}
+
+	listener.Close()
+
+	return port, nil
 }
