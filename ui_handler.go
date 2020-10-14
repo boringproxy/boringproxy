@@ -85,12 +85,12 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if !h.auth.Authorized(token) {
+	tokenData, exists := h.db.GetTokenData(token)
+	if !exists {
 		h.sendLoginPage(w, r, 403)
 		return
 	}
 
-	tokenData, _ := h.db.GetTokenData(token)
 	user, _ := h.db.GetUser(tokenData.Owner)
 
 	box, err := rice.FindBox("webui")
