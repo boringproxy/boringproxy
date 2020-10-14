@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 )
 
@@ -23,7 +22,7 @@ type WebUiHandler struct {
 	menuHtml template.HTML
 }
 
-type IndexData struct {
+type TunnelsData struct {
 	Head    template.HTML
 	Menu    template.HTML
 	Tunnels map[string]Tunnel
@@ -171,30 +170,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			return
 		}
 	case "/":
-
-		indexTemplate, err := box.String("index.tmpl")
-		if err != nil {
-			w.WriteHeader(500)
-			io.WriteString(w, "Error reading index.tmpl")
-			return
-		}
-
-		tmpl, err := template.New("index").Parse(indexTemplate)
-		if err != nil {
-			w.WriteHeader(500)
-			log.Println(err)
-			io.WriteString(w, "Error compiling index.tmpl")
-			return
-		}
-
-		indexData := IndexData{
-			Head:    h.headHtml,
-			Menu:    h.menuHtml,
-			Tunnels: h.api.GetTunnels(tokenData),
-		}
-
-		tmpl.Execute(w, indexData)
-
+		http.Redirect(w, r, "/tunnels", 302)
 	case "/tunnels":
 		h.handleTunnels(w, r, tokenData)
 	case "/confirm-delete-tunnel":
@@ -350,6 +326,29 @@ func (h *WebUiHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 func (h *WebUiHandler) handleTunnels(w http.ResponseWriter, r *http.Request, tokenData TokenData) {
 
 	switch r.Method {
+	case "GET":
+		tunnelsTemplate, err := h.box.String("tunnels.tmpl")
+		if err != nil {
+			w.WriteHeader(500)
+			io.WriteString(w, "Error reading tunnels.tmpl")
+			return
+		}
+
+		tmpl, err := template.New("tunnels").Parse(tunnelsTemplate)
+		if err != nil {
+			w.WriteHeader(500)
+			log.Println(err)
+			io.WriteString(w, "Error compiling tunnels.tmpl")
+			return
+		}
+
+		tunnelsData := TunnelsData{
+			Head:    h.headHtml,
+			Menu:    h.menuHtml,
+			Tunnels: h.api.GetTunnels(tokenData),
+		}
+
+		tmpl.Execute(w, tunnelsData)
 	case "POST":
 		h.handleCreateTunnel(w, r, tokenData)
 	default:
@@ -363,35 +362,7 @@ func (h *WebUiHandler) handleCreateTunnel(w http.ResponseWriter, r *http.Request
 
 	r.ParseForm()
 
-	if len(r.Form["domain"]) != 1 {
-		w.WriteHeader(400)
-		h.alertDialog(w, r, "Invalid domain parameter", "/")
-		return
-	}
-	domain := r.Form["domain"][0]
-
-	if len(r.Form["client-name"]) != 1 {
-		w.WriteHeader(400)
-		h.alertDialog(w, r, "Invalid client-name parameter", "/")
-		return
-	}
-	clientName := r.Form["client-name"][0]
-
-	if len(r.Form["client-port"]) != 1 {
-		w.WriteHeader(400)
-		h.alertDialog(w, r, "Invalid client-port parameter", "/")
-		return
-	}
-
-	clientPort, err := strconv.Atoi(r.Form["client-port"][0])
-	if err != nil {
-		w.WriteHeader(400)
-		h.alertDialog(w, r, "Invalid client-port parameter", "/")
-		return
-	}
-
-	//fmt.Println(domain, clientName, clientPort)
-	_, err = h.tunMan.CreateTunnelForClient(domain, tokenData.Owner, clientName, clientPort)
+	_, err := h.api.CreateTunnel(tokenData, r.Form)
 	if err != nil {
 		w.WriteHeader(400)
 		h.alertDialog(w, r, err.Error(), "/")
