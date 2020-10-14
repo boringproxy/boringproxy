@@ -6,3 +6,6 @@
   after login and submitting a new tunnel too.
 * Save next port in db
 * On unknown page, redirect to referer if possible
+* Properly pick unused ports for tunnels
+* Apparently multiple tunnels can bind to a single server port. Looks like
+  maybe only the first one is used to actually tunnel to the clients?

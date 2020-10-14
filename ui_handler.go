@@ -15,6 +15,7 @@ import (
 type WebUiHandler struct {
 	config   *BoringProxyConfig
 	db       *Database
+	api      *Api
 	auth     *Auth
 	tunMan   *TunnelManager
 	box      *rice.Box
@@ -66,10 +67,11 @@ type TokensData struct {
 	Users  map[string]User
 }
 
-func NewWebUiHandler(config *BoringProxyConfig, db *Database, auth *Auth, tunMan *TunnelManager) *WebUiHandler {
+func NewWebUiHandler(config *BoringProxyConfig, db *Database, api *Api, auth *Auth, tunMan *TunnelManager) *WebUiHandler {
 	return &WebUiHandler{
 		config: config,
 		db:     db,
+		api:    api,
 		auth:   auth,
 		tunMan: tunMan,
 	}
@@ -185,24 +187,10 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			return
 		}
 
-		var tunnels map[string]Tunnel
-
-		if user.IsAdmin {
-			tunnels = h.db.GetTunnels()
-		} else {
-			tunnels = make(map[string]Tunnel)
-
-			for domain, tun := range h.db.GetTunnels() {
-				if tokenData.Owner == tun.Owner {
-					tunnels[domain] = tun
-				}
-			}
-		}
-
 		indexData := IndexData{
 			Head:    h.headHtml,
 			Menu:    h.menuHtml,
-			Tunnels: tunnels,
+			Tunnels: h.api.GetTunnels(tokenData),
 		}
 
 		tmpl.Execute(w, indexData)
