@@ -80,6 +80,17 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 	return &tunnel, nil
 }
 
+func (a *Api) DeleteTunnel(tokenData TokenData, params url.Values) error {
+	domain := params.Get("domain")
+	if domain == "" {
+		return errors.New("Invalid domain parameter")
+	}
+
+	a.tunMan.DeleteTunnel(domain)
+
+	return nil
+}
+
 func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
 	token, err := extractToken("access_token", r)
