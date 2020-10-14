@@ -59,6 +59,8 @@ func Listen() {
 		log.Println("Admin token: " + token)
 	}
 
+	auth := NewAuth(db)
+
 	certmagic.DefaultACME.DisableHTTPChallenge = true
 	//certmagic.DefaultACME.DisableTLSALPNChallenge = true
 	//certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
@@ -72,16 +74,14 @@ func Listen() {
 		log.Println(err)
 	}
 
-	auth := NewAuth(db)
+	api := NewApi(config, db, auth, tunMan)
+	http.Handle("/api/", http.StripPrefix("/api", api))
 
-	webUiHandler := NewWebUiHandler(config, db, auth, tunMan)
+	webUiHandler := NewWebUiHandler(config, db, api, auth, tunMan)
 
 	httpClient := &http.Client{}
 
 	p := &BoringProxy{tunMan, httpClient}
-
-	api := NewApi(config, auth, tunMan)
-	http.Handle("/api/", http.StripPrefix("/api", api))
 
 	tlsConfig := &tls.Config{
 		GetCertificate: certConfig.GetCertificate,

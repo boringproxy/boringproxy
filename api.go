@@ -10,20 +10,19 @@ import (
 
 type Api struct {
 	config *BoringProxyConfig
+	db     *Database
 	auth   *Auth
 	tunMan *TunnelManager
 	mux    *http.ServeMux
 }
 
-func NewApi(config *BoringProxyConfig, auth *Auth, tunMan *TunnelManager) *Api {
-
-	api := &Api{config, auth, tunMan, nil}
+func NewApi(config *BoringProxyConfig, db *Database, auth *Auth, tunMan *TunnelManager) *Api {
 
 	mux := http.NewServeMux()
 
-	mux.Handle("/tunnels", http.StripPrefix("/tunnels", http.HandlerFunc(api.handleTunnels)))
+	api := &Api{config, db, auth, tunMan, mux}
 
-	api.mux = mux
+	mux.Handle("/tunnels", http.StripPrefix("/tunnels", http.HandlerFunc(api.handleTunnels)))
 
 	return api
 }
@@ -32,12 +31,48 @@ func (a *Api) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.mux.ServeHTTP(w, r)
 }
 
+func (a *Api) GetTunnels(tokenData TokenData) map[string]Tunnel {
+
+	user, _ := a.db.GetUser(tokenData.Owner)
+
+	var tunnels map[string]Tunnel
+
+	if user.IsAdmin {
+		tunnels = a.db.GetTunnels()
+	} else {
+		tunnels = make(map[string]Tunnel)
+
+		for domain, tun := range a.db.GetTunnels() {
+			if tokenData.Owner == tun.Owner {
+				tunnels[domain] = tun
+			}
+		}
+	}
+
+	return tunnels
+}
+
 func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
+
+	token, err := extractToken("access_token", r)
+	if err != nil {
+		w.WriteHeader(401)
+		w.Write([]byte("No token provided"))
+		return
+	}
+
+	tokenData, exists := a.db.GetTokenData(token)
+	if !exists {
+		w.WriteHeader(403)
+		w.Write([]byte("Not authorized"))
+		return
+	}
+
 	switch r.Method {
 	case "GET":
 		query := r.URL.Query()
 
-		tunnels := a.tunMan.GetTunnels()
+		tunnels := a.GetTunnels(tokenData)
 
 		if len(query["client-name"]) == 1 {
 			clientName := query["client-name"][0]
@@ -62,9 +97,9 @@ func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
 		w.Write([]byte(body))
 	case "POST":
-		a.validateToken(http.HandlerFunc(a.handleCreateTunnel)).ServeHTTP(w, r)
+		a.handleCreateTunnel(w, r)
 	case "DELETE":
-		a.validateToken(http.HandlerFunc(a.handleDeleteTunnel)).ServeHTTP(w, r)
+		a.handleDeleteTunnel(w, r)
 	default:
 		w.WriteHeader(405)
 		w.Write([]byte("Invalid method for /tunnels"))
