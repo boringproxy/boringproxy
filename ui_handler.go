@@ -19,12 +19,10 @@ type WebUiHandler struct {
 	tunMan   *TunnelManager
 	box      *rice.Box
 	headHtml template.HTML
-	menuHtml template.HTML
 }
 
 type IndexData struct {
 	Head    template.HTML
-	Menu    template.HTML
 	Tunnels map[string]Tunnel
 	Tokens  map[string]TokenData
 	Users   map[string]User
@@ -33,7 +31,6 @@ type IndexData struct {
 
 type TunnelsData struct {
 	Head    template.HTML
-	Menu    template.HTML
 	Tunnels map[string]Tunnel
 }
 
@@ -64,13 +61,11 @@ type MenuData struct {
 
 type UsersData struct {
 	Head  template.HTML
-	Menu  template.HTML
 	Users map[string]User
 }
 
 type TokensData struct {
 	Head   template.HTML
-	Menu   template.HTML
 	Tokens map[string]TokenData
 	Users  map[string]User
 }
@@ -137,25 +132,6 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 	h.headHtml = template.HTML(headBuilder.String())
 
-	menuTmplStr, err := box.String("menu.tmpl")
-	if err != nil {
-		w.WriteHeader(500)
-		io.WriteString(w, "Error loading menu.tmpl")
-		return
-	}
-
-	menuTmpl, err := template.New("menu").Parse(menuTmplStr)
-	if err != nil {
-		w.WriteHeader(500)
-		h.alertDialog(w, r, "Failed to parse menu.tmpl", "/#/tunnels")
-		return
-	}
-
-	var menuBuilder strings.Builder
-	menuTmpl.Execute(&menuBuilder, MenuData{IsAdmin: user.IsAdmin})
-
-	h.menuHtml = template.HTML(menuBuilder.String())
-
 	switch r.URL.Path {
 	case "/login":
 		h.handleLogin(w, r)
@@ -214,7 +190,6 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 		indexData := IndexData{
 			Head:    h.headHtml,
-			Menu:    h.menuHtml,
 			Tunnels: h.api.GetTunnels(tokenData),
 			Tokens:  tokens,
 			Users:   users,
