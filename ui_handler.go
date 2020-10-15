@@ -269,7 +269,27 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		h.confirmDeleteToken(w, r)
 	case "/delete-token":
 		h.deleteToken(w, r)
+	case "/confirm-logout":
+		tmpl, err := h.loadTemplate("confirm.tmpl")
+		if err != nil {
+			w.WriteHeader(500)
+			h.alertDialog(w, r, err.Error(), "/#/tunnels")
+			return
+		}
 
+		data := &ConfirmData{
+			Head:       h.headHtml,
+			Message:    "Are you sure you want to log out?",
+			ConfirmUrl: "/logout",
+			CancelUrl:  "/#/tunnels",
+		}
+
+		tmpl.Execute(w, data)
+
+	case "/logout":
+		cookie := &http.Cookie{Name: "access_token", Value: "", Secure: true, HttpOnly: true}
+		http.SetCookie(w, cookie)
+		http.Redirect(w, r, "/#/tunnels", 303)
 	default:
 		w.WriteHeader(404)
 		h.alertDialog(w, r, "Unknown page "+r.URL.Path, "/#/tunnels")
