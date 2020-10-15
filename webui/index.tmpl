@@ -16,7 +16,7 @@
                 <a href="https://{{$domain}}">{{$domain}}</a>:{{$tunnel.TunnelPort}} -> {{$tunnel.ClientName}}:{{$tunnel.ClientPort}}
               </div>
               <a href="/confirm-delete-tunnel?domain={{$domain}}">
-                <button class='button red-button'>Delete</button>
+                <button class='button'>Delete</button>
               </a>
             </div>
             {{end}}
@@ -30,7 +30,7 @@
                <input type="text" id="client-name" name="client-name">
                <label for="client-port">Client Port:</label>
                <input type="text" id="client-port" name="client-port">
-               <button class='button green-button' type="submit">Add/Update Tunnel</button>
+               <button class='button' type="submit">Add/Update Tunnel</button>
             </form>
           </div>
         </div>
@@ -41,7 +41,7 @@
             <div class='list-item'>
               <span class='token'>{{$token}}</span> ({{$tokenData.Owner}})
               <a href="/confirm-delete-token?token={{$token}}">
-                <button class='button red-button'>Delete</button>
+                <button class='button'>Delete</button>
               </a>
             </div>
             {{end}}
@@ -55,7 +55,7 @@
                  <option value="{{$username}}">{{$username}}</option>
                  {{end}}
                </select>
-               <button class='button green-button' type="submit">Add Token</button>
+               <button class='button' type="submit">Add Token</button>
             </form>
           </div>
         </div>
@@ -66,7 +66,7 @@
             <div class='list-item'>
               {{$username}}
               <a href="/confirm-delete-user?username={{$username}}">
-                <button class='button red-button'>Delete</button>
+                <button class='button'>Delete</button>
               </a>
             </div>
             {{end}}
@@ -77,7 +77,7 @@
                <input type="text" id="username" name="username">
                <label for="is-admin">Is Admin:</label>
                <input type="checkbox" id="is-admin" name="is-admin">
-               <button class='button green-button' type="submit">Add User</button>
+               <button class='button' type="submit">Add User</button>
             </form>
           </div>
         </div>
