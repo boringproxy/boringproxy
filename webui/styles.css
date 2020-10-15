@@ -16,7 +16,7 @@ main {
   font-size: 18px;
   font-weight: bold;
   display: block;
-  width: 100%;
+  /*width: 100%;*/
   border: 1px solid black;
   cursor: pointer;
   padding: 5px;
@@ -32,7 +32,7 @@ main {
   position: absolute;
   background: #fff;
   border: 1px solid black;
-  min-width: 256px;
+  /*min-width: 256px;*/
 }
 
 .menu-item {
@@ -53,6 +53,15 @@ main {
 
 #menu-toggle:checked ~ .menu {
   display: flex;
+}
+
+#menu-toggle:checked ~ #menu-label {
+  color: #fff;
+  background: #000;
+}
+
+.content {
+  border: 1px solid black;
 }
 
 .button {
@@ -108,4 +117,34 @@ main {
 
 .token {
   font-family: Monospace;
+}
+
+.page {
+  display: none;
+}
+
+.content *:target {
+  display: block;
+}
+
+
+@media (min-width: 900px) {
+
+  main {
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  #menu-label {
+    display: none;
+  }
+
+  .menu {
+    display: flex;
+    position: static;
+  }
+
+  .content {
+    width: 900px;
+  }
 }

@@ -22,6 +22,14 @@ type WebUiHandler struct {
 	menuHtml template.HTML
 }
 
+type IndexData struct {
+	Head    template.HTML
+	Menu    template.HTML
+	Tunnels map[string]Tunnel
+	Tokens  map[string]TokenData
+	Users   map[string]User
+}
+
 type TunnelsData struct {
 	Head    template.HTML
 	Menu    template.HTML
@@ -138,7 +146,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 	menuTmpl, err := template.New("menu").Parse(menuTmplStr)
 	if err != nil {
 		w.WriteHeader(500)
-		h.alertDialog(w, r, "Failed to parse menu.tmpl", "/")
+		h.alertDialog(w, r, "Failed to parse menu.tmpl", "/#/tunnels")
 		return
 	}
 
@@ -152,10 +160,10 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		h.handleLogin(w, r)
 	case "/users":
 		if user.IsAdmin {
-			h.usersPage(w, r)
+			h.handleUsers(w, r)
 		} else {
 			w.WriteHeader(403)
-			h.alertDialog(w, r, "Not authorized", "/")
+			h.alertDialog(w, r, "Not authorized", "/#/tunnels")
 			return
 		}
 
@@ -166,11 +174,53 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			h.deleteUser(w, r)
 		} else {
 			w.WriteHeader(403)
-			h.alertDialog(w, r, "Not authorized", "/")
+			h.alertDialog(w, r, "Not authorized", "/#/tunnels")
 			return
 		}
 	case "/":
-		http.Redirect(w, r, "/tunnels", 302)
+		indexTmplStr, err := h.box.String("index.tmpl")
+		if err != nil {
+			w.WriteHeader(500)
+			h.alertDialog(w, r, "Error reading index.tmpl", "/#/tunnels")
+			return
+		}
+
+		tmpl, err := template.New("index").Parse(indexTmplStr)
+		if err != nil {
+			w.WriteHeader(500)
+			h.alertDialog(w, r, "Error compiling index.tmpl", "/#/tunnels")
+			return
+		}
+
+		var tokens map[string]TokenData
+		var users map[string]User
+
+		if user.IsAdmin {
+			tokens = h.db.GetTokens()
+			users = h.db.GetUsers()
+		} else {
+			tokens = make(map[string]TokenData)
+
+			for token, td := range h.db.GetTokens() {
+				if tokenData.Owner == td.Owner {
+					tokens[token] = td
+				}
+			}
+
+			users = make(map[string]User)
+			users[tokenData.Owner] = user
+		}
+
+		indexData := IndexData{
+			Head:    h.headHtml,
+			Menu:    h.menuHtml,
+			Tunnels: h.api.GetTunnels(tokenData),
+			Tokens:  tokens,
+			Users:   users,
+		}
+
+		tmpl.Execute(w, indexData)
+
 	case "/tunnels":
 		h.handleTunnels(w, r, tokenData)
 	case "/confirm-delete-tunnel":
@@ -195,7 +245,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			Head:       h.headHtml,
 			Message:    fmt.Sprintf("Are you sure you want to delete %s?", domain),
 			ConfirmUrl: fmt.Sprintf("/delete-tunnel?domain=%s", domain),
-			CancelUrl:  "/",
+			CancelUrl:  "/#/tunnels",
 		}
 
 		tmpl.Execute(w, data)
@@ -207,14 +257,14 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		err := h.api.DeleteTunnel(tokenData, r.Form)
 		if err != nil {
 			w.WriteHeader(400)
-			h.alertDialog(w, r, err.Error(), "/tunnels")
+			h.alertDialog(w, r, err.Error(), "/#/tunnels")
 			return
 		}
 
-		http.Redirect(w, r, "/", 307)
+		http.Redirect(w, r, "/#/tunnels", 307)
 
 	case "/tokens":
-		h.tokensPage(w, r, user, tokenData)
+		h.handleTokens(w, r, user, tokenData)
 	case "/confirm-delete-token":
 		h.confirmDeleteToken(w, r)
 	case "/delete-token":
@@ -222,74 +272,45 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 	default:
 		w.WriteHeader(404)
-		h.alertDialog(w, r, "Unknown page "+r.URL.Path, "/")
+		h.alertDialog(w, r, "Unknown page "+r.URL.Path, "/#/tunnels")
 		return
 	}
 }
 
-func (h *WebUiHandler) tokensPage(w http.ResponseWriter, r *http.Request, user User, tokenData TokenData) {
+func (h *WebUiHandler) handleTokens(w http.ResponseWriter, r *http.Request, user User, tokenData TokenData) {
 
-	if r.Method == "POST" {
-		r.ParseForm()
-
-		if len(r.Form["owner"]) != 1 {
-			w.WriteHeader(400)
-			h.alertDialog(w, r, "Invalid owner parameter", "/tokens")
-			return
-		}
-		owner := r.Form["owner"][0]
-
-		users := h.db.GetUsers()
-
-		_, exists := users[owner]
-		if !exists {
-			w.WriteHeader(400)
-			h.alertDialog(w, r, "Owner doesn't exist", "/tokens")
-			return
-		}
-
-		_, err := h.db.AddToken(owner)
-		if err != nil {
-			w.WriteHeader(500)
-			h.alertDialog(w, r, "Failed creating token", "/tokens")
-			return
-		}
-
-		http.Redirect(w, r, "/tokens", 303)
-	}
-
-	tmpl, err := h.loadTemplate("tokens.tmpl")
-	if err != nil {
-		w.WriteHeader(500)
-		io.WriteString(w, err.Error())
+	if r.Method != "POST" {
+		w.WriteHeader(405)
+		h.alertDialog(w, r, "Invalid method for tokens", "/#/tokens")
 		return
 	}
 
-	var tokens map[string]TokenData
-	var users map[string]User
+	r.ParseForm()
 
-	if user.IsAdmin {
-		tokens = h.db.GetTokens()
-		users = h.db.GetUsers()
-	} else {
-		tokens = make(map[string]TokenData)
+	if len(r.Form["owner"]) != 1 {
+		w.WriteHeader(400)
+		h.alertDialog(w, r, "Invalid owner parameter", "/#/tokens")
+		return
+	}
+	owner := r.Form["owner"][0]
 
-		for token, td := range h.db.GetTokens() {
-			if tokenData.Owner == td.Owner {
-				tokens[token] = td
-			}
-		}
+	users := h.db.GetUsers()
 
-		users = make(map[string]User)
-		users[tokenData.Owner] = user
+	_, exists := users[owner]
+	if !exists {
+		w.WriteHeader(400)
+		h.alertDialog(w, r, "Owner doesn't exist", "/#/tokens")
+		return
 	}
 
-	tmpl.Execute(w, TokensData{
-		Head:   h.headHtml,
-		Menu:   h.menuHtml,
-		Tokens: tokens,
-		Users:  users,
-	})
+	_, err := h.db.AddToken(owner)
+	if err != nil {
+		w.WriteHeader(500)
+		h.alertDialog(w, r, "Failed creating token", "/#/tokens")
+		return
+	}
+
+	http.Redirect(w, r, "/#/tokens", 303)
 }
 
 func (h *WebUiHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -314,7 +335,7 @@ func (h *WebUiHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if h.auth.Authorized(token) {
 		cookie := &http.Cookie{Name: "access_token", Value: token, Secure: true, HttpOnly: true}
 		http.SetCookie(w, cookie)
-		http.Redirect(w, r, "/", 303)
+		http.Redirect(w, r, "/#/tunnels", 303)
 	} else {
 		h.sendLoginPage(w, r, 403)
 		return
@@ -324,34 +345,11 @@ func (h *WebUiHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 func (h *WebUiHandler) handleTunnels(w http.ResponseWriter, r *http.Request, tokenData TokenData) {
 
 	switch r.Method {
-	case "GET":
-		tunnelsTemplate, err := h.box.String("tunnels.tmpl")
-		if err != nil {
-			w.WriteHeader(500)
-			io.WriteString(w, "Error reading tunnels.tmpl")
-			return
-		}
-
-		tmpl, err := template.New("tunnels").Parse(tunnelsTemplate)
-		if err != nil {
-			w.WriteHeader(500)
-			log.Println(err)
-			io.WriteString(w, "Error compiling tunnels.tmpl")
-			return
-		}
-
-		tunnelsData := TunnelsData{
-			Head:    h.headHtml,
-			Menu:    h.menuHtml,
-			Tunnels: h.api.GetTunnels(tokenData),
-		}
-
-		tmpl.Execute(w, tunnelsData)
 	case "POST":
 		h.handleCreateTunnel(w, r, tokenData)
 	default:
 		w.WriteHeader(405)
-		w.Write([]byte("Invalid method for /tunnels"))
+		w.Write([]byte("Invalid method for /#/tunnels"))
 		return
 	}
 }
@@ -363,11 +361,11 @@ func (h *WebUiHandler) handleCreateTunnel(w http.ResponseWriter, r *http.Request
 	_, err := h.api.CreateTunnel(tokenData, r.Form)
 	if err != nil {
 		w.WriteHeader(400)
-		h.alertDialog(w, r, err.Error(), "/")
+		h.alertDialog(w, r, err.Error(), "/#/tunnels")
 		return
 	}
 
-	http.Redirect(w, r, "/", 303)
+	http.Redirect(w, r, "/#/tunnels", 303)
 }
 
 func (h *WebUiHandler) sendLoginPage(w http.ResponseWriter, r *http.Request, code int) {
@@ -396,50 +394,41 @@ func (h *WebUiHandler) sendLoginPage(w http.ResponseWriter, r *http.Request, cod
 	loginTemplate.Execute(w, loginData)
 }
 
-func (h *WebUiHandler) usersPage(w http.ResponseWriter, r *http.Request) {
+func (h *WebUiHandler) handleUsers(w http.ResponseWriter, r *http.Request) {
 
-	if r.Method == "POST" {
-		r.ParseForm()
-
-		if len(r.Form["username"]) != 1 {
-			w.WriteHeader(400)
-			w.Write([]byte("Invalid username parameter"))
-			return
-		}
-		username := r.Form["username"][0]
-
-		minUsernameLen := 6
-		if len(username) < minUsernameLen {
-			w.WriteHeader(400)
-			errStr := fmt.Sprintf("Username must be at least %d characters", minUsernameLen)
-			h.alertDialog(w, r, errStr, "/users")
-			return
-		}
-
-		isAdmin := len(r.Form["is-admin"]) == 1 && r.Form["is-admin"][0] == "on"
-
-		err := h.db.AddUser(username, isAdmin)
-		if err != nil {
-			w.WriteHeader(500)
-			h.alertDialog(w, r, err.Error(), "/users")
-			return
-		}
-
-		http.Redirect(w, r, "/users", 303)
-	}
-
-	tmpl, err := h.loadTemplate("users.tmpl")
-	if err != nil {
-		w.WriteHeader(500)
-		io.WriteString(w, err.Error())
+	if r.Method != "POST" {
+		w.WriteHeader(405)
+		h.alertDialog(w, r, "Invalid method for users", "/#/users")
 		return
 	}
 
-	tmpl.Execute(w, UsersData{
-		Head:  h.headHtml,
-		Menu:  h.menuHtml,
-		Users: h.db.GetUsers(),
-	})
+	r.ParseForm()
+
+	if len(r.Form["username"]) != 1 {
+		w.WriteHeader(400)
+		w.Write([]byte("Invalid username parameter"))
+		return
+	}
+	username := r.Form["username"][0]
+
+	minUsernameLen := 6
+	if len(username) < minUsernameLen {
+		w.WriteHeader(400)
+		errStr := fmt.Sprintf("Username must be at least %d characters", minUsernameLen)
+		h.alertDialog(w, r, errStr, "/#/users")
+		return
+	}
+
+	isAdmin := len(r.Form["is-admin"]) == 1 && r.Form["is-admin"][0] == "on"
+
+	err := h.db.AddUser(username, isAdmin)
+	if err != nil {
+		w.WriteHeader(500)
+		h.alertDialog(w, r, err.Error(), "/#/users")
+		return
+	}
+
+	http.Redirect(w, r, "/#/users", 303)
 }
 
 func (h *WebUiHandler) confirmDeleteUser(w http.ResponseWriter, r *http.Request) {
@@ -464,7 +453,7 @@ func (h *WebUiHandler) confirmDeleteUser(w http.ResponseWriter, r *http.Request)
 		Head:       h.headHtml,
 		Message:    fmt.Sprintf("Are you sure you want to delete user %s?", username),
 		ConfirmUrl: fmt.Sprintf("/delete-user?username=%s", username),
-		CancelUrl:  "/users",
+		CancelUrl:  "/#/users",
 	}
 
 	tmpl.Execute(w, data)
@@ -483,7 +472,7 @@ func (h *WebUiHandler) deleteUser(w http.ResponseWriter, r *http.Request) {
 
 	h.db.DeleteUser(username)
 
-	http.Redirect(w, r, "/users", 303)
+	http.Redirect(w, r, "/#/users", 303)
 }
 
 func (h *WebUiHandler) confirmDeleteToken(w http.ResponseWriter, r *http.Request) {
@@ -508,7 +497,7 @@ func (h *WebUiHandler) confirmDeleteToken(w http.ResponseWriter, r *http.Request
 		Head:       h.headHtml,
 		Message:    fmt.Sprintf("Are you sure you want to delete token %s?", token),
 		ConfirmUrl: fmt.Sprintf("/delete-token?token=%s", token),
-		CancelUrl:  "/tokens",
+		CancelUrl:  "/#/tokens",
 	}
 
 	tmpl.Execute(w, data)
@@ -526,7 +515,7 @@ func (h *WebUiHandler) deleteToken(w http.ResponseWriter, r *http.Request) {
 
 	h.db.DeleteTokenData(token)
 
-	http.Redirect(w, r, "/tokens", 303)
+	http.Redirect(w, r, "/#/tokens", 303)
 
 }
 
