@@ -65,22 +65,21 @@ main {
 }
 
 .button {
-  background: #ccc;
-  border: none;
-  border-radius: .25em;
-  margin: .5em;
-  padding: .4em .8em;
+  padding: .5em 1em;
+  margin: 5px;
+  border: 2px solid #555555;
+  border-radius: .5em;
+  color: #fff;
+  background-color: #555555;
+  text-decoration: none;
+  user-select: none;
   cursor: pointer;
 }
 
-.green-button {
-  background: #4CAF50;
-  color: #fff;
-}
-
-.red-button {
-  background: #f44336;
-  color: #fff;
+.button:hover {
+  color: #555555;
+  background-color: #fff;
+  border: 2px solid #555555;
 }
 
 .button-row {
