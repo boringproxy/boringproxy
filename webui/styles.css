@@ -1,4 +1,6 @@
 :root {
+  --main-color: #555555;
+  --background-color: #fff;
   --hover-color: #ddd;
 }
 
@@ -43,18 +45,16 @@ main {
 .menu-item:hover {
   background: var(--hover-color);
 }
-.menu-item:link, .menu-item:visited {
+.menu-item:any-link {
   color: #000;
 }
 
 #menu-toggle {
   display: none;
 }
-
-#menu-toggle:checked ~ .menu {
+#menu-toggle:checked ~ .page .menu {
   display: flex;
 }
-
 #menu-toggle:checked ~ #menu-label {
   color: #fff;
   background: #000;
@@ -120,10 +120,16 @@ main {
 
 .page {
   display: none;
+  flex-direction: column;
 }
 
-.content *:target {
-  display: block;
+main *:target {
+  display: flex;
+}
+
+.active-tab.menu-item:any-link {
+  color: #fff;
+  background: #000;
 }
 
 
@@ -141,6 +147,10 @@ main {
   .menu {
     display: flex;
     position: static;
+  }
+
+  .page {
+    flex-direction: row;
   }
 
   .content {
