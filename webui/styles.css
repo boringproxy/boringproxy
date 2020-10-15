@@ -43,7 +43,7 @@ main {
 .menu-item:hover {
   background: var(--hover-color);
 }
-.menu-item:visited {
+.menu-item:link, .menu-item:visited {
   color: #000;
 }
 
