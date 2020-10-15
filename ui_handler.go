@@ -28,6 +28,7 @@ type IndexData struct {
 	Tunnels map[string]Tunnel
 	Tokens  map[string]TokenData
 	Users   map[string]User
+	IsAdmin bool
 }
 
 type TunnelsData struct {
@@ -217,6 +218,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			Tunnels: h.api.GetTunnels(tokenData),
 			Tokens:  tokens,
 			Users:   users,
+			IsAdmin: user.IsAdmin,
 		}
 
 		tmpl.Execute(w, indexData)

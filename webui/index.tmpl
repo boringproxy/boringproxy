@@ -6,79 +6,110 @@
 
   <body>
     <main>
-      {{.Menu}}
-      <div class='content'>
+        <input type='checkbox' id='menu-toggle'/>
+        <label id='menu-label' for='menu-toggle'>Menu</label>
+
         <div class='page' id='/tunnels'>
-          <div class='list'>
-            {{range $domain, $tunnel:= .Tunnels}}
-            <div class='list-item'>
-              <div>
-                <a href="https://{{$domain}}">{{$domain}}</a>:{{$tunnel.TunnelPort}} -> {{$tunnel.ClientName}}:{{$tunnel.ClientPort}}
-              </div>
-              <a href="/confirm-delete-tunnel?domain={{$domain}}">
-                <button class='button'>Delete</button>
-              </a>
-            </div>
+          <div class='menu'>
+            <a class='menu-item active-tab' href='/#/tunnels'>Tunnels</a>
+            <a class='menu-item' href='/#/tokens'>Tokens</a>
+            {{if .IsAdmin}}
+            <a class='menu-item' href='/#/users'>Users</a>
             {{end}}
+            <a class='menu-item' href='/confirm-logout'>Logout</a>
           </div>
-            
-          <div class='tunnel-adder'>
-            <form action="/tunnels" method="POST">
-               <label for="domain">Domain:</label>
-               <input type="text" id="domain" name="domain">
-               <label for="client-name">Client Name:</label>
-               <input type="text" id="client-name" name="client-name">
-               <label for="client-port">Client Port:</label>
-               <input type="text" id="client-port" name="client-port">
-               <button class='button' type="submit">Add/Update Tunnel</button>
-            </form>
+          <div class='content'>
+            <div class='list'>
+              {{range $domain, $tunnel:= .Tunnels}}
+              <div class='list-item'>
+                <div>
+                  <a href="https://{{$domain}}">{{$domain}}</a>:{{$tunnel.TunnelPort}} -> {{$tunnel.ClientName}}:{{$tunnel.ClientPort}}
+                </div>
+                <a href="/confirm-delete-tunnel?domain={{$domain}}">
+                  <button class='button'>Delete</button>
+                </a>
+              </div>
+              {{end}}
+            </div>
+              
+            <div class='tunnel-adder'>
+              <form action="/tunnels" method="POST">
+                 <label for="domain">Domain:</label>
+                 <input type="text" id="domain" name="domain">
+                 <label for="client-name">Client Name:</label>
+                 <input type="text" id="client-name" name="client-name">
+                 <label for="client-port">Client Port:</label>
+                 <input type="text" id="client-port" name="client-port">
+                 <button class='button' type="submit">Add/Update Tunnel</button>
+              </form>
+            </div>
           </div>
         </div>
 
         <div class='page' id='/tokens'>
-          <div class='list'>
-            {{range $token, $tokenData := .Tokens}}
-            <div class='list-item'>
-              <span class='token'>{{$token}}</span> ({{$tokenData.Owner}})
-              <a href="/confirm-delete-token?token={{$token}}">
-                <button class='button'>Delete</button>
-              </a>
-            </div>
+          <div class='menu'>
+            <a class='menu-item' href='/#/tunnels'>Tunnels</a>
+            <a class='menu-item active-tab' href='/#/tokens'>Tokens</a>
+            {{if .IsAdmin}}
+            <a class='menu-item' href='/#/users'>Users</a>
             {{end}}
+            <a class='menu-item' href='/confirm-logout'>Logout</a>
           </div>
+          <div class='content'>
+            <div class='list'>
+              {{range $token, $tokenData := .Tokens}}
+              <div class='list-item'>
+                <span class='token'>{{$token}}</span> ({{$tokenData.Owner}})
+                <a href="/confirm-delete-token?token={{$token}}">
+                  <button class='button'>Delete</button>
+                </a>
+              </div>
+              {{end}}
+            </div>
 
-          <div class='token-adder'>
-            <form action="/tokens" method="POST">
-               <label for="owner">Owner:</label>
-               <select id="owner" name="owner">
-                 {{range $username, $user := .Users}}
-                 <option value="{{$username}}">{{$username}}</option>
-                 {{end}}
-               </select>
-               <button class='button' type="submit">Add Token</button>
-            </form>
+            <div class='token-adder'>
+              <form action="/tokens" method="POST">
+                 <label for="owner">Owner:</label>
+                 <select id="owner" name="owner">
+                   {{range $username, $user := .Users}}
+                   <option value="{{$username}}">{{$username}}</option>
+                   {{end}}
+                 </select>
+                 <button class='button' type="submit">Add Token</button>
+              </form>
+            </div>
           </div>
         </div>
 
         <div class='page' id='/users'>
-          <div class='list'>
-            {{range $username, $user := .Users}}
-            <div class='list-item'>
-              {{$username}}
-              <a href="/confirm-delete-user?username={{$username}}">
-                <button class='button'>Delete</button>
-              </a>
-            </div>
+          <div class='menu'>
+            <a class='menu-item' href='/#/tunnels'>Tunnels</a>
+            <a class='menu-item' href='/#/tokens'>Tokens</a>
+            {{if .IsAdmin}}
+            <a class='menu-item' href='/#/users'>Users</a>
             {{end}}
+            <a class='menu-item' href='/confirm-logout'>Logout</a>
           </div>
-          <div class='user-adder'>
-            <form action="/users" method="POST">
-               <label for="username">Username:</label>
-               <input type="text" id="username" name="username">
-               <label for="is-admin">Is Admin:</label>
-               <input type="checkbox" id="is-admin" name="is-admin">
-               <button class='button' type="submit">Add User</button>
-            </form>
+          <div class='content'>
+            <div class='list'>
+              {{range $username, $user := .Users}}
+              <div class='list-item'>
+                {{$username}}
+                <a href="/confirm-delete-user?username={{$username}}">
+                  <button class='button'>Delete</button>
+                </a>
+              </div>
+              {{end}}
+            </div>
+            <div class='user-adder'>
+              <form action="/users" method="POST">
+                 <label for="username">Username:</label>
+                 <input type="text" id="username" name="username">
+                 <label for="is-admin">Is Admin:</label>
+                 <input type="checkbox" id="is-admin" name="is-admin">
+                 <button class='button' type="submit">Add User</button>
+              </form>
+            </div>
           </div>
         </div>
 
