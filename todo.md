@@ -9,3 +9,6 @@
 * Properly pick unused ports for tunnels
 * Apparently multiple tunnels can bind to a single server port. Looks like
   maybe only the first one is used to actually tunnel to the clients?
+* Maybe add a DNS/Domains page and require users to add domains their before
+  they can use them for tunnels. This creates a natural place to explain what
+  is wrong when domain stuff breaks.
