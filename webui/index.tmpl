@@ -125,9 +125,10 @@
           Are you sure you want to delete {{$domain}}?
         </p>
         <div class='button-row'>
-          <a href="/delete-tunnel?domain={{$domain}}">
-            <button class='button'>Confirm</button>
-          </a>
+          <form action="/delete-tunnel" method="GET">
+             <input type="hidden" name="domain" value='{{$domain}}'>
+             <button class='button' type="submit">Confirm</button>
+          </form>
 
           <label for='toggle-tunnel-delete-{{$tunnel.CssId}}' class='button'>Cancel</button>
         </div>
