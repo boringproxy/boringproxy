@@ -621,6 +621,7 @@ func (h *WebUiHandler) handleLoading(w http.ResponseWriter, r *http.Request) {
 
 	h.mutex.Lock()
 	doneSignal := h.pendingRequests[pendingId]
+	delete(h.pendingRequests, pendingId)
 	h.mutex.Unlock()
 
 	redirUrl := <-doneSignal
