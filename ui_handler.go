@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"github.com/GeertJohan/go.rice"
 	"html/template"
@@ -9,16 +8,20 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 )
 
 type WebUiHandler struct {
-	config   *BoringProxyConfig
-	db       *Database
-	api      *Api
-	auth     *Auth
-	tunMan   *TunnelManager
-	box      *rice.Box
-	headHtml template.HTML
+	config          *BoringProxyConfig
+	db              *Database
+	api             *Api
+	auth            *Auth
+	tunMan          *TunnelManager
+	box             *rice.Box
+	headHtml        template.HTML
+	pendingRequests map[string]chan string
+	mutex           *sync.Mutex
 }
 
 type IndexData struct {
@@ -39,6 +42,11 @@ type ConfirmData struct {
 	Message    string
 	ConfirmUrl string
 	CancelUrl  string
+}
+
+type LoadingData struct {
+	Head      template.HTML
+	TargetUrl string
 }
 
 type AlertData struct {
@@ -76,11 +84,13 @@ type TokensData struct {
 
 func NewWebUiHandler(config *BoringProxyConfig, db *Database, api *Api, auth *Auth, tunMan *TunnelManager) *WebUiHandler {
 	return &WebUiHandler{
-		config: config,
-		db:     db,
-		api:    api,
-		auth:   auth,
-		tunMan: tunMan,
+		config:          config,
+		db:              db,
+		api:             api,
+		auth:            auth,
+		tunMan:          tunMan,
+		pendingRequests: make(map[string]chan string),
+		mutex:           &sync.Mutex{},
 	}
 }
 
@@ -291,6 +301,8 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		cookie := &http.Cookie{Name: "access_token", Value: "", Secure: true, HttpOnly: true}
 		http.SetCookie(w, cookie)
 		http.Redirect(w, r, "/#/tunnels", 303)
+	case "/loading":
+		h.handleLoading(w, r)
 	default:
 		w.WriteHeader(404)
 		h.alertDialog(w, r, "Unknown page "+r.URL.Path, "/#/tunnels")
@@ -377,16 +389,57 @@ func (h *WebUiHandler) handleTunnels(w http.ResponseWriter, r *http.Request, tok
 
 func (h *WebUiHandler) handleCreateTunnel(w http.ResponseWriter, r *http.Request, tokenData TokenData) {
 
-	r.ParseForm()
-
-	_, err := h.api.CreateTunnel(tokenData, r.Form)
+	pendingId, err := genRandomCode(16)
 	if err != nil {
 		w.WriteHeader(400)
 		h.alertDialog(w, r, err.Error(), "/#/tunnels")
-		return
 	}
 
-	http.Redirect(w, r, "/#/tunnels", 303)
+	doneSignal := make(chan string)
+	h.mutex.Lock()
+	h.pendingRequests[pendingId] = doneSignal
+	h.mutex.Unlock()
+
+	go func() {
+
+		r.ParseForm()
+
+		_, err := h.api.CreateTunnel(tokenData, r.Form)
+		if err != nil {
+			w.WriteHeader(400)
+			h.alertDialog(w, r, err.Error(), "/#/tunnels")
+		}
+
+		doneSignal <- "/#/tunnels"
+	}()
+
+	timeout := make(chan bool, 1)
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		timeout <- true
+	}()
+
+	select {
+	case <-timeout:
+		url := fmt.Sprintf("/loading?id=%s", pendingId)
+
+		tmpl, err := h.loadTemplate("loading.tmpl")
+		if err != nil {
+			w.WriteHeader(500)
+			h.alertDialog(w, r, err.Error(), "/#/tunnels")
+			return
+		}
+
+		data := &LoadingData{
+			Head:      h.headHtml,
+			TargetUrl: url,
+		}
+
+		tmpl.Execute(w, data)
+
+	case <-doneSignal:
+		http.Redirect(w, r, "/#/tunnels", 303)
+	}
 }
 
 func (h *WebUiHandler) sendLoginPage(w http.ResponseWriter, r *http.Request, code int) {
@@ -555,16 +608,36 @@ func (h *WebUiHandler) alertDialog(w http.ResponseWriter, r *http.Request, messa
 	return nil
 }
 
+func (h *WebUiHandler) handleLoading(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != "GET" {
+		w.WriteHeader(405)
+		h.alertDialog(w, r, "Invalid method for users", "/#/tunnels")
+	}
+
+	r.ParseForm()
+
+	pendingId := r.Form.Get("id")
+
+	h.mutex.Lock()
+	doneSignal := h.pendingRequests[pendingId]
+	h.mutex.Unlock()
+
+	redirUrl := <-doneSignal
+
+	http.Redirect(w, r, redirUrl, 303)
+}
+
 func (h *WebUiHandler) loadTemplate(name string) (*template.Template, error) {
 
 	tmplStr, err := h.box.String(name)
 	if err != nil {
-		return nil, errors.New("Error reading template " + name)
+		return nil, err
 	}
 
 	tmpl, err := template.New(name).Parse(tmplStr)
 	if err != nil {
-		return nil, errors.New("Error compiling template " + name)
+		return nil, err
 	}
 
 	return tmpl, nil
