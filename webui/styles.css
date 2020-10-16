@@ -74,6 +74,10 @@ main {
   text-decoration: none;
   user-select: none;
   cursor: pointer;
+  font-family: -system-ui, sans-serif;
+  font-size: 1em;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .button:hover {
@@ -132,6 +136,37 @@ main *:target {
   background: #000;
 }
 
+.confirm-dialog {
+  display: none;
+}
+.confirm-dialog__overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, .5);
+  z-index: 1000;
+}
+.confirm-dialog__content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--background-color);
+  padding: 1em;
+  border: 1px solid #ccc;
+  z-index: 1010;
+}
+
+{{range $domain, $tunnel:= .Tunnels}}
+#toggle-tunnel-delete-{{$tunnel.CssId}} {
+  display: none;
+}
+#toggle-tunnel-delete-{{$tunnel.CssId}}:checked + .confirm-dialog {
+  display: block;
+}
+{{end}}
 
 @media (min-width: 900px) {
 
