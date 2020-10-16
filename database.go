@@ -33,6 +33,7 @@ type Tunnel struct {
 	TunnelPrivateKey string `json:"tunnel_private_key"`
 	ClientName       string `json:"client_name"`
 	ClientPort       int    `json:"client_port"`
+	CssId            string `json:"css_id"`
 }
 
 func NewDatabase() (*Database, error) {

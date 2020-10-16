@@ -25,9 +25,10 @@
               <div>
                 <a href="https://{{$domain}}">{{$domain}}</a>:{{$tunnel.TunnelPort}} -> {{$tunnel.ClientName}}:{{$tunnel.ClientPort}}
               </div>
-              <a href="/confirm-delete-tunnel?domain={{$domain}}">
-                <button class='button'>Delete</button>
-              </a>
+
+              <label class='button' for='toggle-tunnel-delete-{{$tunnel.CssId}}'>
+                Delete
+              </label>
             </div>
             {{end}}
           </div>
@@ -35,11 +36,11 @@
           <div class='tunnel-adder'>
             <form action="/tunnels" method="POST">
                <label for="domain">Domain:</label>
-               <input type="text" id="domain" name="domain">
+               <input type="text" id="domain" name="domain" required>
                <label for="client-name">Client Name:</label>
-               <input type="text" id="client-name" name="client-name">
+               <input type="text" id="client-name" name="client-name" required>
                <label for="client-port">Client Port:</label>
-               <input type="text" id="client-port" name="client-port">
+               <input type="text" id="client-port" name="client-port" required>
                <button class='button' type="submit">Add/Update Tunnel</button>
             </form>
           </div>
@@ -103,7 +104,7 @@
           <div class='user-adder'>
             <form action="/users" method="POST">
                <label for="username">Username:</label>
-               <input type="text" id="username" name="username">
+               <input type="text" id="username" name="username" required>
                <label for="is-admin">Is Admin:</label>
                <input type="checkbox" id="is-admin" name="is-admin">
                <button class='button' type="submit">Add User</button>
@@ -113,5 +114,26 @@
       </div>
       {{end}}
     </main>
+
+    {{range $domain, $tunnel:= .Tunnels}}
+    <input type='checkbox' id='toggle-tunnel-delete-{{$tunnel.CssId}}'>
+    <div class='confirm-dialog'>
+      <label for='toggle-tunnel-delete-{{$tunnel.CssId}}' class='confirm-dialog__overlay'></label>
+
+      <div class='confirm-dialog__content'>
+        <p class='confirm-dialog__text'>
+          Are you sure you want to delete {{$domain}}?
+        </p>
+        <div class='button-row'>
+          <a href="/delete-tunnel?domain={{$domain}}">
+            <button class='button'>Confirm</button>
+          </a>
+
+          <label for='toggle-tunnel-delete-{{$tunnel.CssId}}' class='button'>Cancel</button>
+        </div>
+      </div>
+    </div>
+    {{end}}
+
   </body>
 </html>

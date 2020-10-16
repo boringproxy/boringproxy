@@ -55,6 +55,10 @@ type HeadData struct {
 	Styles template.CSS
 }
 
+type StylesData struct {
+	Tunnels map[string]Tunnel
+}
+
 type MenuData struct {
 	IsAdmin bool
 }
@@ -81,6 +85,8 @@ func NewWebUiHandler(config *BoringProxyConfig, db *Database, api *Api, auth *Au
 }
 
 func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request) {
+
+	homePath := "/#/tunnel"
 
 	token, err := extractToken("access_token", r)
 	if err != nil {
@@ -112,6 +118,24 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	stylesTmpl, err := template.New("styles").Parse(stylesText)
+	if err != nil {
+		w.WriteHeader(500)
+		h.alertDialog(w, r, err.Error(), homePath)
+		return
+	}
+
+	tunnels := h.api.GetTunnels(tokenData)
+
+	for domain, tun := range tunnels {
+		// TODO: might yield non-unique names
+		tun.CssId = strings.ReplaceAll(domain, ".", "-")
+		tunnels[domain] = tun
+	}
+
+	var stylesBuilder strings.Builder
+	stylesTmpl.Execute(&stylesBuilder, StylesData{Tunnels: tunnels})
+
 	headTmplStr, err := box.String("head.tmpl")
 	if err != nil {
 		w.WriteHeader(500)
@@ -128,7 +152,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 	}
 
 	var headBuilder strings.Builder
-	headTmpl.Execute(&headBuilder, HeadData{Styles: template.CSS(stylesText)})
+	headTmpl.Execute(&headBuilder, HeadData{Styles: template.CSS(stylesBuilder.String())})
 
 	h.headHtml = template.HTML(headBuilder.String())
 
@@ -190,7 +214,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 		indexData := IndexData{
 			Head:    h.headHtml,
-			Tunnels: h.api.GetTunnels(tokenData),
+			Tunnels: tunnels,
 			Tokens:  tokens,
 			Users:   users,
 			IsAdmin: user.IsAdmin,
