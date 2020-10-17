@@ -12,3 +12,5 @@
 * Maybe add a DNS/Domains page and require users to add domains their before
   they can use them for tunnels. This creates a natural place to explain what
   is wrong when domain stuff breaks.
+* Responses to unauthorized requests are leaking information about the current
+  tunnels through the genereated CSS.

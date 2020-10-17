@@ -272,7 +272,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			return
 		}
 
-		http.Redirect(w, r, "/#/tunnels", 307)
+		//http.Redirect(w, r, "/#/tunnels", 307)
 
 	case "/tokens":
 		h.handleTokens(w, r, user, tokenData)
