@@ -21,7 +21,7 @@
         <div class='content'>
           <div class='list'>
             {{range $domain, $tunnel:= .Tunnels}}
-            <input type='checkbox' class='toggle' id='toggle-tunnel-hide-deleted-{{$tunnel.CssId}}'>
+            <input autocomplete='off' type='checkbox' class='toggle' id='toggle-tunnel-hide-deleted-{{$tunnel.CssId}}'>
             <div class='list-item'>
               <div>
                 <a href="https://{{$domain}}">{{$domain}}</a>:{{$tunnel.TunnelPort}} -> {{$tunnel.ClientName}}:{{$tunnel.ClientPort}}
@@ -32,7 +32,7 @@
               </label>
             </div>
 
-            <input type='checkbox' id='toggle-tunnel-delete-dialog-{{$tunnel.CssId}}'>
+            <input autocomplete='off' type='checkbox' id='toggle-tunnel-delete-dialog-{{$tunnel.CssId}}'>
             <div class='confirm-dialog'>
               <label for='toggle-tunnel-delete-dialog-{{$tunnel.CssId}}' class='confirm-dialog__overlay'></label>
 
