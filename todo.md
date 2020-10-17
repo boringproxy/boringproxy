@@ -14,5 +14,3 @@
   is wrong when domain stuff breaks.
 * Responses to unauthorized requests are leaking information about the current
   tunnels through the genereated CSS.
-* The act of refreshing a page can delete tunnels created by other UI
-  sessions, I think because it has local CSS checkbox state.
