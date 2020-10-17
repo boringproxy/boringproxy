@@ -13,7 +13,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"sync"
 	"time"
 )
@@ -139,84 +138,7 @@ func (c *BoringProxyClient) SyncTunnels(serverTunnels map[string]Tunnel) {
 	}
 }
 
-func (c *BoringProxyClient) BoreTunnel(tun Tunnel) context.CancelFunc {
-
-	//log.Println("BoreTunnel", tun)
-
-	privKeyFile, err := ioutil.TempFile("", "")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if _, err := privKeyFile.Write([]byte(tun.TunnelPrivateKey)); err != nil {
-		log.Fatal(err)
-	}
-	if err := privKeyFile.Close(); err != nil {
-		log.Fatal(err)
-	}
-
-	tunnelSpec := fmt.Sprintf("127.0.0.1:%d:127.0.0.1:%d", tun.TunnelPort, tun.ClientPort)
-	sshLogin := fmt.Sprintf("%s@%s", tun.Username, tun.ServerAddress)
-	serverPortStr := fmt.Sprintf("%d", tun.ServerPort)
-
-	ctx, cancelFunc := context.WithCancel(context.Background())
-
-	privKeyPath := privKeyFile.Name()
-
-	go func() {
-		// TODO: Clean up private key files on exit
-		defer os.Remove(privKeyPath)
-		fmt.Println(privKeyPath, tunnelSpec, sshLogin, serverPortStr)
-		cmd := exec.CommandContext(ctx, "ssh", "-i", privKeyPath, "-NR", tunnelSpec, sshLogin, "-p", serverPortStr)
-		err = cmd.Run()
-		if err != nil {
-			log.Print(err)
-		}
-	}()
-
-	return cancelFunc
-}
-
-func (c *BoringProxyClient) Run() {
-	log.Println("Run client")
-
-	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	server := flagSet.String("server", "", "boringproxy server")
-	token := flagSet.String("token", "", "Access token")
-	domain := flagSet.String("domain", "", "Tunnel domain")
-	port := flagSet.Int("port", 9001, "Local port for tunnel")
-	flagSet.Parse(os.Args[2:])
-
-	httpClient := &http.Client{}
-
-	url := fmt.Sprintf("https://%s/api/tunnels?domain=%s", *server, *domain)
-	makeTunReq, err := http.NewRequest("POST", url, nil)
-	if err != nil {
-		log.Fatal("Failed making request", err)
-	}
-
-	if len(*token) > 0 {
-		makeTunReq.Header.Add("Authorization", "bearer "+*token)
-	}
-
-	resp, err := httpClient.Do(makeTunReq)
-	if err != nil {
-		log.Fatal("Failed make tunnel request", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-
-	if resp.StatusCode != 200 {
-		log.Fatal("Failed to create tunnel: " + string(body))
-	}
-
-	tunnel := &Tunnel{}
-
-	err = json.Unmarshal(body, &tunnel)
-	if err != nil {
-		log.Fatal("Failed to parse response", err)
-	}
+func (c *BoringProxyClient) BoreTunnel(tunnel Tunnel) context.CancelFunc {
 
 	signer, err := ssh.ParsePrivateKey([]byte(tunnel.TunnelPrivateKey))
 	if err != nil {
@@ -239,27 +161,43 @@ func (c *BoringProxyClient) Run() {
 	if err != nil {
 		log.Fatal("Failed to dial: ", err)
 	}
-	defer client.Close()
+	//defer client.Close()
 
 	tunnelAddr := fmt.Sprintf("127.0.0.1:%d", tunnel.TunnelPort)
-	l, err := client.Listen("tcp", tunnelAddr)
+	listener, err := client.Listen("tcp", tunnelAddr)
 	if err != nil {
 		log.Fatal("unable to register tcp forward: ", err)
 	}
-	defer l.Close()
+	//defer listener.Close()
 
-	for {
-		conn, err := l.Accept()
-		if err != nil {
-			log.Print(err)
-			continue
+	ctx, cancelFunc := context.WithCancel(context.Background())
+
+	go func() {
+		<-ctx.Done()
+		listener.Close()
+		client.Close()
+	}()
+
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				// TODO: Currently assuming an error means the
+				// tunnel was manually deleted, but there
+				// could be other errors that we should be
+				// attempting to recover from rather than
+				// breaking.
+				break
+				//continue
+			}
+			go c.handleConnection(conn, tunnel.ClientPort)
 		}
-		go c.handleConnection(conn, *port)
-	}
+	}()
+
+	return cancelFunc
 }
 
 func (c *BoringProxyClient) handleConnection(conn net.Conn, port int) {
-	log.Println("new conn")
 
 	defer conn.Close()
 
@@ -273,12 +211,29 @@ func (c *BoringProxyClient) handleConnection(conn net.Conn, port int) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
+	// Copy request to upstream
 	go func() {
-		io.Copy(conn, upstreamConn)
+		_, err := io.Copy(upstreamConn, conn)
+		if err != nil {
+			log.Println(err.Error())
+		}
+		upstreamConn.(*net.TCPConn).CloseWrite()
 		wg.Done()
 	}()
+
+	// Copy response to downstream
 	go func() {
-		io.Copy(upstreamConn, conn)
+		_, err := io.Copy(conn, upstreamConn)
+		//conn.(*net.TCPConn).CloseWrite()
+		if err != nil {
+			log.Println(err.Error())
+		}
+		// TODO: I added this to fix a bug where the copy to
+		// upstreamConn was never closing, even though the copy to
+		// conn was. It seems related to persistent connections going
+		// idle and upstream closing the connection. I'm a bit worried
+		// this might not be thread safe.
+		conn.Close()
 		wg.Done()
 	}()
 
