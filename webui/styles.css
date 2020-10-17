@@ -49,6 +49,10 @@ main {
   color: #000;
 }
 
+.toggle {
+  display: none;
+}
+
 #menu-toggle {
   display: none;
 }
@@ -160,11 +164,23 @@ main *:target {
 }
 
 {{range $domain, $tunnel:= .Tunnels}}
-#toggle-tunnel-delete-{{$tunnel.CssId}} {
+#toggle-tunnel-delete-dialog-{{$tunnel.CssId}} {
   display: none;
 }
-#toggle-tunnel-delete-{{$tunnel.CssId}}:checked + .confirm-dialog {
+#toggle-tunnel-delete-dialog-{{$tunnel.CssId}}:checked + .confirm-dialog {
   display: block;
+}
+
+#toggle-tunnel-hide-deleted-{{$tunnel.CssId}}:checked + .list-item {
+  /* This is a trick to make the delete request after the delete button is
+   * clicked. The background will never actually be displayed, because it's
+   * moved offscreen. */
+  position: absolute;
+  left: -999em;
+  background: url("/delete-tunnel?domain={{$domain}}");
+}
+#toggle-tunnel-hide-deleted-{{$tunnel.CssId}}:checked ~ .confirm-dialog {
+  display: none;
 }
 {{end}}
 
