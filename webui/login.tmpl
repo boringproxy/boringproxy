@@ -2,13 +2,22 @@
 <html>
   <head>
     {{.Head}}
+
+    <style>
+      .dialog {
+        display: block;
+      }
+    </style>
   </head>
 
   <body>
-    <form class='dialog' action="/login" method="GET">
-       <label for="token">Token:</label>
-       <input type="password" id="token" name="access_token">
-       <button class='button green-button' type="submit">Login</button>
-    </form>
+    <div class='dialog'>
+      <div class='dialog__overlay'></div>
+      <form class='dialog__content' action="/login" method="GET">
+         <label for="token">Token:</label>
+         <input type="password" id="token" name="access_token">
+         <button class='button green-button' type="submit">Login</button>
+      </form>
+    </div>
   </body>
 </html>
