@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"github.com/GeertJohan/go.rice"
+	qrcode "github.com/skip2/go-qrcode"
 	"html/template"
 	"io"
 	"log"
@@ -30,6 +32,7 @@ type IndexData struct {
 	Tokens  map[string]TokenData
 	Users   map[string]User
 	IsAdmin bool
+	QrCodes map[string]template.URL
 }
 
 type TunnelsData struct {
@@ -205,6 +208,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 		var tokens map[string]TokenData
 		var users map[string]User
+		qrCodes := make(map[string]template.URL)
 
 		if user.IsAdmin {
 			tokens = h.db.GetTokens()
@@ -216,6 +220,19 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 				if tokenData.Owner == td.Owner {
 					tokens[token] = td
 				}
+
+				loginUrl := fmt.Sprintf("https://%s/login?access_token=%s", h.config.WebUiDomain, token)
+
+				var png []byte
+				png, err := qrcode.Encode(loginUrl, qrcode.Medium, 256)
+				if err != nil {
+					w.WriteHeader(500)
+					h.alertDialog(w, r, err.Error(), "/#/tokens")
+					return
+				}
+
+				data := base64.StdEncoding.EncodeToString(png)
+				qrCodes[token] = template.URL("data:image/png;base64," + data)
 			}
 
 			users = make(map[string]User)
@@ -228,9 +245,15 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			Tokens:  tokens,
 			Users:   users,
 			IsAdmin: user.IsAdmin,
+			QrCodes: qrCodes,
 		}
 
-		tmpl.Execute(w, indexData)
+		err = tmpl.Execute(w, indexData)
+		if err != nil {
+			w.WriteHeader(500)
+			h.alertDialog(w, r, err.Error(), "/#/tokens")
+			return
+		}
 
 	case "/tunnels":
 		h.handleTunnels(w, r, tokenData)
@@ -298,7 +321,12 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		tmpl.Execute(w, data)
 
 	case "/logout":
-		cookie := &http.Cookie{Name: "access_token", Value: "", Secure: true, HttpOnly: true}
+		cookie := &http.Cookie{
+			Name:     "access_token",
+			Value:    "",
+			Secure:   true,
+			HttpOnly: true,
+		}
 		http.SetCookie(w, cookie)
 		http.Redirect(w, r, "/#/tunnels", 303)
 	case "/loading":
@@ -366,7 +394,13 @@ func (h *WebUiHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	token := tokenList[0]
 
 	if h.auth.Authorized(token) {
-		cookie := &http.Cookie{Name: "access_token", Value: token, Secure: true, HttpOnly: true}
+		cookie := &http.Cookie{
+			Name:     "access_token",
+			Value:    token,
+			Secure:   true,
+			HttpOnly: true,
+			MaxAge:   86400 * 365,
+		}
 		http.SetCookie(w, cookie)
 		http.Redirect(w, r, "/#/tunnels", 303)
 	} else {

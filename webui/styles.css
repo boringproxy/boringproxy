@@ -141,6 +141,11 @@ main {
   flex-direction: column;
 }
 
+.qr-code {
+  width: 8em;
+  height: 8em;
+}
+
 main *:target {
   display: flex;
 }
