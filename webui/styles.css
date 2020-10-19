@@ -2,28 +2,41 @@
   --main-color: #555555;
   --background-color: #fff;
   --hover-color: #ddd;
+  --menu-label-height: 60px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
 }
 
 body {
   font-family: Helvetica;
   display: flex;
   justify-content: center;
+  margin: 0;
 }
 
 main {
-  max-width: 900px;
+  width: 100%;
 }
 
 #menu-label {
+  position: fixed;
+  z-index: 1000;
+  width: 100vw;
+  height: var(--menu-label-height);
+  line-height: var(--menu-label-height);
   color: var(--background-color);
   background: var(--main-color);
   font-size: 18px;
   font-weight: bold;
   display: block;
-  /*width: 100%;*/
-  border: 2px solid var(--main-color);
+  /*border: 2px solid var(--main-color);*/
   cursor: pointer;
-  padding: .7em;
+  padding: 0 .7em;
   user-select: none;
 }
 #menu-label:hover {
@@ -33,9 +46,11 @@ main {
 }
 
 .menu {
+  position: fixed;
+  z-index: 1000;
+  top: var(--menu-label-height);
   display: none;
   flex-direction: column;
-  position: absolute;
   background: #fff;
   border: 1px solid var(--main-color);
   /*min-width: 256px;*/
@@ -105,13 +120,6 @@ main {
   justify-content: center;
 }
 
-.dialog {
-  margin: 20px;
-  padding: 20px;
-  font-size: 18px;
-  border: 1px solid black;
-}
-
 .list {
   display: flex;
   flex-direction: column;
@@ -121,6 +129,8 @@ main {
   padding: 5px;
   border-bottom: 1px solid var(--main-color);
   display: flex;
+  flex-wrap: wrap;
+  overflow-x: hidden;
   justify-content: space-between;
   align-items: center;
 }
@@ -130,6 +140,12 @@ main {
 
 .tunnel-adder {
   padding: 5px;
+  display: flex;
+}
+
+.token-adder {
+  padding: 5px;
+  display: flex;
 }
 
 .token {
@@ -137,6 +153,7 @@ main {
 }
 
 .page {
+  margin-top: var(--menu-label-height);
   display: none;
   flex-direction: column;
 }
@@ -150,10 +167,10 @@ main *:target {
   display: flex;
 }
 
-.confirm-dialog {
+.dialog {
   display: none;
 }
-.confirm-dialog__overlay {
+.dialog__overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -162,7 +179,7 @@ main *:target {
   background-color: rgba(0, 0, 0, .5);
   z-index: 1000;
 }
-.confirm-dialog__content {
+.dialog__content {
   position: fixed;
   top: 50%;
   left: 50%;
@@ -177,7 +194,7 @@ main *:target {
 #toggle-tunnel-delete-dialog-{{$tunnel.CssId}} {
   display: none;
 }
-#toggle-tunnel-delete-dialog-{{$tunnel.CssId}}:checked + .confirm-dialog {
+#toggle-tunnel-delete-dialog-{{$tunnel.CssId}}:checked + .dialog {
   display: block;
 }
 
@@ -189,16 +206,17 @@ main *:target {
   left: -999em;
   background: url("/delete-tunnel?domain={{$domain}}");
 }
-#toggle-tunnel-hide-deleted-{{$tunnel.CssId}}:checked ~ .confirm-dialog {
+#toggle-tunnel-hide-deleted-{{$tunnel.CssId}}:checked ~ .dialog {
   display: none;
 }
 {{end}}
 
-@media (min-width: 900px) {
+@media (min-width: 640px) {
 
   main {
     display: flex;
     justify-content: flex-start;
+    width: 900px;
   }
 
   #menu-label {
@@ -211,10 +229,12 @@ main *:target {
   }
 
   .page {
+    margin-top: auto;
     flex-direction: row;
+    width: 100%;
   }
 
   .content {
-    width: 900px;
+    width: 100%;
   }
 }

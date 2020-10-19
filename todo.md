@@ -7,4 +7,4 @@
   * Wrapping labels in buttons and adding a bit of CSS seems to do the trick.
     * Eh buttons aren't actually doing anything apparently (when hit by
       keyboard).
-* Set Cache-Control Max-Age
+* See if WebSockets tunnel correctly
