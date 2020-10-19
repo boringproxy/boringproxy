@@ -79,8 +79,11 @@
         <div class='content'>
           <div class='list'>
             {{range $token, $tokenData := .Tokens}}
+
             <div class='list-item'>
-              <span class='token'>{{$token}}</span> ({{$tokenData.Owner}})
+              <span class='token'>{{$token}} ({{$tokenData.Owner}})</span>
+              <a href='/login?access_token={{$token}}'>Login link</a>
+              <img class='qr-code' src='{{index $.QrCodes $token}}' width=100 height=100>
               <a href="/confirm-delete-token?token={{$token}}">
                 <button class='button'>Delete</button>
               </a>
