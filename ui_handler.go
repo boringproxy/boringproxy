@@ -7,7 +7,6 @@ import (
 	qrcode "github.com/skip2/go-qrcode"
 	"html/template"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -159,7 +158,6 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 	headTmpl, err := template.New("head").Parse(headTmplStr)
 	if err != nil {
 		w.WriteHeader(500)
-		log.Println(err)
 		io.WriteString(w, "Error compiling head.tmpl")
 		return
 	}
@@ -480,7 +478,6 @@ func (h *WebUiHandler) sendLoginPage(w http.ResponseWriter, r *http.Request, cod
 
 	loginTemplateStr, err := h.box.String("login.tmpl")
 	if err != nil {
-		log.Println(err)
 		w.WriteHeader(500)
 		io.WriteString(w, "Error reading login.tmpl")
 		return
@@ -489,7 +486,6 @@ func (h *WebUiHandler) sendLoginPage(w http.ResponseWriter, r *http.Request, cod
 	loginTemplate, err := template.New("test").Parse(loginTemplateStr)
 	if err != nil {
 		w.WriteHeader(500)
-		log.Println(err)
 		io.WriteString(w, "Error compiling login.tmpl")
 		return
 	}

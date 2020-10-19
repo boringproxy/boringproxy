@@ -9,6 +9,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
+	"time"
 )
 
 type BoringProxyConfig struct {
@@ -93,6 +95,9 @@ func Listen() {
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		timestamp := time.Now().Format(time.RFC3339)
+		srcIp := strings.Split(r.RemoteAddr, ":")[0]
+		fmt.Println(fmt.Sprintf("%s %s %s %s %s", timestamp, srcIp, r.Method, r.Host, r.URL.Path))
 		if r.Host == config.WebUiDomain {
 			webUiHandler.handleWebUiRequest(w, r)
 		} else {
@@ -107,8 +112,6 @@ func Listen() {
 		}
 	}()
 
-	log.Println("BoringProxy ready")
-
 	http.Serve(tlsListener, nil)
 }
 
@@ -116,7 +119,6 @@ func (p *BoringProxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
 
 	port, err := p.tunMan.GetPort(r.Host)
 	if err != nil {
-		log.Print(err)
 		errMessage := fmt.Sprintf("No tunnel attached to %s", r.Host)
 		w.WriteHeader(500)
 		io.WriteString(w, errMessage)
@@ -130,7 +132,6 @@ func (p *BoringProxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
 
 	upstreamReq, err := http.NewRequest(r.Method, upstreamUrl, r.Body)
 	if err != nil {
-		log.Print(err)
 		errMessage := fmt.Sprintf("%s", err)
 		w.WriteHeader(500)
 		io.WriteString(w, errMessage)
@@ -143,7 +144,6 @@ func (p *BoringProxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
 
 	upstreamRes, err := p.httpClient.Do(upstreamReq)
 	if err != nil {
-		log.Print(err)
 		errMessage := fmt.Sprintf("%s", err)
 		w.WriteHeader(502)
 		io.WriteString(w, errMessage)
@@ -163,6 +163,5 @@ func (p *BoringProxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
 
 func redirectTLS(w http.ResponseWriter, r *http.Request) {
 	url := fmt.Sprintf("https://%s:443%s", r.Host, r.RequestURI)
-	log.Println("redir", url)
 	http.Redirect(w, r, url, http.StatusMovedPermanently)
 }
