@@ -3,15 +3,22 @@
   <head>
     <meta http-equiv="refresh" content="0; URL='{{$.TargetUrl}}'" />
     {{.Head}}
+
+    <style>
+      .dialog {
+        display: block;
+      }
+    </style>
   </head>
 
   <body>
-    <main>
-      <div class='dialog'>
+    <div class='dialog'>
+      <div class='dialog__overlay'></div>
+      <div class='dialog__content'>
         <p>
           Loading...
         </p>
       </div>
-    </main>
+    </div>
   </body>
 </html>
