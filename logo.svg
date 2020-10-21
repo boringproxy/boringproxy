@@ -1,0 +1,11 @@
+<svg viewBox="0 0 100 100" version="1.1" baseProfile="full" width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+  <!-- background -->
+  <rect width="100%" height="100%" fill="#dadada" />
+  <!-- top line -->
+  <line x1="34" y1="8" x2="34" y2="28" stroke="#4080ff" stroke-width="12" />
+  <!-- line next to circle -->
+  <line x1="34" y1="28" x2="34" y2="72" stroke="#7d64e3" stroke-width="12" />
+  <circle cx="50" cy="50" r="16" fill="none" stroke="#7d64e3" stroke-width="12" />
+  <!-- bottom line -->
+  <line x1="34" y1="72" x2="34" y2="92" stroke="#00c8f0" stroke-width="12" />
+</svg>
