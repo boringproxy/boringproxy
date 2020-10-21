@@ -35,6 +35,7 @@ type Tunnel struct {
 	ClientName       string `json:"client_name"`
 	ClientAddress    string `json:"client_address"`
 	ClientPort       int    `json:"client_port"`
+	AllowExternalTcp bool   `json:"allow_external_tcp"`
 	CssId            string `json:"css_id"`
 }
 

@@ -77,7 +77,7 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 		return Tunnel{}, err
 	}
 
-	privKey, err := m.addToAuthorizedKeys(tunReq.Domain, port)
+	privKey, err := m.addToAuthorizedKeys(tunReq.Domain, port, tunReq.AllowExternalTcp)
 	if err != nil {
 		return Tunnel{}, err
 	}
@@ -88,12 +88,13 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 		ServerAddress:    m.config.WebUiDomain,
 		ServerPort:       22,
 		ServerPublicKey:  "",
+		Username:         m.user.Username,
 		TunnelPort:       port,
 		TunnelPrivateKey: privKey,
 		ClientName:       tunReq.ClientName,
 		ClientPort:       tunReq.ClientPort,
 		ClientAddress:    tunReq.ClientAddress,
-		Username:         m.user.Username,
+		AllowExternalTcp: tunReq.AllowExternalTcp,
 	}
 
 	m.db.SetTunnel(tunReq.Domain, tunnel)
@@ -155,7 +156,7 @@ func (m *TunnelManager) GetPort(domain string) (int, error) {
 	return tunnel.TunnelPort, nil
 }
 
-func (m *TunnelManager) addToAuthorizedKeys(domain string, port int) (string, error) {
+func (m *TunnelManager) addToAuthorizedKeys(domain string, port int, allowExternalTcp bool) (string, error) {
 
 	authKeysPath := fmt.Sprintf("%s/.ssh/authorized_keys", m.user.HomeDir)
 
@@ -171,7 +172,12 @@ func (m *TunnelManager) addToAuthorizedKeys(domain string, port int) (string, er
 		return "", err
 	}
 
-	options := fmt.Sprintf(`command="echo This key permits tunnels only",permitopen="fakehost:1",permitlisten="127.0.0.1:%d"`, port)
+	bindAddr := "127.0.0.1"
+	if allowExternalTcp {
+		bindAddr = "0.0.0.0"
+	}
+
+	options := fmt.Sprintf(`command="echo This key permits tunnels only",permitopen="fakehost:1",permitlisten="%s:%d"`, bindAddr, port)
 
 	tunnelId := fmt.Sprintf("boringproxy-%s-%d", domain, port)
 

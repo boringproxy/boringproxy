@@ -163,7 +163,11 @@ func (c *BoringProxyClient) BoreTunnel(tunnel Tunnel) context.CancelFunc {
 	}
 	//defer client.Close()
 
-	tunnelAddr := fmt.Sprintf("127.0.0.1:%d", tunnel.TunnelPort)
+	bindAddr := "127.0.0.1"
+	if tunnel.AllowExternalTcp {
+		bindAddr = "0.0.0.0"
+	}
+	tunnelAddr := fmt.Sprintf("%s:%d", bindAddr, tunnel.TunnelPort)
 	listener, err := client.Listen("tcp", tunnelAddr)
 	if err != nil {
 		log.Fatal("unable to register tcp forward: ", err)
