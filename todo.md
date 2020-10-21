@@ -8,3 +8,4 @@
     * Eh buttons aren't actually doing anything apparently (when hit by
       keyboard).
 * See if WebSockets tunnel correctly
+* Pretty sure we need to be mutex-locking the cancelFunc calls
