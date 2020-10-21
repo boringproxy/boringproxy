@@ -8,4 +8,6 @@
   <circle cx="50" cy="50" r="16" fill="none" stroke="#7d64e3" stroke-width="12" />
   <!-- bottom line -->
   <line x1="34" y1="72" x2="34" y2="92" stroke="#00c8f0" stroke-width="12" />
+  <line x1="40.3" y1="30.9" x2="40.3" y2="45.9" stroke="#555" stroke-width="1" stroke-linecap='round' />
+  <path d=" M 39.5 69.7 A 22 22 0 0 1 28.5 55.5" fill='none' stroke="#555" stroke-linecap='round' />
 </svg>
