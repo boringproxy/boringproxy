@@ -194,6 +194,20 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			h.alertDialog(w, r, "Not authorized", "/#/tunnels")
 			return
 		}
+	case "/logo.png":
+
+		logoPngBytes, err := box.Bytes("logo.png")
+		if err != nil {
+			w.WriteHeader(500)
+			h.alertDialog(w, r, err.Error(), homePath)
+			return
+		}
+
+		w.Header()["Content-Type"] = []string{"image/png"}
+		w.Header()["Cache-Control"] = []string{"max-age=86400"}
+
+		w.Write(logoPngBytes)
+
 	case "/":
 		indexTmplStr, err := h.box.String("index.tmpl")
 		if err != nil {
