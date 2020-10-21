@@ -2,11 +2,18 @@
 <html>
   <head>
     {{.Head}}
+
+    <style>
+      .dialog {
+        display: block;
+      }
+    </style>
   </head>
 
   <body>
-    <main>
-      <div class='dialog'>
+    <div class='dialog'>
+      <div class='dialog__overlay'>
+      <div class='dialog__content'>
         <p>
         {{.Message}}
         </p>
@@ -16,6 +23,6 @@
           </a>
         </div>
       </div>
-    </main>
+    </div>
   </body>
 </html>

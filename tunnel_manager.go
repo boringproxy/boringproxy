@@ -49,35 +49,27 @@ func (m *TunnelManager) GetTunnels() map[string]Tunnel {
 	return m.db.GetTunnels()
 }
 
-func (m *TunnelManager) CreateTunnelForClient(domain, owner, clientName string, clientPort int) (Tunnel, error) {
-	tun, err := m.CreateTunnel(domain, owner)
-	if err != nil {
-		return Tunnel{}, err
+func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
+
+	if tunReq.Domain == "" {
+		return Tunnel{}, errors.New("Domain required")
 	}
 
-	tun.ClientName = clientName
-	tun.ClientPort = clientPort
+	if tunReq.Owner == "" {
+		return Tunnel{}, errors.New("Owner required")
+	}
 
-	// TODO: It's a bit hacky that we call db.SetTunnel in CreateTunnel and
-	// then again here
-	m.db.SetTunnel(domain, tun)
-
-	return tun, nil
-}
-
-func (m *TunnelManager) CreateTunnel(domain, owner string) (Tunnel, error) {
-	err := m.certConfig.ManageSync([]string{domain})
+	err := m.certConfig.ManageSync([]string{tunReq.Domain})
 	if err != nil {
-		log.Println(err)
 		return Tunnel{}, errors.New("Failed to get cert")
 	}
 
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	_, exists := m.db.GetTunnel(domain)
+	_, exists := m.db.GetTunnel(tunReq.Domain)
 	if exists {
-		return Tunnel{}, errors.New("Tunnel exists for domain " + domain)
+		return Tunnel{}, errors.New("Tunnel exists for domain " + tunReq.Domain)
 	}
 
 	port, err := randomPort()
@@ -85,22 +77,26 @@ func (m *TunnelManager) CreateTunnel(domain, owner string) (Tunnel, error) {
 		return Tunnel{}, err
 	}
 
-	privKey, err := m.addToAuthorizedKeys(domain, port)
+	privKey, err := m.addToAuthorizedKeys(tunReq.Domain, port)
 	if err != nil {
 		return Tunnel{}, err
 	}
 
 	tunnel := Tunnel{
-		Owner:            owner,
+		Owner:            tunReq.Owner,
+		Domain:           tunReq.Domain,
 		ServerAddress:    m.config.WebUiDomain,
 		ServerPort:       22,
 		ServerPublicKey:  "",
 		TunnelPort:       port,
 		TunnelPrivateKey: privKey,
+		ClientName:       tunReq.ClientName,
+		ClientPort:       tunReq.ClientPort,
+		ClientAddress:    tunReq.ClientAddress,
 		Username:         m.user.Username,
 	}
 
-	m.db.SetTunnel(domain, tunnel)
+	m.db.SetTunnel(tunReq.Domain, tunnel)
 
 	return tunnel, nil
 }

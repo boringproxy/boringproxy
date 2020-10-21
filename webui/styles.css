@@ -140,7 +140,28 @@ main {
 
 .tunnel-adder {
   padding: 5px;
+}
+.tunnel-adder h1 {
+  margin: .2em;
+}
+
+.tunnel-adder form {
   display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.input {
+  padding: .7em;
+  margin: .2em;
+  border: 1px solid var(--main-color);
+  display: flex;
+  flex-direction: column;
+}
+
+.input label {
+  padding: .2em;
+  font-weight: bold;
 }
 
 .token-adder {

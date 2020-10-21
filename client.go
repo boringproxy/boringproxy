@@ -190,18 +190,18 @@ func (c *BoringProxyClient) BoreTunnel(tunnel Tunnel) context.CancelFunc {
 				break
 				//continue
 			}
-			go c.handleConnection(conn, tunnel.ClientPort)
+			go c.handleConnection(conn, tunnel.ClientAddress, tunnel.ClientPort)
 		}
 	}()
 
 	return cancelFunc
 }
 
-func (c *BoringProxyClient) handleConnection(conn net.Conn, port int) {
+func (c *BoringProxyClient) handleConnection(conn net.Conn, addr string, port int) {
 
 	defer conn.Close()
 
-	upstreamConn, err := net.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	upstreamConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", addr, port))
 	if err != nil {
 		log.Print(err)
 		return

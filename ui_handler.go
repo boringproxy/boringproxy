@@ -21,8 +21,13 @@ type WebUiHandler struct {
 	tunMan          *TunnelManager
 	box             *rice.Box
 	headHtml        template.HTML
-	pendingRequests map[string]chan string
+	pendingRequests map[string]chan ReqResult
 	mutex           *sync.Mutex
+}
+
+type ReqResult struct {
+	err         error
+	redirectUrl string
 }
 
 type IndexData struct {
@@ -91,7 +96,7 @@ func NewWebUiHandler(config *BoringProxyConfig, db *Database, api *Api, auth *Au
 		api:             api,
 		auth:            auth,
 		tunMan:          tunMan,
-		pendingRequests: make(map[string]chan string),
+		pendingRequests: make(map[string]chan ReqResult),
 		mutex:           &sync.Mutex{},
 	}
 }
@@ -427,7 +432,7 @@ func (h *WebUiHandler) handleCreateTunnel(w http.ResponseWriter, r *http.Request
 		h.alertDialog(w, r, err.Error(), "/#/tunnels")
 	}
 
-	doneSignal := make(chan string)
+	doneSignal := make(chan ReqResult)
 	h.mutex.Lock()
 	h.pendingRequests[pendingId] = doneSignal
 	h.mutex.Unlock()
@@ -437,12 +442,8 @@ func (h *WebUiHandler) handleCreateTunnel(w http.ResponseWriter, r *http.Request
 		r.ParseForm()
 
 		_, err := h.api.CreateTunnel(tokenData, r.Form)
-		if err != nil {
-			w.WriteHeader(400)
-			h.alertDialog(w, r, err.Error(), "/#/tunnels")
-		}
 
-		doneSignal <- "/#/tunnels"
+		doneSignal <- ReqResult{err, "/#/tunnels"}
 	}()
 
 	timeout := make(chan bool, 1)
@@ -469,8 +470,14 @@ func (h *WebUiHandler) handleCreateTunnel(w http.ResponseWriter, r *http.Request
 
 		tmpl.Execute(w, data)
 
-	case <-doneSignal:
-		http.Redirect(w, r, "/#/tunnels", 303)
+	case result := <-doneSignal:
+		if result.err != nil {
+			w.WriteHeader(400)
+			h.alertDialog(w, r, result.err.Error(), result.redirectUrl)
+			return
+		}
+
+		http.Redirect(w, r, result.redirectUrl, 303)
 	}
 }
 
@@ -654,9 +661,15 @@ func (h *WebUiHandler) handleLoading(w http.ResponseWriter, r *http.Request) {
 	delete(h.pendingRequests, pendingId)
 	h.mutex.Unlock()
 
-	redirUrl := <-doneSignal
+	result := <-doneSignal
 
-	http.Redirect(w, r, redirUrl, 303)
+	if result.err != nil {
+		w.WriteHeader(400)
+		h.alertDialog(w, r, result.err.Error(), result.redirectUrl)
+		return
+	}
+
+	http.Redirect(w, r, result.redirectUrl, 303)
 }
 
 func (h *WebUiHandler) loadTemplate(name string) (*template.Template, error) {

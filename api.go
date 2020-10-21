@@ -72,7 +72,20 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 		return nil, errors.New("Invalid client-port parameter")
 	}
 
-	tunnel, err := a.tunMan.CreateTunnelForClient(domain, tokenData.Owner, clientName, clientPort)
+	clientAddr := params.Get("client-addr")
+	if clientAddr == "" {
+		clientAddr = "127.0.0.1"
+	}
+
+	request := Tunnel{
+		Domain:        domain,
+		Owner:         tokenData.Owner,
+		ClientName:    clientName,
+		ClientPort:    clientPort,
+		ClientAddress: clientAddr,
+	}
+
+	tunnel, err := a.tunMan.RequestCreateTunnel(request)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +175,12 @@ func (a *Api) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 	}
 	owner := query["owner"][0]
 
-	tunnel, err := a.tunMan.CreateTunnel(domain, owner)
+	request := Tunnel{
+		Domain: domain,
+		Owner:  owner,
+	}
+
+	tunnel, err := a.tunMan.RequestCreateTunnel(request)
 	if err != nil {
 		w.WriteHeader(400)
 		io.WriteString(w, err.Error())
