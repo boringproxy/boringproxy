@@ -77,12 +77,15 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 		clientAddr = "127.0.0.1"
 	}
 
+	allowExternalTcp := params.Get("allow-external-tcp") == "on"
+
 	request := Tunnel{
-		Domain:        domain,
-		Owner:         tokenData.Owner,
-		ClientName:    clientName,
-		ClientPort:    clientPort,
-		ClientAddress: clientAddr,
+		Domain:           domain,
+		Owner:            tokenData.Owner,
+		ClientName:       clientName,
+		ClientPort:       clientPort,
+		ClientAddress:    clientAddr,
+		AllowExternalTcp: allowExternalTcp,
 	}
 
 	tunnel, err := a.tunMan.RequestCreateTunnel(request)
