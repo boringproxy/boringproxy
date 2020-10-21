@@ -13,9 +13,6 @@
     is wrong when domain stuff breaks.
 * Built-in static file hosting
   * Client determines which directories are exposed
-* Password-protected tunnels
-* TCP tunnels
-  * Allow client to specify binding to addresses other than 127.0.0.1.
 * IPv6
 
 
