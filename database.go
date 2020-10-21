@@ -25,6 +25,7 @@ type User struct {
 
 type Tunnel struct {
 	Owner            string `json:"owner"`
+	Domain           string `json:"domain"`
 	ServerAddress    string `json:"server_address"`
 	ServerPort       int    `json:"server_port"`
 	ServerPublicKey  string `json:"server_public_key"`
@@ -32,6 +33,7 @@ type Tunnel struct {
 	TunnelPort       int    `json:"tunnel_port"`
 	TunnelPrivateKey string `json:"tunnel_private_key"`
 	ClientName       string `json:"client_name"`
+	ClientAddress    string `json:"client_address"`
 	ClientPort       int    `json:"client_port"`
 	CssId            string `json:"css_id"`
 }
