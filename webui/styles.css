@@ -164,6 +164,14 @@ main {
   font-weight: bold;
 }
 
+#login-inputs {
+  display: none;
+}
+
+#password-protect:checked ~ #login-inputs {
+  display: block;
+}
+
 .token-adder {
   padding: 5px;
   display: flex;

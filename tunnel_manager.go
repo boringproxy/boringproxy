@@ -82,24 +82,16 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 		return Tunnel{}, err
 	}
 
-	tunnel := Tunnel{
-		Owner:            tunReq.Owner,
-		Domain:           tunReq.Domain,
-		ServerAddress:    m.config.WebUiDomain,
-		ServerPort:       22,
-		ServerPublicKey:  "",
-		Username:         m.user.Username,
-		TunnelPort:       port,
-		TunnelPrivateKey: privKey,
-		ClientName:       tunReq.ClientName,
-		ClientPort:       tunReq.ClientPort,
-		ClientAddress:    tunReq.ClientAddress,
-		AllowExternalTcp: tunReq.AllowExternalTcp,
-	}
+	tunReq.ServerAddress = m.config.WebUiDomain
+	tunReq.ServerPort = 22
+	tunReq.ServerPublicKey = ""
+	tunReq.Username = m.user.Username
+	tunReq.TunnelPort = port
+	tunReq.TunnelPrivateKey = privKey
 
-	m.db.SetTunnel(tunReq.Domain, tunnel)
+	m.db.SetTunnel(tunReq.Domain, tunReq)
 
-	return tunnel, nil
+	return tunReq, nil
 }
 
 func (m *TunnelManager) DeleteTunnel(domain string) error {

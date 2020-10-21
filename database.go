@@ -36,6 +36,8 @@ type Tunnel struct {
 	ClientAddress    string `json:"client_address"`
 	ClientPort       int    `json:"client_port"`
 	AllowExternalTcp bool   `json:"allow_external_tcp"`
+	AuthUsername     string `json:"auth_username"`
+	AuthPassword     string `json:"auth_password"`
 	CssId            string `json:"css_id"`
 }
 
