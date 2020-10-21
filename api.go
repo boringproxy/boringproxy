@@ -79,6 +79,22 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 
 	allowExternalTcp := params.Get("allow-external-tcp") == "on"
 
+	passwordProtect := params.Get("password-protect") == "on"
+
+	var username string
+	var password string
+	if passwordProtect {
+		username = params.Get("username")
+		if username == "" {
+			return nil, errors.New("Username required")
+		}
+
+		password = params.Get("password")
+		if password == "" {
+			return nil, errors.New("Password required")
+		}
+	}
+
 	request := Tunnel{
 		Domain:           domain,
 		Owner:            tokenData.Owner,
@@ -86,6 +102,8 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 		ClientPort:       clientPort,
 		ClientAddress:    clientAddr,
 		AllowExternalTcp: allowExternalTcp,
+		AuthUsername:     username,
+		AuthPassword:     password,
 	}
 
 	tunnel, err := a.tunMan.RequestCreateTunnel(request)

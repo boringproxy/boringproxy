@@ -26,6 +26,7 @@ type SmtpConfig struct {
 }
 
 type BoringProxy struct {
+	db         *Database
 	tunMan     *TunnelManager
 	httpClient *http.Client
 }
@@ -83,7 +84,7 @@ func Listen() {
 
 	httpClient := &http.Client{}
 
-	p := &BoringProxy{tunMan, httpClient}
+	p := &BoringProxy{db, tunMan, httpClient}
 
 	tlsConfig := &tls.Config{
 		GetCertificate: certConfig.GetCertificate,
@@ -117,17 +118,34 @@ func Listen() {
 
 func (p *BoringProxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
 
-	port, err := p.tunMan.GetPort(r.Host)
-	if err != nil {
+	tunnel, exists := p.db.GetTunnel(r.Host)
+	if !exists {
 		errMessage := fmt.Sprintf("No tunnel attached to %s", r.Host)
 		w.WriteHeader(500)
 		io.WriteString(w, errMessage)
 		return
 	}
 
+	if tunnel.AuthUsername != "" || tunnel.AuthPassword != "" {
+		username, password, ok := r.BasicAuth()
+		if !ok {
+			w.Header()["WWW-Authenticate"] = []string{"Basic"}
+			w.WriteHeader(401)
+			return
+		}
+
+		if username != tunnel.AuthUsername || password != tunnel.AuthPassword {
+			w.Header()["WWW-Authenticate"] = []string{"Basic"}
+			w.WriteHeader(401)
+			// TODO: should probably use a better form of rate limiting
+			time.Sleep(2 * time.Second)
+			return
+		}
+	}
+
 	downstreamReqHeaders := r.Header.Clone()
 
-	upstreamAddr := fmt.Sprintf("localhost:%d", port)
+	upstreamAddr := fmt.Sprintf("localhost:%d", tunnel.TunnelPort)
 	upstreamUrl := fmt.Sprintf("http://%s%s", upstreamAddr, r.URL.RequestURI())
 
 	upstreamReq, err := http.NewRequest(r.Method, upstreamUrl, r.Body)
