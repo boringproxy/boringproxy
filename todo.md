@@ -9,3 +9,5 @@
       keyboard).
 * See if WebSockets tunnel correctly
 * Pretty sure we need to be mutex-locking the cancelFunc calls
+* Getting new certs isn't working behind Cloudflare. Might be able to fix by
+  using the HTTP challenge and allowing HTTP on the Cloudflare side.
