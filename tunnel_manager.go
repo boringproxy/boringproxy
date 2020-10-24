@@ -77,7 +77,7 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 		return Tunnel{}, err
 	}
 
-	privKey, err := m.addToAuthorizedKeys(tunReq.Domain, port, tunReq.AllowExternalTcp)
+	privKey, err := m.addToAuthorizedKeys(tunReq.Domain, port, tunReq.AllowExternalTcp, tunReq.SshKey)
 	if err != nil {
 		return Tunnel{}, err
 	}
@@ -148,7 +148,7 @@ func (m *TunnelManager) GetPort(domain string) (int, error) {
 	return tunnel.TunnelPort, nil
 }
 
-func (m *TunnelManager) addToAuthorizedKeys(domain string, port int, allowExternalTcp bool) (string, error) {
+func (m *TunnelManager) addToAuthorizedKeys(domain string, port int, allowExternalTcp bool, sshKey string) (string, error) {
 
 	authKeysPath := fmt.Sprintf("%s/.ssh/authorized_keys", m.user.HomeDir)
 
@@ -159,9 +159,19 @@ func (m *TunnelManager) addToAuthorizedKeys(domain string, port int, allowExtern
 
 	akStr := string(akBytes)
 
-	pubKey, privKey, err := MakeSSHKeyPair()
-	if err != nil {
-		return "", err
+	var privKey string
+	var pubKey string
+
+	if sshKey == "" {
+		pubKey, privKey, err = MakeSSHKeyPair()
+		if err != nil {
+			return "", err
+		}
+
+		pubKey = strings.TrimSpace(pubKey)
+	} else {
+		privKey = ""
+		pubKey = sshKey
 	}
 
 	bindAddr := "127.0.0.1"
@@ -173,9 +183,7 @@ func (m *TunnelManager) addToAuthorizedKeys(domain string, port int, allowExtern
 
 	tunnelId := fmt.Sprintf("boringproxy-%s-%d", domain, port)
 
-	pubKeyNoNewline := pubKey[:len(pubKey)-1]
-	newAk := fmt.Sprintf("%s%s %s %s\n", akStr, options, pubKeyNoNewline, tunnelId)
-	//newAk := fmt.Sprintf("%s%s %s%d\n", akStr, pubKeyNoNewline, "boringproxy-", port)
+	newAk := fmt.Sprintf("%s%s %s %s\n", akStr, options, pubKey, tunnelId)
 
 	err = ioutil.WriteFile(authKeysPath, []byte(newAk), 0600)
 	if err != nil {

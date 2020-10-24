@@ -62,14 +62,23 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 		return nil, errors.New("Invalid domain parameter")
 	}
 
-	clientName := params.Get("client-name")
-	if clientName == "" {
-		return nil, errors.New("Invalid client-name parameter")
+	sshKeyId := params.Get("ssh-key-id")
+
+	sshKey, exists := a.db.GetSshKey(sshKeyId)
+	if !exists {
+		return nil, errors.New("SSH key does not exist")
 	}
 
-	clientPort, err := strconv.Atoi(params.Get("client-port"))
-	if err != nil {
-		return nil, errors.New("Invalid client-port parameter")
+	clientName := params.Get("client-name")
+
+	clientPort := 0
+	clientPortParam := params.Get("client-port")
+	if clientPortParam != "" {
+		var err error
+		clientPort, err = strconv.Atoi(clientPortParam)
+		if err != nil {
+			return nil, errors.New("Invalid client-port parameter")
+		}
 	}
 
 	clientAddr := params.Get("client-addr")
@@ -97,6 +106,7 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 
 	request := Tunnel{
 		Domain:           domain,
+		SshKey:           sshKey.Key,
 		Owner:            tokenData.Owner,
 		ClientName:       clientName,
 		ClientPort:       clientPort,
@@ -235,6 +245,38 @@ func (a *Api) handleDeleteTunnel(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, "Failed to delete tunnel")
 		return
 	}
+}
+
+func (a *Api) GetSshKeys(tokenData TokenData) map[string]SshKey {
+
+	user, _ := a.db.GetUser(tokenData.Owner)
+
+	var keys map[string]SshKey
+
+	if user.IsAdmin {
+		keys = a.db.GetSshKeys()
+	} else {
+		keys = make(map[string]SshKey)
+
+		for id, key := range a.db.GetSshKeys() {
+			if tokenData.Owner == key.Owner {
+				keys[id] = key
+			}
+		}
+	}
+
+	return keys
+}
+
+func (a *Api) DeleteSshKey(tokenData TokenData, params url.Values) error {
+	id := params.Get("id")
+	if id == "" {
+		return errors.New("Invalid id parameter")
+	}
+
+	a.db.DeleteSshKey(id)
+
+	return nil
 }
 
 func (a *Api) validateToken(h http.Handler) http.Handler {

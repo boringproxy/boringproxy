@@ -34,6 +34,7 @@ type IndexData struct {
 	Head    template.HTML
 	Tunnels map[string]Tunnel
 	Tokens  map[string]TokenData
+	SshKeys map[string]SshKey
 	Users   map[string]User
 	IsAdmin bool
 	QrCodes map[string]template.URL
@@ -260,6 +261,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			Head:    h.headHtml,
 			Tunnels: tunnels,
 			Tokens:  tokens,
+			SshKeys: h.api.GetSshKeys(tokenData),
 			Users:   users,
 			IsAdmin: user.IsAdmin,
 			QrCodes: qrCodes,
@@ -312,14 +314,27 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			return
 		}
 
-		//http.Redirect(w, r, "/#/tunnels", 307)
-
 	case "/tokens":
 		h.handleTokens(w, r, user, tokenData)
 	case "/confirm-delete-token":
 		h.confirmDeleteToken(w, r)
 	case "/delete-token":
 		h.deleteToken(w, r)
+	case "/ssh-keys":
+		h.handleSshKeys(w, r, user, tokenData)
+	case "/delete-ssh-key":
+
+		r.ParseForm()
+
+		err := h.api.DeleteSshKey(tokenData, r.Form)
+		if err != nil {
+			w.WriteHeader(400)
+			h.alertDialog(w, r, err.Error(), "/#/ssh-keys")
+			return
+		}
+
+		http.Redirect(w, r, "/#/ssh-keys", 303)
+
 	case "/confirm-logout":
 		tmpl, err := h.loadTemplate("confirm.tmpl")
 		if err != nil {
@@ -389,6 +404,49 @@ func (h *WebUiHandler) handleTokens(w http.ResponseWriter, r *http.Request, user
 	}
 
 	http.Redirect(w, r, "/#/tokens", 303)
+}
+
+func (h *WebUiHandler) handleSshKeys(w http.ResponseWriter, r *http.Request, user User, tokenData TokenData) {
+
+	if r.Method != "POST" {
+		w.WriteHeader(405)
+		h.alertDialog(w, r, "Invalid method for /ssh-keys", "/#/ssh-keys")
+		return
+	}
+
+	r.ParseForm()
+
+	id := r.Form.Get("id")
+	if id == "" {
+		w.WriteHeader(400)
+		h.alertDialog(w, r, "Invalid id parameter", "/#/ssh-keys")
+		return
+	}
+
+	keyParam := r.Form.Get("key")
+	if keyParam == "" {
+		w.WriteHeader(400)
+		h.alertDialog(w, r, "Invalid key parameter", "/#/ssh-keys")
+		return
+	}
+
+	keyParam = strings.TrimSpace(keyParam)
+	parts := strings.Split(keyParam, " ")
+
+	if len(parts) > 2 {
+		keyParam = strings.Join(parts[:2], " ")
+	}
+
+	key := SshKey{Owner: tokenData.Owner, Key: keyParam}
+
+	err := h.db.AddSshKey(id, key)
+	if err != nil {
+		w.WriteHeader(400)
+		h.alertDialog(w, r, err.Error(), "/#/ssh-keys")
+		return
+	}
+
+	http.Redirect(w, r, "/#/ssh-keys", 303)
 }
 
 func (h *WebUiHandler) handleLogin(w http.ResponseWriter, r *http.Request) {

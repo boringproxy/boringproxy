@@ -151,6 +151,12 @@ main {
   flex-wrap: wrap;
 }
 
+.ssh-key-adder form {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
 .input {
   padding: .7em;
   margin: .2em;
@@ -178,6 +184,10 @@ main {
 }
 
 .token {
+  font-family: Monospace;
+}
+
+.monospace {
   font-family: Monospace;
 }
 
