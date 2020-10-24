@@ -11,3 +11,10 @@
 * Pretty sure we need to be mutex-locking the cancelFunc calls
 * Getting new certs isn't working behind Cloudflare. Might be able to fix by
   using the HTTP challenge and allowing HTTP on the Cloudflare side.
+* I think it's possible to create tokens for arbitrary user, even if you're not
+  that user.
+* Invalid database is wiping out tunnels
+* OpenSSH server only picks up the first copy of each key. Will probably need
+  to manually combine them for custom keys.
+* Send public key back to clients, so they can automatically try to find the
+  matching private key.

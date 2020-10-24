@@ -13,6 +13,7 @@
         <div class='menu'>
           <a class='menu-item active-tab' href='/#/tunnels'>Tunnels</a>
           <a class='menu-item' href='/#/tokens'>Tokens</a>
+          <a class='menu-item' href='/#/ssh-keys'>SSH Keys</a>
           {{if .IsAdmin}}
           <a class='menu-item' href='/#/users'>Users</a>
           {{end}}
@@ -60,9 +61,20 @@
                  <label for="domain">Domain:</label>
                  <input type="text" id="domain" name="domain" required>
                </div>
+
+               <div class='input'>
+                 <label for="ssh-key-id-select">SSH Key:</label>
+                 <select id="ssh-key-id-select" name="ssh-key-id">
+                   <option value="generate">Generate</option>
+                   {{range $id, $sshKey := $.SshKeys}}
+                   <option value="{{$id}}">{{$id}}</option>
+                   {{end}}
+                 </select>
+               </div>
+
                <div class='input'>
                  <label for="client-name">Client Name:</label>
-                 <input type="text" id="client-name" name="client-name" required>
+                 <input type="text" id="client-name" name="client-name">
                </div>
                <div class='input'>
                  <label for="client-addr">Client Address:</label>
@@ -70,7 +82,7 @@
                </div>
                <div class='input'>
                  <label for="client-port">Client Port:</label>
-                 <input type="text" id="client-port" name="client-port" required>
+                 <input type="text" id="client-port" name="client-port">
                </div>
                <div class='input'>
                  <label for="allow-external-tcp">Allow External TCP:</label>
@@ -97,6 +109,7 @@
         <div class='menu'>
           <a class='menu-item' href='/#/tunnels'>Tunnels</a>
           <a class='menu-item active-tab' href='/#/tokens'>Tokens</a>
+          <a class='menu-item' href='/#/ssh-keys'>SSH Keys</a>
           {{if .IsAdmin}}
           <a class='menu-item' href='/#/users'>Users</a>
           {{end}}
@@ -119,13 +132,63 @@
 
           <div class='token-adder'>
             <form action="/tokens" method="POST">
-               <label for="owner">Owner:</label>
-               <select id="owner" name="owner">
+               <label for="token-owner">Owner:</label>
+               <select id="token-owner" name="owner">
                  {{range $username, $user := .Users}}
                  <option value="{{$username}}">{{$username}}</option>
                  {{end}}
                </select>
                <button class='button' type="submit">Add Token</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class='page' id='/ssh-keys'>
+        <div class='menu'>
+          <a class='menu-item' href='/#/tunnels'>Tunnels</a>
+          <a class='menu-item' href='/#/tokens'>Tokens</a>
+          <a class='menu-item active-tab' href='/#/ssh-keys'>SSH Keys</a>
+          {{if .IsAdmin}}
+          <a class='menu-item' href='/#/users'>Users</a>
+          {{end}}
+          <a class='menu-item' href='/confirm-logout'>Logout</a>
+        </div>
+        <div class='content'>
+          <div class='list'>
+            {{range $id, $sshKey := .SshKeys}}
+
+            <div class='list-item'>
+              <span class='monospace'>{{$id}} ({{$sshKey.Owner}})</span>
+              <div class='monospace'>{{$sshKey.Key}}</div>
+              <a href="/delete-ssh-key?id={{$id}}">
+                <button class='button'>Delete</button>
+              </a>
+            </div>
+            {{end}}
+          </div>
+
+          <div class='ssh-key-adder'>
+            <h1>Add SSH Key</h1>
+            <form action="/ssh-keys" method="POST">
+              <div class='input'>
+                <label for="ssh-key-id">SSH Key ID:</label>
+                <input type="text" id="ssh-key-id" name="id" required>
+              </div>
+              <div class='input'>
+                <label for="ssh-key-owner">Owner:</label>
+                <select id="ssh-key-owner" name="owner">
+                  {{range $username, $user := .Users}}
+                  <option value="{{$username}}">{{$username}}</option>
+                  {{end}}
+                </select>
+              </div>
+              <div class='input'>
+                <label for="ssh-key">SSH Key:</label>
+                <textarea id='ssh-key' name='key' rows='8' cols='30'>
+                </textarea>
+              </div>
+              <button class='button' type="submit">Submit</button>
             </form>
           </div>
         </div>

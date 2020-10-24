@@ -12,6 +12,7 @@ type Database struct {
 	Tokens  map[string]TokenData `json:"tokens"`
 	Tunnels map[string]Tunnel    `json:"tunnels"`
 	Users   map[string]User      `json:"users"`
+	SshKeys map[string]SshKey    `json:"ssh_keys"`
 	mutex   *sync.Mutex
 }
 
@@ -23,9 +24,15 @@ type User struct {
 	IsAdmin bool `json:"is_admin"`
 }
 
+type SshKey struct {
+	Owner string `json:"owner"`
+	Key   string `json:"key"`
+}
+
 type Tunnel struct {
 	Owner            string `json:"owner"`
 	Domain           string `json:"domain"`
+	SshKey           string `json:"ssh_key"`
 	ServerAddress    string `json:"server_address"`
 	ServerPort       int    `json:"server_port"`
 	ServerPublicKey  string `json:"server_public_key"`
@@ -67,6 +74,10 @@ func NewDatabase() (*Database, error) {
 
 	if db.Users == nil {
 		db.Users = make(map[string]User)
+	}
+
+	if db.SshKeys == nil {
+		db.SshKeys = make(map[string]SshKey)
 	}
 
 	db.mutex = &sync.Mutex{}
@@ -235,6 +246,58 @@ func (d *Database) DeleteUser(username string) {
 	defer d.mutex.Unlock()
 
 	delete(d.Users, username)
+
+	d.persist()
+}
+
+func (d *Database) GetSshKey(id string) (SshKey, bool) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	key, exists := d.SshKeys[id]
+
+	if !exists {
+		return SshKey{}, false
+	}
+
+	return key, true
+}
+
+func (d *Database) GetSshKeys() map[string]SshKey {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	keys := make(map[string]SshKey)
+
+	for k, v := range d.SshKeys {
+		keys[k] = v
+	}
+
+	return keys
+}
+
+func (d *Database) AddSshKey(id string, key SshKey) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	_, exists := d.SshKeys[id]
+
+	if exists {
+		return errors.New("SSH key id exists")
+	}
+
+	d.SshKeys[id] = key
+
+	d.persist()
+
+	return nil
+}
+
+func (d *Database) DeleteSshKey(id string) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	delete(d.SshKeys, id)
 
 	d.persist()
 }
