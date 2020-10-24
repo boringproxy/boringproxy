@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 type Api struct {
@@ -26,6 +27,7 @@ func NewApi(config *BoringProxyConfig, db *Database, auth *Auth, tunMan *TunnelM
 	api := &Api{config, db, auth, tunMan, mux}
 
 	mux.Handle("/tunnels", http.StripPrefix("/tunnels", http.HandlerFunc(api.handleTunnels)))
+	mux.Handle("/users/", http.StripPrefix("/users", http.HandlerFunc(api.handleUsers)))
 
 	return api
 }
@@ -298,6 +300,84 @@ func (a *Api) DeleteSshKey(tokenData TokenData, params url.Values) error {
 	}
 
 	a.db.DeleteSshKey(id)
+
+	return nil
+}
+
+func (a *Api) handleUsers(w http.ResponseWriter, r *http.Request) {
+	token, err := extractToken("access_token", r)
+	if err != nil {
+		w.WriteHeader(401)
+		io.WriteString(w, "Invalid token")
+		return
+	}
+
+	tokenData, exists := a.db.GetTokenData(token)
+	if !exists {
+		w.WriteHeader(401)
+		io.WriteString(w, "Failed to get token")
+		return
+	}
+
+	path := r.URL.Path
+	parts := strings.Split(path[1:], "/")
+
+	r.ParseForm()
+
+	if len(parts) == 3 && parts[1] == "clients" {
+		ownerId := parts[0]
+		clientId := parts[2]
+		if r.Method == "PUT" {
+			err := a.SetClient(tokenData, r.Form, ownerId, clientId)
+			if err != nil {
+				w.WriteHeader(500)
+				io.WriteString(w, err.Error())
+				return
+			}
+		} else if r.Method == "DELETE" {
+			err := a.DeleteClient(tokenData, ownerId, clientId)
+			if err != nil {
+				w.WriteHeader(500)
+				io.WriteString(w, err.Error())
+				return
+			}
+		}
+	} else {
+		w.WriteHeader(400)
+		io.WriteString(w, "Invalid /users/<username>/clients request")
+		return
+	}
+}
+
+func (a *Api) SetClient(tokenData TokenData, params url.Values, ownerId, clientId string) error {
+
+	if tokenData.Owner != ownerId {
+		user, _ := a.db.GetUser(tokenData.Owner)
+		if !user.IsAdmin {
+			return errors.New("Unauthorized")
+		}
+	}
+
+	// TODO: what if two users try to get then set at the same time?
+	owner, _ := a.db.GetUser(ownerId)
+	owner.Clients[clientId] = Client{}
+	a.db.SetUser(ownerId, owner)
+
+	return nil
+}
+
+func (a *Api) DeleteClient(tokenData TokenData, ownerId, clientId string) error {
+
+	if tokenData.Owner != ownerId {
+		user, _ := a.db.GetUser(tokenData.Owner)
+		if !user.IsAdmin {
+			return errors.New("Unauthorized")
+		}
+	}
+
+	owner, _ := a.db.GetUser(ownerId)
+	delete(owner.Clients, clientId)
+	a.db.SetUser(ownerId, owner)
 
 	return nil
 }

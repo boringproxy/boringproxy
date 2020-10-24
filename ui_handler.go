@@ -36,6 +36,7 @@ type IndexData struct {
 	Tokens  map[string]TokenData
 	SshKeys map[string]SshKey
 	Users   map[string]User
+	UserId  string
 	IsAdmin bool
 	QrCodes map[string]template.URL
 }
@@ -263,6 +264,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			Tokens:  tokens,
 			SshKeys: h.api.GetSshKeys(tokenData),
 			Users:   users,
+			UserId:  tokenData.Owner,
 			IsAdmin: user.IsAdmin,
 			QrCodes: qrCodes,
 		}

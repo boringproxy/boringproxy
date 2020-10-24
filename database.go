@@ -21,12 +21,16 @@ type TokenData struct {
 }
 
 type User struct {
-	IsAdmin bool `json:"is_admin"`
+	IsAdmin bool              `json:"is_admin"`
+	Clients map[string]Client `json:"clients"`
 }
 
 type SshKey struct {
 	Owner string `json:"owner"`
 	Key   string `json:"key"`
+}
+
+type Client struct {
 }
 
 type Tunnel struct {
@@ -222,6 +226,16 @@ func (d *Database) GetUser(username string) (User, bool) {
 	return user, true
 }
 
+func (d *Database) SetUser(username string, user User) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	d.Users[username] = user
+	d.persist()
+
+	return nil
+}
+
 func (d *Database) AddUser(username string, isAdmin bool) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
@@ -233,7 +247,8 @@ func (d *Database) AddUser(username string, isAdmin bool) error {
 	}
 
 	d.Users[username] = User{
-		isAdmin,
+		IsAdmin: isAdmin,
+		Clients: make(map[string]Client),
 	}
 
 	d.persist()

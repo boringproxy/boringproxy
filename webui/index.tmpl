@@ -80,7 +80,12 @@
 
                <div class='input'>
                  <label for="client-name">Client Name:</label>
-                 <input type="text" id="client-name" name="client-name">
+                 <select id="client-name" name="client-name">
+                   <option value="any">Any</option>
+                   {{range $id, $client := (index $.Users $.UserId).Clients}}
+                   <option value="{{$id}}">{{$id}}</option>
+                   {{end}}
+                 </select>
                </div>
                <div class='input'>
                  <label for="client-addr">Client Address:</label>

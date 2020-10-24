@@ -24,6 +24,7 @@ type BoringProxyClient struct {
 	server           string
 	token            string
 	clientName       string
+	user             string
 	cancelFuncs      map[string]context.CancelFunc
 	cancelFuncsMutex *sync.Mutex
 }
@@ -33,6 +34,7 @@ func NewBoringProxyClient() *BoringProxyClient {
 	server := flagSet.String("server", "", "boringproxy server")
 	token := flagSet.String("token", "", "Access token")
 	name := flagSet.String("client-name", "", "Client name")
+	user := flagSet.String("user", "admin", "user")
 	flagSet.Parse(os.Args[2:])
 
 	httpClient := &http.Client{}
@@ -47,12 +49,31 @@ func NewBoringProxyClient() *BoringProxyClient {
 		server:           *server,
 		token:            *token,
 		clientName:       *name,
+		user:             *user,
 		cancelFuncs:      cancelFuncs,
 		cancelFuncsMutex: cancelFuncsMutex,
 	}
 }
 
 func (c *BoringProxyClient) RunPuppetClient() {
+
+	url := fmt.Sprintf("https://%s/api/users/%s/clients/%s", c.server, c.user, c.clientName)
+	clientReq, err := http.NewRequest("PUT", url, nil)
+	if err != nil {
+		log.Fatal("Failed to PUT client")
+	}
+	if len(c.token) > 0 {
+		clientReq.Header.Add("Authorization", "bearer "+c.token)
+	}
+	resp, err := c.httpClient.Do(clientReq)
+	if err != nil {
+		log.Fatal("Failed to PUT client")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		log.Fatal("Failed to PUT client")
+	}
 
 	for {
 		err := c.PollTunnels()
