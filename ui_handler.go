@@ -314,6 +314,20 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			return
 		}
 
+	case "/tunnel-private-key":
+
+		r.ParseForm()
+
+		tun, err := h.api.GetTunnel(tokenData, r.Form)
+		if err != nil {
+			w.WriteHeader(400)
+			h.alertDialog(w, r, err.Error(), "/#/tunnels")
+			return
+		}
+
+		w.Header().Set("Content-Disposition", "attachment; filename=id_rsa")
+		io.WriteString(w, tun.TunnelPrivateKey)
+
 	case "/tokens":
 		h.handleTokens(w, r, user, tokenData)
 	case "/confirm-delete-token":

@@ -30,6 +30,8 @@
                 <a href="https://{{$domain}}">{{$domain}}</a>:{{$tunnel.TunnelPort}} -> {{$tunnel.ClientName}} -> {{$tunnel.ClientAddress}}:{{$tunnel.ClientPort}}
               </div>
 
+              <a class='button' href="/tunnel-private-key?domain={{$domain}}">Download Private Key</a>
+
               <label class='button' for='toggle-tunnel-delete-dialog-{{$tunnel.CssId}}'>
                 Delete
               </label>

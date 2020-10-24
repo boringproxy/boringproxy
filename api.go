@@ -34,6 +34,25 @@ func (a *Api) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.mux.ServeHTTP(w, r)
 }
 
+func (a *Api) GetTunnel(tokenData TokenData, params url.Values) (Tunnel, error) {
+	domain := params.Get("domain")
+	if domain == "" {
+		return Tunnel{}, errors.New("Invalid domain parameter")
+	}
+
+	tun, exists := a.db.GetTunnel(domain)
+	if !exists {
+		return Tunnel{}, errors.New("Tunnel doesn't exist for domain")
+	}
+
+	user, _ := a.db.GetUser(tokenData.Owner)
+	if user.IsAdmin || tun.Owner == tokenData.Owner {
+		return tun, nil
+	} else {
+		return Tunnel{}, errors.New("Unauthorized")
+	}
+}
+
 func (a *Api) GetTunnels(tokenData TokenData) map[string]Tunnel {
 
 	user, _ := a.db.GetUser(tokenData.Owner)
@@ -64,9 +83,13 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 
 	sshKeyId := params.Get("ssh-key-id")
 
-	sshKey, exists := a.db.GetSshKey(sshKeyId)
-	if !exists {
-		return nil, errors.New("SSH key does not exist")
+	var sshKey SshKey
+	if sshKeyId != "" {
+		var exists bool
+		sshKey, exists = a.db.GetSshKey(sshKeyId)
+		if !exists {
+			return nil, errors.New("SSH key does not exist")
+		}
 	}
 
 	clientName := params.Get("client-name")
