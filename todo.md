@@ -18,3 +18,6 @@
   to manually combine them for custom keys.
 * Send public key back to clients, so they can automatically try to find the
   matching private key.
+* We might need some sort of a transaction or atomicity system on the db to
+  prevent things like 2 people setting the user at the same time and one losing
+  their changes.
