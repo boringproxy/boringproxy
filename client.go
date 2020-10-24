@@ -138,12 +138,23 @@ func (c *BoringProxyClient) SyncTunnels(serverTunnels map[string]Tunnel) {
 			log.Println("New tunnel", k)
 			c.tunnels[k] = newTun
 			cancel := c.BoreTunnel(newTun)
+
+			c.cancelFuncsMutex.Lock()
 			c.cancelFuncs[k] = cancel
+			c.cancelFuncsMutex.Unlock()
+
 		} else if newTun != tun {
 			log.Println("Restart tunnel", k)
+
+			c.cancelFuncsMutex.Lock()
 			c.cancelFuncs[k]()
+			c.cancelFuncsMutex.Unlock()
+
 			cancel := c.BoreTunnel(newTun)
+
+			c.cancelFuncsMutex.Lock()
 			c.cancelFuncs[k] = cancel
+			c.cancelFuncsMutex.Unlock()
 		}
 	}
 
@@ -152,71 +163,73 @@ func (c *BoringProxyClient) SyncTunnels(serverTunnels map[string]Tunnel) {
 		_, exists := serverTunnels[k]
 		if !exists {
 			log.Println("Kill tunnel", k)
+			c.cancelFuncsMutex.Lock()
 			c.cancelFuncs[k]()
-			delete(c.tunnels, k)
 			delete(c.cancelFuncs, k)
+			c.cancelFuncsMutex.Unlock()
+			delete(c.tunnels, k)
 		}
 	}
 }
 
 func (c *BoringProxyClient) BoreTunnel(tunnel Tunnel) context.CancelFunc {
 
-	signer, err := ssh.ParsePrivateKey([]byte(tunnel.TunnelPrivateKey))
-	if err != nil {
-		log.Fatalf("unable to parse private key: %v", err)
-	}
-
-	//var hostKey ssh.PublicKey
-
-	config := &ssh.ClientConfig{
-		User: tunnel.Username,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
-		},
-		//HostKeyCallback: ssh.FixedHostKey(hostKey),
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-	}
-
-	sshHost := fmt.Sprintf("%s:%d", tunnel.ServerAddress, tunnel.ServerPort)
-	client, err := ssh.Dial("tcp", sshHost, config)
-	if err != nil {
-		log.Fatal("Failed to dial: ", err)
-	}
-	//defer client.Close()
-
-	bindAddr := "127.0.0.1"
-	if tunnel.AllowExternalTcp {
-		bindAddr = "0.0.0.0"
-	}
-	tunnelAddr := fmt.Sprintf("%s:%d", bindAddr, tunnel.TunnelPort)
-	listener, err := client.Listen("tcp", tunnelAddr)
-	if err != nil {
-		log.Fatal("unable to register tcp forward: ", err)
-	}
-	//defer listener.Close()
-
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	go func() {
+		signer, err := ssh.ParsePrivateKey([]byte(tunnel.TunnelPrivateKey))
+		if err != nil {
+			log.Fatalf("unable to parse private key: %v", err)
+		}
+
+		//var hostKey ssh.PublicKey
+
+		config := &ssh.ClientConfig{
+			User: tunnel.Username,
+			Auth: []ssh.AuthMethod{
+				ssh.PublicKeys(signer),
+			},
+			//HostKeyCallback: ssh.FixedHostKey(hostKey),
+			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		}
+
+		sshHost := fmt.Sprintf("%s:%d", tunnel.ServerAddress, tunnel.ServerPort)
+		client, err := ssh.Dial("tcp", sshHost, config)
+		if err != nil {
+			log.Fatal("Failed to dial: ", err)
+		}
+		//defer client.Close()
+
+		bindAddr := "127.0.0.1"
+		if tunnel.AllowExternalTcp {
+			bindAddr = "0.0.0.0"
+		}
+		tunnelAddr := fmt.Sprintf("%s:%d", bindAddr, tunnel.TunnelPort)
+		listener, err := client.Listen("tcp", tunnelAddr)
+		if err != nil {
+			log.Fatal("unable to register tcp forward: ", err)
+		}
+		//defer listener.Close()
+
+		go func() {
+			for {
+				conn, err := listener.Accept()
+				if err != nil {
+					// TODO: Currently assuming an error means the
+					// tunnel was manually deleted, but there
+					// could be other errors that we should be
+					// attempting to recover from rather than
+					// breaking.
+					break
+					//continue
+				}
+				go c.handleConnection(conn, tunnel.ClientAddress, tunnel.ClientPort)
+			}
+		}()
+
 		<-ctx.Done()
 		listener.Close()
 		client.Close()
-	}()
-
-	go func() {
-		for {
-			conn, err := listener.Accept()
-			if err != nil {
-				// TODO: Currently assuming an error means the
-				// tunnel was manually deleted, but there
-				// could be other errors that we should be
-				// attempting to recover from rather than
-				// breaking.
-				break
-				//continue
-			}
-			go c.handleConnection(conn, tunnel.ClientAddress, tunnel.ClientPort)
-		}
 	}()
 
 	return cancelFunc
