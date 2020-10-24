@@ -13,7 +13,9 @@
         <div class='menu'>
           <a class='menu-item active-tab' href='/#/tunnels'>Tunnels</a>
           <a class='menu-item' href='/#/tokens'>Tokens</a>
+          <!--
           <a class='menu-item' href='/#/ssh-keys'>SSH Keys</a>
+          -->
           {{if .IsAdmin}}
           <a class='menu-item' href='/#/users'>Users</a>
           {{end}}
@@ -62,6 +64,7 @@
                  <input type="text" id="domain" name="domain" required>
                </div>
 
+               <!--
                <div class='input'>
                  <label for="ssh-key-id-select">SSH Key:</label>
                  <select id="ssh-key-id-select" name="ssh-key-id">
@@ -71,6 +74,7 @@
                    {{end}}
                  </select>
                </div>
+               -->
 
                <div class='input'>
                  <label for="client-name">Client Name:</label>
@@ -109,7 +113,9 @@
         <div class='menu'>
           <a class='menu-item' href='/#/tunnels'>Tunnels</a>
           <a class='menu-item active-tab' href='/#/tokens'>Tokens</a>
+          <!--
           <a class='menu-item' href='/#/ssh-keys'>SSH Keys</a>
+          -->
           {{if .IsAdmin}}
           <a class='menu-item' href='/#/users'>Users</a>
           {{end}}
@@ -144,6 +150,7 @@
         </div>
       </div>
 
+      <!--
       <div class='page' id='/ssh-keys'>
         <div class='menu'>
           <a class='menu-item' href='/#/tunnels'>Tunnels</a>
@@ -193,6 +200,7 @@
           </div>
         </div>
       </div>
+      -->
 
       {{if .IsAdmin}}
       <div class='page' id='/users'>

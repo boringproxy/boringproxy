@@ -320,20 +320,20 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		h.confirmDeleteToken(w, r)
 	case "/delete-token":
 		h.deleteToken(w, r)
-	case "/ssh-keys":
-		h.handleSshKeys(w, r, user, tokenData)
-	case "/delete-ssh-key":
+	//case "/ssh-keys":
+	//	h.handleSshKeys(w, r, user, tokenData)
+	//case "/delete-ssh-key":
 
-		r.ParseForm()
+	//	r.ParseForm()
 
-		err := h.api.DeleteSshKey(tokenData, r.Form)
-		if err != nil {
-			w.WriteHeader(400)
-			h.alertDialog(w, r, err.Error(), "/#/ssh-keys")
-			return
-		}
+	//	err := h.api.DeleteSshKey(tokenData, r.Form)
+	//	if err != nil {
+	//		w.WriteHeader(400)
+	//		h.alertDialog(w, r, err.Error(), "/#/ssh-keys")
+	//		return
+	//	}
 
-		http.Redirect(w, r, "/#/ssh-keys", 303)
+	//	http.Redirect(w, r, "/#/ssh-keys", 303)
 
 	case "/confirm-logout":
 		tmpl, err := h.loadTemplate("confirm.tmpl")
