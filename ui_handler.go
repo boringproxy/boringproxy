@@ -72,10 +72,6 @@ type HeadData struct {
 	Styles template.CSS
 }
 
-type StylesData struct {
-	Tunnels map[string]Tunnel
-}
-
 type MenuData struct {
 	IsAdmin bool
 }
@@ -107,6 +103,39 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 	homePath := "/#/tunnel"
 
+	// Note: h.box and h.headHtml need to be ready before pretty much
+	// everything else, including sendLoginPage
+
+	box, err := rice.FindBox("webui")
+	if err != nil {
+		w.WriteHeader(500)
+		io.WriteString(w, "Error opening webui")
+		return
+	}
+	h.box = box
+
+	stylesText, err := box.String("styles.css")
+	if err != nil {
+		w.WriteHeader(500)
+		io.WriteString(w, "Error reading styles.css")
+		return
+	}
+	headTmplStr, err := box.String("head.tmpl")
+	if err != nil {
+		w.WriteHeader(500)
+		io.WriteString(w, "Error reading head.tmpl")
+		return
+	}
+	headTmpl, err := template.New("head").Parse(headTmplStr)
+	if err != nil {
+		w.WriteHeader(500)
+		io.WriteString(w, "Error compiling head.tmpl")
+		return
+	}
+	var headBuilder strings.Builder
+	headTmpl.Execute(&headBuilder, HeadData{Styles: template.CSS(stylesText)})
+	h.headHtml = template.HTML(headBuilder.String())
+
 	token, err := extractToken("access_token", r)
 	if err != nil {
 		h.sendLoginPage(w, r, 401)
@@ -121,29 +150,6 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 	user, _ := h.db.GetUser(tokenData.Owner)
 
-	box, err := rice.FindBox("webui")
-	if err != nil {
-		w.WriteHeader(500)
-		io.WriteString(w, "Error opening webui")
-		return
-	}
-
-	h.box = box
-
-	stylesText, err := box.String("styles.css")
-	if err != nil {
-		w.WriteHeader(500)
-		io.WriteString(w, "Error reading styles.css")
-		return
-	}
-
-	stylesTmpl, err := template.New("styles").Parse(stylesText)
-	if err != nil {
-		w.WriteHeader(500)
-		h.alertDialog(w, r, err.Error(), homePath)
-		return
-	}
-
 	tunnels := h.api.GetTunnels(tokenData)
 
 	for domain, tun := range tunnels {
@@ -151,28 +157,6 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		tun.CssId = strings.ReplaceAll(domain, ".", "-")
 		tunnels[domain] = tun
 	}
-
-	var stylesBuilder strings.Builder
-	stylesTmpl.Execute(&stylesBuilder, StylesData{Tunnels: tunnels})
-
-	headTmplStr, err := box.String("head.tmpl")
-	if err != nil {
-		w.WriteHeader(500)
-		io.WriteString(w, "Error reading head.tmpl")
-		return
-	}
-
-	headTmpl, err := template.New("head").Parse(headTmplStr)
-	if err != nil {
-		w.WriteHeader(500)
-		io.WriteString(w, "Error compiling head.tmpl")
-		return
-	}
-
-	var headBuilder strings.Builder
-	headTmpl.Execute(&headBuilder, HeadData{Styles: template.CSS(stylesBuilder.String())})
-
-	h.headHtml = template.HTML(headBuilder.String())
 
 	switch r.URL.Path {
 	case "/login":
@@ -396,26 +380,10 @@ func (h *WebUiHandler) handleTokens(w http.ResponseWriter, r *http.Request, user
 
 	r.ParseForm()
 
-	if len(r.Form["owner"]) != 1 {
-		w.WriteHeader(400)
-		h.alertDialog(w, r, "Invalid owner parameter", "/#/tokens")
-		return
-	}
-	owner := r.Form["owner"][0]
-
-	users := h.db.GetUsers()
-
-	_, exists := users[owner]
-	if !exists {
-		w.WriteHeader(400)
-		h.alertDialog(w, r, "Owner doesn't exist", "/#/tokens")
-		return
-	}
-
-	_, err := h.db.AddToken(owner)
+	_, err := h.api.CreateToken(tokenData, r.Form)
 	if err != nil {
 		w.WriteHeader(500)
-		h.alertDialog(w, r, "Failed creating token", "/#/tokens")
+		h.alertDialog(w, r, err.Error(), "/#/tokens")
 		return
 	}
 
@@ -578,7 +546,7 @@ func (h *WebUiHandler) sendLoginPage(w http.ResponseWriter, r *http.Request, cod
 		return
 	}
 
-	loginTemplate, err := template.New("test").Parse(loginTemplateStr)
+	loginTemplate, err := template.New("login").Parse(loginTemplateStr)
 	if err != nil {
 		w.WriteHeader(500)
 		io.WriteString(w, "Error compiling login.tmpl")
