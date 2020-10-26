@@ -229,27 +229,6 @@ main *:target {
   z-index: 1010;
 }
 
-{{range $domain, $tunnel:= .Tunnels}}
-#toggle-tunnel-delete-dialog-{{$tunnel.CssId}} {
-  display: none;
-}
-#toggle-tunnel-delete-dialog-{{$tunnel.CssId}}:checked + .dialog {
-  display: block;
-}
-
-#toggle-tunnel-hide-deleted-{{$tunnel.CssId}}:checked + .list-item {
-  /* This is a trick to make the delete request after the delete button is
-   * clicked. The background will never actually be displayed, because it's
-   * moved offscreen. */
-  position: absolute;
-  left: -999em;
-  background: url("/delete-tunnel?domain={{$domain}}");
-}
-#toggle-tunnel-hide-deleted-{{$tunnel.CssId}}:checked ~ .dialog {
-  display: none;
-}
-{{end}}
-
 @media (min-width: 640px) {
 
   main {

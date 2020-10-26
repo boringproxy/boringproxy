@@ -160,6 +160,28 @@ func (a *Api) DeleteTunnel(tokenData TokenData, params url.Values) error {
 	return nil
 }
 
+func (a *Api) CreateToken(tokenData TokenData, params url.Values) (string, error) {
+
+	owner := params.Get("owner")
+	if owner == "" {
+		return "", errors.New("Invalid owner paramater")
+	}
+
+	if tokenData.Owner != owner {
+		user, _ := a.db.GetUser(tokenData.Owner)
+		if !user.IsAdmin {
+			return "", errors.New("Unauthorized")
+		}
+	}
+
+	token, err := a.db.AddToken(owner)
+	if err != nil {
+		return "", errors.New("Failed to create token")
+	}
+
+	return token, nil
+}
+
 func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
 	token, err := extractToken("access_token", r)

@@ -1,7 +1,7 @@
 # 31 Oct 2020 Launch List
 
 - [ ] I think it's possible to create tokens for arbitrary user, even if you're not that user.
-- [ ] Responses to unauthorized requests are leaking information about the current tunnels through the genereated CSS.
+- [ ] QR codes for admin are broken
 - [ ] General security review.
 - [ ] Invalid database is wiping out tunnels
 - [ ] Improve SSH key download UI.
@@ -11,6 +11,8 @@
 - [ ] Demo video
 - [ ] Demo auto email signup
 - [ ] Post on /r/selfhosted
+- [x] Head can be rendered before h.headHtml is ever set, ie if login page is visited before any other page
+- [x] Responses to unauthorized requests are leaking information about the current tunnels through the genereated CSS.
 
 
 # Eventually 
