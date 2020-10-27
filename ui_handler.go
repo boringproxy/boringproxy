@@ -211,7 +211,6 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 		var tokens map[string]TokenData
 		var users map[string]User
-		qrCodes := make(map[string]template.URL)
 
 		if user.IsAdmin {
 			tokens = h.db.GetTokens()
@@ -224,22 +223,26 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 					tokens[token] = td
 				}
 
-				loginUrl := fmt.Sprintf("https://%s/login?access_token=%s", h.config.WebUiDomain, token)
-
-				var png []byte
-				png, err := qrcode.Encode(loginUrl, qrcode.Medium, 256)
-				if err != nil {
-					w.WriteHeader(500)
-					h.alertDialog(w, r, err.Error(), "/#/tokens")
-					return
-				}
-
-				data := base64.StdEncoding.EncodeToString(png)
-				qrCodes[token] = template.URL("data:image/png;base64," + data)
 			}
 
 			users = make(map[string]User)
 			users[tokenData.Owner] = user
+		}
+
+		qrCodes := make(map[string]template.URL)
+		for token := range tokens {
+			loginUrl := fmt.Sprintf("https://%s/login?access_token=%s", h.config.WebUiDomain, token)
+
+			var png []byte
+			png, err := qrcode.Encode(loginUrl, qrcode.Medium, 256)
+			if err != nil {
+				w.WriteHeader(500)
+				h.alertDialog(w, r, err.Error(), "/#/tokens")
+				return
+			}
+
+			data := base64.StdEncoding.EncodeToString(png)
+			qrCodes[token] = template.URL("data:image/png;base64," + data)
 		}
 
 		indexData := IndexData{
