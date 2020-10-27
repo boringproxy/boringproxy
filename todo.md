@@ -1,6 +1,6 @@
 # 31 Oct 2020 Launch List
 
-- [ ] I think it's possible to create tokens for arbitrary user, even if you're not that user.
+- [ ] Anyone can delete tokens
 - [ ] QR codes for admin are broken
 - [ ] General security review.
 - [ ] Invalid database is wiping out tunnels
@@ -12,7 +12,8 @@
 - [ ] Demo auto email signup
 - [ ] Post on /r/selfhosted
 - [x] Head can be rendered before h.headHtml is ever set, ie if login page is visited before any other page
-- [x] Responses to unauthorized requests are leaking information about the current tunnels through the genereated CSS.
+- [x] Responses to unauthorized requests are leaking information about the current tunnels through the generated CSS.
+- [x] I think it's possible to create tokens for arbitrary user, even if you're not that user.
 
 
 # Eventually 
@@ -30,6 +31,7 @@
 * We might need some sort of a transaction or atomicity system on the db to
   prevent things like 2 people setting the user at the same time and one losing
   their changes.
+* Endpoint for getting user ID from token
 
 
 # Maybe

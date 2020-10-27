@@ -155,6 +155,18 @@ func (a *Api) DeleteTunnel(tokenData TokenData, params url.Values) error {
 		return errors.New("Invalid domain parameter")
 	}
 
+	tun, exists := a.db.GetTunnel(domain)
+	if !exists {
+		return errors.New("Tunnel doesn't exist")
+	}
+
+	if tokenData.Owner != tun.Owner {
+		user, _ := a.db.GetUser(tokenData.Owner)
+		if !user.IsAdmin {
+			return errors.New("Unauthorized")
+		}
+	}
+
 	a.tunMan.DeleteTunnel(domain)
 
 	return nil
