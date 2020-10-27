@@ -1,21 +1,21 @@
 package main
 
 import (
+	"bufio"
 	"crypto/tls"
-	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/caddyserver/certmagic"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
 
 type BoringProxyConfig struct {
-	WebUiDomain string      `json:"webui_domain"`
-	Smtp        *SmtpConfig `json:"smtp"`
+	WebUiDomain string `json:"webui_domain"`
 }
 
 type SmtpConfig struct {
@@ -32,19 +32,32 @@ type BoringProxy struct {
 }
 
 func Listen() {
+	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	adminDomain := flagSet.String("admin-domain", "", "Admin Domain")
+	flagSet.Parse(os.Args[2:])
 
-	config := &BoringProxyConfig{}
+	webUiDomain := *adminDomain
 
-	configJson, err := ioutil.ReadFile("boringproxy_config.json")
-	if err != nil {
-		log.Println(err)
+	if *adminDomain == "" {
+		reader := bufio.NewReader(os.Stdin)
+		log.Print("Enter Admin Domain: ")
+		text, _ := reader.ReadString('\n')
+		webUiDomain = strings.TrimSpace(text)
 	}
 
-	err = json.Unmarshal(configJson, config)
+	config := &BoringProxyConfig{WebUiDomain: webUiDomain}
+
+	certmagic.DefaultACME.DisableHTTPChallenge = true
+	//certmagic.DefaultACME.DisableTLSALPNChallenge = true
+	//certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
+	certConfig := certmagic.NewDefault()
+
+	err := certConfig.ManageSync([]string{config.WebUiDomain})
 	if err != nil {
-		log.Println(err)
-		config = &BoringProxyConfig{}
+		log.Fatal(err)
 	}
+
+	log.Print("Successfully acquired admin certificate")
 
 	db, err := NewDatabase()
 	if err != nil {
@@ -62,20 +75,9 @@ func Listen() {
 		log.Println("Admin token: " + token)
 	}
 
-	auth := NewAuth(db)
-
-	certmagic.DefaultACME.DisableHTTPChallenge = true
-	//certmagic.DefaultACME.DisableTLSALPNChallenge = true
-	//certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
-	certConfig := certmagic.NewDefault()
-
 	tunMan := NewTunnelManager(config, db, certConfig)
 
-	err = certConfig.ManageSync([]string{config.WebUiDomain})
-	if err != nil {
-		log.Println("CertMagic error")
-		log.Println(err)
-	}
+	auth := NewAuth(db)
 
 	api := NewApi(config, db, auth, tunMan)
 	http.Handle("/api/", http.StripPrefix("/api", api))
