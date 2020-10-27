@@ -1,7 +1,5 @@
 # 31 Oct 2020 Launch List
 
-- [ ] Anyone can delete tokens
-- [ ] QR codes for admin are broken
 - [ ] General security review.
 - [ ] Invalid database is wiping out tunnels
 - [ ] Improve SSH key download UI.
