@@ -319,7 +319,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 	case "/confirm-delete-token":
 		h.confirmDeleteToken(w, r)
 	case "/delete-token":
-		h.deleteToken(w, r)
+		h.deleteToken(w, r, tokenData)
 	//case "/ssh-keys":
 	//	h.handleSshKeys(w, r, user, tokenData)
 	//case "/delete-ssh-key":
@@ -670,20 +670,17 @@ func (h *WebUiHandler) confirmDeleteToken(w http.ResponseWriter, r *http.Request
 	tmpl.Execute(w, data)
 }
 
-func (h *WebUiHandler) deleteToken(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
+func (h *WebUiHandler) deleteToken(w http.ResponseWriter, r *http.Request, tokenData TokenData) {
 
-	if len(r.Form["token"]) != 1 {
-		w.WriteHeader(400)
-		w.Write([]byte("Invalid token parameter"))
+	r.ParseForm()
+	err := h.api.DeleteToken(tokenData, r.Form)
+	if err != nil {
+		w.WriteHeader(500)
+		h.alertDialog(w, r, err.Error(), "/#/tokens")
 		return
 	}
-	token := r.Form["token"][0]
-
-	h.db.DeleteTokenData(token)
 
 	http.Redirect(w, r, "/#/tokens", 303)
-
 }
 
 func (h *WebUiHandler) alertDialog(w http.ResponseWriter, r *http.Request, message, redirectUrl string) error {
