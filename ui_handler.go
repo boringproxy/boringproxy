@@ -212,6 +212,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		var tokens map[string]TokenData
 		var users map[string]User
 
+		// TODO: handle security checks in api
 		if user.IsAdmin {
 			tokens = h.db.GetTokens()
 			users = h.db.GetUsers()

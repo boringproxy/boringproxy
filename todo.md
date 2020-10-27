@@ -1,6 +1,5 @@
 # 31 Oct 2020 Launch List
 
-- [ ] General security review.
 - [ ] Invalid database is wiping out tunnels
 - [ ] Improve SSH key download UI.
 - [ ] Improve token list UI.
@@ -12,6 +11,10 @@
 - [x] Head can be rendered before h.headHtml is ever set, ie if login page is visited before any other page
 - [x] Responses to unauthorized requests are leaking information about the current tunnels through the generated CSS.
 - [x] I think it's possible to create tokens for arbitrary user, even if you're not that user.
+- [x] Anyone can delete tunnels
+- [x] Anyone can delete tokens
+- [x] QR codes for admin are broken
+- [x] General security review.
 
 
 # Eventually 

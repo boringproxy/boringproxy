@@ -85,6 +85,9 @@ func (c *BoringProxyClient) RunPuppetClient() {
 }
 
 func (c *BoringProxyClient) PollTunnels() error {
+
+	log.Println("PollTunnels")
+
 	url := fmt.Sprintf("https://%s/api/tunnels?client-name=%s", c.server, c.clientName)
 
 	listenReq, err := http.NewRequest("GET", url, nil)
@@ -128,7 +131,7 @@ func (c *BoringProxyClient) PollTunnels() error {
 }
 
 func (c *BoringProxyClient) SyncTunnels(serverTunnels map[string]Tunnel) {
-	fmt.Println("SyncTunnels")
+	log.Println("SyncTunnels")
 
 	// update tunnels to match server
 	for k, newTun := range serverTunnels {
@@ -173,6 +176,8 @@ func (c *BoringProxyClient) SyncTunnels(serverTunnels map[string]Tunnel) {
 }
 
 func (c *BoringProxyClient) BoreTunnel(tunnel Tunnel) context.CancelFunc {
+
+	log.Println("BoreTunnel", tunnel.Domain)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
