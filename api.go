@@ -194,6 +194,30 @@ func (a *Api) CreateToken(tokenData TokenData, params url.Values) (string, error
 	return token, nil
 }
 
+func (a *Api) DeleteToken(tokenData TokenData, params url.Values) error {
+	token := params.Get("token")
+	if token == "" {
+		return errors.New("Invalid token parameter")
+	}
+
+	delTokenData, exists := a.db.GetTokenData(token)
+	if !exists {
+		return errors.New("Token doesn't exist")
+	}
+
+	if tokenData.Owner != delTokenData.Owner {
+		user, _ := a.db.GetUser(tokenData.Owner)
+		if !user.IsAdmin {
+			return errors.New("Unauthorized")
+		}
+	}
+
+	a.db.DeleteTokenData(token)
+
+	return nil
+
+}
+
 func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
 	token, err := extractToken("access_token", r)
