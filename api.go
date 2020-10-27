@@ -83,6 +83,18 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 		return nil, errors.New("Invalid domain parameter")
 	}
 
+	owner := params.Get("owner")
+	if owner == "" {
+		return nil, errors.New("Invalid owner parameter")
+	}
+
+	if tokenData.Owner != owner {
+		user, _ := a.db.GetUser(tokenData.Owner)
+		if !user.IsAdmin {
+			return nil, errors.New("Unauthorized")
+		}
+	}
+
 	sshKeyId := params.Get("ssh-key-id")
 
 	var sshKey SshKey
@@ -263,70 +275,22 @@ func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
 		w.Write([]byte(body))
 	case "POST":
-		a.handleCreateTunnel(w, r)
+		r.ParseForm()
+		_, err := a.CreateTunnel(tokenData, r.Form)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte(err.Error()))
+		}
 	case "DELETE":
-		a.handleDeleteTunnel(w, r)
+		r.ParseForm()
+		err := a.DeleteTunnel(tokenData, r.Form)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte(err.Error()))
+		}
 	default:
 		w.WriteHeader(405)
 		w.Write([]byte("Invalid method for /tunnels"))
-	}
-}
-
-func (a *Api) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
-
-	if len(query["domain"]) != 1 {
-		w.WriteHeader(400)
-		w.Write([]byte("Invalid domain parameter"))
-		return
-	}
-	domain := query["domain"][0]
-
-	if len(query["owner"]) != 1 {
-		w.WriteHeader(400)
-		w.Write([]byte("Invalid owner parameter"))
-		return
-	}
-	owner := query["owner"][0]
-
-	request := Tunnel{
-		Domain: domain,
-		Owner:  owner,
-	}
-
-	tunnel, err := a.tunMan.RequestCreateTunnel(request)
-	if err != nil {
-		w.WriteHeader(400)
-		io.WriteString(w, err.Error())
-		return
-	}
-
-	tunnelJson, err := json.MarshalIndent(tunnel, "", "  ")
-	if err != nil {
-		w.WriteHeader(500)
-		io.WriteString(w, "Error encoding tunnel")
-		return
-	}
-
-	w.Write(tunnelJson)
-}
-
-func (a *Api) handleDeleteTunnel(w http.ResponseWriter, r *http.Request) {
-
-	query := r.URL.Query()
-
-	if len(query["domain"]) != 1 {
-		w.WriteHeader(400)
-		w.Write([]byte("Invalid domain parameter"))
-		return
-	}
-	domain := query["domain"][0]
-
-	err := a.tunMan.DeleteTunnel(domain)
-	if err != nil {
-		w.WriteHeader(500)
-		io.WriteString(w, "Failed to delete tunnel")
-		return
 	}
 }
 
