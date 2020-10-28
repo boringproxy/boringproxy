@@ -86,7 +86,7 @@ func (c *BoringProxyClient) RunPuppetClient() {
 
 func (c *BoringProxyClient) PollTunnels() error {
 
-	log.Println("PollTunnels")
+	//log.Println("PollTunnels")
 
 	url := fmt.Sprintf("https://%s/api/tunnels?client-name=%s", c.server, c.clientName)
 

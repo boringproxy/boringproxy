@@ -1,13 +1,13 @@
 # 31 Oct 2020 Launch List
 
-- [ ] Invalid database is wiping out tunnels
-- [ ] Improve SSH key download UI.
-- [ ] Improve token list UI.
 - [ ] Finish website
 - [ ] Demo instance
-- [ ] Demo video
 - [ ] Demo auto email signup
+- [ ] Demo video
 - [ ] Post on /r/selfhosted
+- [ ] Improve SSH key download UI.
+- [ ] Improve token list UI.
+- [ ] Invalid database is wiping out tunnels
 - [x] Head can be rendered before h.headHtml is ever set, ie if login page is visited before any other page
 - [x] Responses to unauthorized requests are leaking information about the current tunnels through the generated CSS.
 - [x] I think it's possible to create tokens for arbitrary user, even if you're not that user.
