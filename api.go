@@ -28,6 +28,7 @@ func NewApi(config *BoringProxyConfig, db *Database, auth *Auth, tunMan *TunnelM
 
 	mux.Handle("/tunnels", http.StripPrefix("/tunnels", http.HandlerFunc(api.handleTunnels)))
 	mux.Handle("/users/", http.StripPrefix("/users", http.HandlerFunc(api.handleUsers)))
+	mux.Handle("/tokens/", http.StripPrefix("/tokens", http.HandlerFunc(api.handleTokens)))
 
 	return api
 }
@@ -182,6 +183,37 @@ func (a *Api) DeleteTunnel(tokenData TokenData, params url.Values) error {
 	a.tunMan.DeleteTunnel(domain)
 
 	return nil
+}
+
+func (a *Api) handleTokens(w http.ResponseWriter, r *http.Request) {
+	token, err := extractToken("access_token", r)
+	if err != nil {
+		w.WriteHeader(401)
+		w.Write([]byte("No token provided"))
+		return
+	}
+
+	tokenData, exists := a.db.GetTokenData(token)
+	if !exists {
+		w.WriteHeader(403)
+		w.Write([]byte("Not authorized"))
+		return
+	}
+
+	switch r.Method {
+	case "POST":
+		r.ParseForm()
+		token, err := a.CreateToken(tokenData, r.Form)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte(err.Error()))
+		}
+
+		io.WriteString(w, token)
+	default:
+		w.WriteHeader(405)
+		w.Write([]byte(err.Error()))
+	}
 }
 
 func (a *Api) CreateToken(tokenData TokenData, params url.Values) (string, error) {
@@ -346,7 +378,21 @@ func (a *Api) handleUsers(w http.ResponseWriter, r *http.Request) {
 
 	r.ParseForm()
 
-	if len(parts) == 3 && parts[1] == "clients" {
+	if path == "/" {
+		switch r.Method {
+		case "POST":
+			err := a.CreateUser(tokenData, r.Form)
+			if err != nil {
+				w.WriteHeader(500)
+				io.WriteString(w, err.Error())
+				return
+			}
+		default:
+			w.WriteHeader(406)
+			io.WriteString(w, "Invalid method for /users")
+			return
+		}
+	} else if len(parts) == 3 && parts[1] == "clients" {
 		ownerId := parts[0]
 		clientId := parts[2]
 		if r.Method == "PUT" {
@@ -369,6 +415,30 @@ func (a *Api) handleUsers(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, "Invalid /users/<username>/clients request")
 		return
 	}
+}
+
+func (a *Api) CreateUser(tokenData TokenData, params url.Values) error {
+
+	user, _ := a.db.GetUser(tokenData.Owner)
+	if !user.IsAdmin {
+		return errors.New("Unauthorized")
+	}
+
+	username := params.Get("username")
+	minUsernameLen := 6
+	if len(username) < minUsernameLen {
+		errStr := fmt.Sprintf("Username must be at least %d characters", minUsernameLen)
+		return errors.New(errStr)
+	}
+
+	isAdmin := params.Get("is-admin") == "on"
+
+	err := a.db.AddUser(username, isAdmin)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (a *Api) SetClient(tokenData TokenData, params url.Values, ownerId, clientId string) error {

@@ -162,13 +162,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 	case "/login":
 		h.handleLogin(w, r)
 	case "/users":
-		if user.IsAdmin {
-			h.handleUsers(w, r)
-		} else {
-			w.WriteHeader(403)
-			h.alertDialog(w, r, "Not authorized", "/#/tunnels")
-			return
-		}
+		h.handleUsers(w, r, tokenData)
 
 	case "/confirm-delete-user":
 		h.confirmDeleteUser(w, r)
@@ -565,7 +559,7 @@ func (h *WebUiHandler) sendLoginPage(w http.ResponseWriter, r *http.Request, cod
 	loginTemplate.Execute(w, loginData)
 }
 
-func (h *WebUiHandler) handleUsers(w http.ResponseWriter, r *http.Request) {
+func (h *WebUiHandler) handleUsers(w http.ResponseWriter, r *http.Request, tokenData TokenData) {
 
 	if r.Method != "POST" {
 		w.WriteHeader(405)
@@ -575,24 +569,7 @@ func (h *WebUiHandler) handleUsers(w http.ResponseWriter, r *http.Request) {
 
 	r.ParseForm()
 
-	if len(r.Form["username"]) != 1 {
-		w.WriteHeader(400)
-		w.Write([]byte("Invalid username parameter"))
-		return
-	}
-	username := r.Form["username"][0]
-
-	minUsernameLen := 6
-	if len(username) < minUsernameLen {
-		w.WriteHeader(400)
-		errStr := fmt.Sprintf("Username must be at least %d characters", minUsernameLen)
-		h.alertDialog(w, r, errStr, "/#/users")
-		return
-	}
-
-	isAdmin := len(r.Form["is-admin"]) == 1 && r.Form["is-admin"][0] == "on"
-
-	err := h.db.AddUser(username, isAdmin)
+	err := h.api.CreateUser(tokenData, r.Form)
 	if err != nil {
 		w.WriteHeader(500)
 		h.alertDialog(w, r, err.Error(), "/#/users")
