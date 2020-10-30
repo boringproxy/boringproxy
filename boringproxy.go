@@ -73,6 +73,7 @@ func Listen() {
 		}
 
 		log.Println("Admin token: " + token)
+		log.Println(fmt.Sprintf("Admin login link: https://%s/login?access_token=%s", webUiDomain, token))
 	}
 
 	tunMan := NewTunnelManager(config, db, certConfig)

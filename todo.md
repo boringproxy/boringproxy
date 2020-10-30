@@ -1,5 +1,6 @@
 # 31 Oct 2020 Launch List
 
+- [ ] Requires OpenSSH 7.7+ for PermitListen option
 - [ ] Finish website
 - [ ] Demo instance
 - [ ] Demo auto email signup
