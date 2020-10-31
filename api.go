@@ -409,6 +409,34 @@ func (a *Api) CreateUser(tokenData TokenData, params url.Values) error {
 	return nil
 }
 
+func (a *Api) DeleteUser(tokenData TokenData, params url.Values) error {
+
+	user, _ := a.db.GetUser(tokenData.Owner)
+	if !user.IsAdmin {
+		return errors.New("Unauthorized")
+	}
+
+	username := params.Get("username")
+	if username == "" {
+		return errors.New("Invalid username parameter")
+	}
+
+	_, exists := a.db.GetUser(username)
+	if !exists {
+		return errors.New("User doesn't exist")
+	}
+
+	a.db.DeleteUser(username)
+
+	for token, tokenData := range a.db.GetTokens() {
+		if tokenData.Owner == username {
+			a.db.DeleteTokenData(token)
+		}
+	}
+
+	return nil
+}
+
 func (a *Api) SetClient(tokenData TokenData, params url.Values, ownerId, clientId string) error {
 
 	if tokenData.Owner != ownerId {

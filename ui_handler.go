@@ -167,13 +167,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 	case "/confirm-delete-user":
 		h.confirmDeleteUser(w, r)
 	case "/delete-user":
-		if user.IsAdmin {
-			h.deleteUser(w, r)
-		} else {
-			w.WriteHeader(403)
-			h.alertDialog(w, r, "Not authorized", "/#/tunnels")
-			return
-		}
+		h.deleteUser(w, r, tokenData)
 	case "/logo.png":
 
 		logoPngBytes, err := box.Bytes("logo.png")
@@ -607,18 +601,16 @@ func (h *WebUiHandler) confirmDeleteUser(w http.ResponseWriter, r *http.Request)
 	tmpl.Execute(w, data)
 }
 
-func (h *WebUiHandler) deleteUser(w http.ResponseWriter, r *http.Request) {
+func (h *WebUiHandler) deleteUser(w http.ResponseWriter, r *http.Request, tokenData TokenData) {
 
 	r.ParseForm()
 
-	if len(r.Form["username"]) != 1 {
-		w.WriteHeader(400)
-		w.Write([]byte("Invalid username parameter"))
+	err := h.api.DeleteUser(tokenData, r.Form)
+	if err != nil {
+		w.WriteHeader(500)
+		h.alertDialog(w, r, err.Error(), "/#/users")
 		return
 	}
-	username := r.Form["username"][0]
-
-	h.db.DeleteUser(username)
 
 	http.Redirect(w, r, "/#/users", 303)
 }
