@@ -37,6 +37,160 @@ func (a *Api) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.mux.ServeHTTP(w, r)
 }
 
+func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
+
+	token, err := extractToken("access_token", r)
+	if err != nil {
+		w.WriteHeader(401)
+		w.Write([]byte("No token provided"))
+		return
+	}
+
+	tokenData, exists := a.db.GetTokenData(token)
+	if !exists {
+		w.WriteHeader(403)
+		w.Write([]byte("Not authorized"))
+		return
+	}
+
+	switch r.Method {
+	case "GET":
+		query := r.URL.Query()
+
+		tunnels := a.GetTunnels(tokenData)
+
+		if len(query["client-name"]) == 1 {
+			clientName := query["client-name"][0]
+			for k, tun := range tunnels {
+				if tun.ClientName != clientName {
+					delete(tunnels, k)
+				}
+			}
+		}
+
+		body, err := json.Marshal(tunnels)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte("Error encoding tunnels"))
+			return
+		}
+
+		hash := md5.Sum(body)
+		hashStr := fmt.Sprintf("%x", hash)
+
+		w.Header()["ETag"] = []string{hashStr}
+
+		w.Write([]byte(body))
+	case "POST":
+		r.ParseForm()
+		_, err := a.CreateTunnel(tokenData, r.Form)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte(err.Error()))
+		}
+	case "DELETE":
+		r.ParseForm()
+		err := a.DeleteTunnel(tokenData, r.Form)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte(err.Error()))
+		}
+	default:
+		w.WriteHeader(405)
+		w.Write([]byte("Invalid method for /tunnels"))
+	}
+}
+
+func (a *Api) handleUsers(w http.ResponseWriter, r *http.Request) {
+	token, err := extractToken("access_token", r)
+	if err != nil {
+		w.WriteHeader(401)
+		io.WriteString(w, "Invalid token")
+		return
+	}
+
+	tokenData, exists := a.db.GetTokenData(token)
+	if !exists {
+		w.WriteHeader(401)
+		io.WriteString(w, "Failed to get token")
+		return
+	}
+
+	path := r.URL.Path
+	parts := strings.Split(path[1:], "/")
+
+	r.ParseForm()
+
+	if path == "/" {
+		switch r.Method {
+		case "POST":
+			err := a.CreateUser(tokenData, r.Form)
+			if err != nil {
+				w.WriteHeader(500)
+				io.WriteString(w, err.Error())
+				return
+			}
+		default:
+			w.WriteHeader(406)
+			io.WriteString(w, "Invalid method for /users")
+			return
+		}
+	} else if len(parts) == 3 && parts[1] == "clients" {
+		ownerId := parts[0]
+		clientId := parts[2]
+		if r.Method == "PUT" {
+			err := a.SetClient(tokenData, r.Form, ownerId, clientId)
+			if err != nil {
+				w.WriteHeader(500)
+				io.WriteString(w, err.Error())
+				return
+			}
+		} else if r.Method == "DELETE" {
+			err := a.DeleteClient(tokenData, ownerId, clientId)
+			if err != nil {
+				w.WriteHeader(500)
+				io.WriteString(w, err.Error())
+				return
+			}
+		}
+	} else {
+		w.WriteHeader(400)
+		io.WriteString(w, "Invalid /users/<username>/clients request")
+		return
+	}
+}
+
+func (a *Api) handleTokens(w http.ResponseWriter, r *http.Request) {
+	token, err := extractToken("access_token", r)
+	if err != nil {
+		w.WriteHeader(401)
+		w.Write([]byte("No token provided"))
+		return
+	}
+
+	tokenData, exists := a.db.GetTokenData(token)
+	if !exists {
+		w.WriteHeader(403)
+		w.Write([]byte("Not authorized"))
+		return
+	}
+
+	switch r.Method {
+	case "POST":
+		r.ParseForm()
+		token, err := a.CreateToken(tokenData, r.Form)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte(err.Error()))
+		}
+
+		io.WriteString(w, token)
+	default:
+		w.WriteHeader(405)
+		w.Write([]byte(err.Error()))
+	}
+}
+
 func (a *Api) GetTunnel(tokenData TokenData, params url.Values) (Tunnel, error) {
 	domain := params.Get("domain")
 	if domain == "" {
@@ -185,37 +339,6 @@ func (a *Api) DeleteTunnel(tokenData TokenData, params url.Values) error {
 	return nil
 }
 
-func (a *Api) handleTokens(w http.ResponseWriter, r *http.Request) {
-	token, err := extractToken("access_token", r)
-	if err != nil {
-		w.WriteHeader(401)
-		w.Write([]byte("No token provided"))
-		return
-	}
-
-	tokenData, exists := a.db.GetTokenData(token)
-	if !exists {
-		w.WriteHeader(403)
-		w.Write([]byte("Not authorized"))
-		return
-	}
-
-	switch r.Method {
-	case "POST":
-		r.ParseForm()
-		token, err := a.CreateToken(tokenData, r.Form)
-		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte(err.Error()))
-		}
-
-		io.WriteString(w, token)
-	default:
-		w.WriteHeader(405)
-		w.Write([]byte(err.Error()))
-	}
-}
-
 func (a *Api) CreateToken(tokenData TokenData, params url.Values) (string, error) {
 
 	owner := params.Get("owner")
@@ -260,161 +383,6 @@ func (a *Api) DeleteToken(tokenData TokenData, params url.Values) error {
 
 	return nil
 
-}
-
-func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
-
-	token, err := extractToken("access_token", r)
-	if err != nil {
-		w.WriteHeader(401)
-		w.Write([]byte("No token provided"))
-		return
-	}
-
-	tokenData, exists := a.db.GetTokenData(token)
-	if !exists {
-		w.WriteHeader(403)
-		w.Write([]byte("Not authorized"))
-		return
-	}
-
-	switch r.Method {
-	case "GET":
-		query := r.URL.Query()
-
-		tunnels := a.GetTunnels(tokenData)
-
-		if len(query["client-name"]) == 1 {
-			clientName := query["client-name"][0]
-			for k, tun := range tunnels {
-				if tun.ClientName != clientName {
-					delete(tunnels, k)
-				}
-			}
-		}
-
-		body, err := json.Marshal(tunnels)
-		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte("Error encoding tunnels"))
-			return
-		}
-
-		hash := md5.Sum(body)
-		hashStr := fmt.Sprintf("%x", hash)
-
-		w.Header()["ETag"] = []string{hashStr}
-
-		w.Write([]byte(body))
-	case "POST":
-		r.ParseForm()
-		_, err := a.CreateTunnel(tokenData, r.Form)
-		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte(err.Error()))
-		}
-	case "DELETE":
-		r.ParseForm()
-		err := a.DeleteTunnel(tokenData, r.Form)
-		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte(err.Error()))
-		}
-	default:
-		w.WriteHeader(405)
-		w.Write([]byte("Invalid method for /tunnels"))
-	}
-}
-
-func (a *Api) GetSshKeys(tokenData TokenData) map[string]SshKey {
-
-	user, _ := a.db.GetUser(tokenData.Owner)
-
-	var keys map[string]SshKey
-
-	if user.IsAdmin {
-		keys = a.db.GetSshKeys()
-	} else {
-		keys = make(map[string]SshKey)
-
-		for id, key := range a.db.GetSshKeys() {
-			if tokenData.Owner == key.Owner {
-				keys[id] = key
-			}
-		}
-	}
-
-	return keys
-}
-
-func (a *Api) DeleteSshKey(tokenData TokenData, params url.Values) error {
-	id := params.Get("id")
-	if id == "" {
-		return errors.New("Invalid id parameter")
-	}
-
-	a.db.DeleteSshKey(id)
-
-	return nil
-}
-
-func (a *Api) handleUsers(w http.ResponseWriter, r *http.Request) {
-	token, err := extractToken("access_token", r)
-	if err != nil {
-		w.WriteHeader(401)
-		io.WriteString(w, "Invalid token")
-		return
-	}
-
-	tokenData, exists := a.db.GetTokenData(token)
-	if !exists {
-		w.WriteHeader(401)
-		io.WriteString(w, "Failed to get token")
-		return
-	}
-
-	path := r.URL.Path
-	parts := strings.Split(path[1:], "/")
-
-	r.ParseForm()
-
-	if path == "/" {
-		switch r.Method {
-		case "POST":
-			err := a.CreateUser(tokenData, r.Form)
-			if err != nil {
-				w.WriteHeader(500)
-				io.WriteString(w, err.Error())
-				return
-			}
-		default:
-			w.WriteHeader(406)
-			io.WriteString(w, "Invalid method for /users")
-			return
-		}
-	} else if len(parts) == 3 && parts[1] == "clients" {
-		ownerId := parts[0]
-		clientId := parts[2]
-		if r.Method == "PUT" {
-			err := a.SetClient(tokenData, r.Form, ownerId, clientId)
-			if err != nil {
-				w.WriteHeader(500)
-				io.WriteString(w, err.Error())
-				return
-			}
-		} else if r.Method == "DELETE" {
-			err := a.DeleteClient(tokenData, ownerId, clientId)
-			if err != nil {
-				w.WriteHeader(500)
-				io.WriteString(w, err.Error())
-				return
-			}
-		}
-	} else {
-		w.WriteHeader(400)
-		io.WriteString(w, "Invalid /users/<username>/clients request")
-		return
-	}
 }
 
 func (a *Api) CreateUser(tokenData TokenData, params url.Values) error {
@@ -474,22 +442,34 @@ func (a *Api) DeleteClient(tokenData TokenData, ownerId, clientId string) error 
 	return nil
 }
 
-func (a *Api) validateToken(h http.Handler) http.Handler {
+func (a *Api) GetSshKeys(tokenData TokenData) map[string]SshKey {
 
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token, err := extractToken("access_token", r)
-		if err != nil {
-			w.WriteHeader(401)
-			w.Write([]byte("No token provided"))
-			return
+	user, _ := a.db.GetUser(tokenData.Owner)
+
+	var keys map[string]SshKey
+
+	if user.IsAdmin {
+		keys = a.db.GetSshKeys()
+	} else {
+		keys = make(map[string]SshKey)
+
+		for id, key := range a.db.GetSshKeys() {
+			if tokenData.Owner == key.Owner {
+				keys[id] = key
+			}
 		}
+	}
 
-		if !a.auth.Authorized(token) {
-			w.WriteHeader(403)
-			w.Write([]byte("Not authorized"))
-			return
-		}
+	return keys
+}
 
-		h.ServeHTTP(w, r)
-	})
+func (a *Api) DeleteSshKey(tokenData TokenData, params url.Values) error {
+	id := params.Get("id")
+	if id == "" {
+		return errors.New("Invalid id parameter")
+	}
+
+	a.db.DeleteSshKey(id)
+
+	return nil
 }
