@@ -1,5 +1,19 @@
+# Demo video steps
+
+* Prereqs
+  * VPS
+    * OpenSSH 7.7+
+  * Domain name pointed at public IP
+
+* Todo
+  * Upload 0.1.0 release
+  * get.sh install script
+
+
 # 31 Oct 2020 Launch List
 
+- [ ] Client restart on panic
+- [ ] Don't require username for client
 - [ ] Requires OpenSSH 7.7+ for PermitListen option
 - [ ] Finish website
 - [ ] Publish releases
