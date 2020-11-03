@@ -2,11 +2,13 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/tls"
 	"flag"
 	"fmt"
 	"github.com/caddyserver/certmagic"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -156,7 +158,15 @@ func (p *BoringProxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
 	upstreamAddr := fmt.Sprintf("localhost:%d", tunnel.TunnelPort)
 	upstreamUrl := fmt.Sprintf("http://%s%s", upstreamAddr, r.URL.RequestURI())
 
-	upstreamReq, err := http.NewRequest(r.Method, upstreamUrl, r.Body)
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errMessage := fmt.Sprintf("%s", err)
+		w.WriteHeader(500)
+		io.WriteString(w, errMessage)
+		return
+	}
+
+	upstreamReq, err := http.NewRequest(r.Method, upstreamUrl, bytes.NewReader(body))
 	if err != nil {
 		errMessage := fmt.Sprintf("%s", err)
 		w.WriteHeader(500)
@@ -167,6 +177,7 @@ func (p *BoringProxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
 	upstreamReq.Header = downstreamReqHeaders
 
 	upstreamReq.Header["X-Forwarded-Host"] = []string{r.Host}
+	upstreamReq.Host = fmt.Sprintf("%s:%d", tunnel.ClientAddress, tunnel.ClientPort)
 
 	upstreamRes, err := p.httpClient.Do(upstreamReq)
 	if err != nil {
