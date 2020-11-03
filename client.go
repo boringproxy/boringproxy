@@ -18,15 +18,16 @@ import (
 )
 
 type BoringProxyClient struct {
-	httpClient       *http.Client
-	tunnels          map[string]Tunnel
-	previousEtag     string
-	server           string
-	token            string
-	clientName       string
-	user             string
-	cancelFuncs      map[string]context.CancelFunc
-	cancelFuncsMutex *sync.Mutex
+	httpClient         *http.Client
+	tunnels            map[string]Tunnel
+	previousEtag       string
+	server             string
+	token              string
+	clientName         string
+	user               string
+	cancelFuncs        map[string]context.CancelFunc
+	cancelFuncsMutex   *sync.Mutex
+	goroutineCounterCh chan int
 }
 
 func NewBoringProxyClient() *BoringProxyClient {
@@ -41,17 +42,27 @@ func NewBoringProxyClient() *BoringProxyClient {
 	tunnels := make(map[string]Tunnel)
 	cancelFuncs := make(map[string]context.CancelFunc)
 	cancelFuncsMutex := &sync.Mutex{}
+	goroutineCounterCh := make(chan int)
+
+	go func() {
+		numGoRoutines := 0
+		for val := range goroutineCounterCh {
+			numGoRoutines += val
+			log.Println("numGoRoutines: ", numGoRoutines)
+		}
+	}()
 
 	return &BoringProxyClient{
-		httpClient:       httpClient,
-		tunnels:          tunnels,
-		previousEtag:     "",
-		server:           *server,
-		token:            *token,
-		clientName:       *name,
-		user:             *user,
-		cancelFuncs:      cancelFuncs,
-		cancelFuncsMutex: cancelFuncsMutex,
+		httpClient:         httpClient,
+		tunnels:            tunnels,
+		previousEtag:       "",
+		server:             *server,
+		token:              *token,
+		clientName:         *name,
+		user:               *user,
+		cancelFuncs:        cancelFuncs,
+		cancelFuncsMutex:   cancelFuncsMutex,
+		goroutineCounterCh: goroutineCounterCh,
 	}
 }
 
@@ -182,6 +193,8 @@ func (c *BoringProxyClient) BoreTunnel(tunnel Tunnel) context.CancelFunc {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	go func() {
+		c.goroutineCounterCh <- 1
+
 		signer, err := ssh.ParsePrivateKey([]byte(tunnel.TunnelPrivateKey))
 		if err != nil {
 			log.Fatalf("unable to parse private key: %v", err)
@@ -217,9 +230,12 @@ func (c *BoringProxyClient) BoreTunnel(tunnel Tunnel) context.CancelFunc {
 		//defer listener.Close()
 
 		go func() {
+			c.goroutineCounterCh <- 1
+
 			for {
 				conn, err := listener.Accept()
 				if err != nil {
+					log.Println("Accept() fail", err.Error())
 					// TODO: Currently assuming an error means the
 					// tunnel was manually deleted, but there
 					// could be other errors that we should be
@@ -230,17 +246,23 @@ func (c *BoringProxyClient) BoreTunnel(tunnel Tunnel) context.CancelFunc {
 				}
 				go c.handleConnection(conn, tunnel.ClientAddress, tunnel.ClientPort)
 			}
+
+			c.goroutineCounterCh <- -1
 		}()
 
 		<-ctx.Done()
 		listener.Close()
 		client.Close()
+
+		c.goroutineCounterCh <- -1
 	}()
 
 	return cancelFunc
 }
 
 func (c *BoringProxyClient) handleConnection(conn net.Conn, addr string, port int) {
+
+	c.goroutineCounterCh <- 1
 
 	defer conn.Close()
 
@@ -256,16 +278,24 @@ func (c *BoringProxyClient) handleConnection(conn net.Conn, addr string, port in
 
 	// Copy request to upstream
 	go func() {
+
+		c.goroutineCounterCh <- 1
+
 		_, err := io.Copy(upstreamConn, conn)
 		if err != nil {
 			log.Println(err.Error())
 		}
 		upstreamConn.(*net.TCPConn).CloseWrite()
 		wg.Done()
+
+		c.goroutineCounterCh <- -1
 	}()
 
 	// Copy response to downstream
 	go func() {
+
+		c.goroutineCounterCh <- 1
+
 		_, err := io.Copy(conn, upstreamConn)
 		//conn.(*net.TCPConn).CloseWrite()
 		if err != nil {
@@ -278,7 +308,11 @@ func (c *BoringProxyClient) handleConnection(conn net.Conn, addr string, port in
 		// this might not be thread safe.
 		conn.Close()
 		wg.Done()
+
+		c.goroutineCounterCh <- -1
 	}()
 
 	wg.Wait()
+
+	c.goroutineCounterCh <- -1
 }
