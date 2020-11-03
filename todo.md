@@ -1,24 +1,10 @@
-# Demo video steps
-
-* Prereqs
-  * VPS
-    * OpenSSH 7.7+
-  * Domain name pointed at public IP
-
-* Todo
-  * Upload 0.1.0 release
-  * get.sh install script
-
-
 # 31 Oct 2020 Launch List
 
+- [ ] Better docker setup
+- [ ] CLI help
 - [ ] Client restart on panic
 - [ ] Don't require username for client
 - [ ] Requires OpenSSH 7.7+ for PermitListen option
-- [ ] Finish website
-- [ ] Publish releases
-- [ ] Demo video
-- [ ] Post on /r/selfhosted
 - [ ] Improve SSH key download UI.
 - [ ] Improve token list UI.
 - [ ] Invalid database is wiping out tunnels
@@ -32,10 +18,16 @@
 - [x] Demo instance
 - [x] Demo auto email signup
 - [x] Delete tokens when user is deleted
+- [x] Finish website
+- [x] Publish releases
+- [x] Demo video
+- [x] Post on /r/selfhosted
 
 
 # Eventually 
 
+* Fix /logo.png in rice box
+* Implement custom server bind addresses and ports
 * On unknown page, redirect to referer if possible
 * Apparently multiple tunnels can bind to a single server port. Looks like
   maybe only the first one is used to actually tunnel to the clients?
