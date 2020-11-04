@@ -19,6 +19,4 @@ buildArch windows amd64 .exe
 
 buildArch darwin amd64
 
-./scripts/build_all_platforms.sh
-
 tar -czf ./boringproxy_${version}.tar.gz build/
