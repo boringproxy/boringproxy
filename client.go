@@ -57,22 +57,37 @@ func NewBoringProxyClient() *BoringProxyClient {
 
 func (c *BoringProxyClient) RunPuppetClient() {
 
+	// Use custom DNS resolver. This is necessary because Android doesn't
+	// work with the go resolver, and after a few hours I wasn't able to
+	// figure out how to build golang programs against the Android libc.
+	// See: https://github.com/golang/go/issues/12503
+	net.DefaultResolver = &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			d := net.Dialer{
+				Timeout: time.Millisecond * time.Duration(10000),
+			}
+			cloudFlareDns := "1.1.1.1"
+			return d.DialContext(ctx, "udp", fmt.Sprintf("%s:53", cloudFlareDns))
+		},
+	}
+
 	url := fmt.Sprintf("https://%s/api/users/%s/clients/%s", c.server, c.user, c.clientName)
 	clientReq, err := http.NewRequest("PUT", url, nil)
 	if err != nil {
-		log.Fatal("Failed to PUT client")
+		log.Fatal("Failed to build PUT client request")
 	}
 	if len(c.token) > 0 {
 		clientReq.Header.Add("Authorization", "bearer "+c.token)
 	}
 	resp, err := c.httpClient.Do(clientReq)
 	if err != nil {
-		log.Fatal("Failed to PUT client")
+		log.Fatal("Failed to run PUT client request")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		log.Fatal("Failed to PUT client")
+		log.Fatal("PUT client request invalid status code", resp.StatusCode)
 	}
 
 	for {
