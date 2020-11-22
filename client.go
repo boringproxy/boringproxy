@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -13,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -240,15 +242,35 @@ func (c *BoringProxyClient) BoreTunnel(tunnel Tunnel) context.CancelFunc {
 	return cancelFunc
 }
 
-func (c *BoringProxyClient) handleConnection(conn net.Conn, addr string, port int) {
+func (c *BoringProxyClient) handleConnection(conn net.Conn, upstreamAddr string, port int) {
 
 	defer conn.Close()
 
-	upstreamConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", addr, port))
+	useTls := false
+	addr := upstreamAddr
+
+	if strings.HasPrefix(upstreamAddr, "https://") {
+		addr = upstreamAddr[len("https://"):]
+		useTls = true
+	}
+
+	var upstreamConn net.Conn
+	var err error
+
+	if useTls {
+		tlsConfig := &tls.Config{
+			InsecureSkipVerify: true,
+		}
+		upstreamConn, err = tls.Dial("tcp", fmt.Sprintf("%s:%d", addr, port), tlsConfig)
+	} else {
+		upstreamConn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", addr, port))
+	}
+
 	if err != nil {
 		log.Print(err)
 		return
 	}
+
 	defer upstreamConn.Close()
 
 	var wg sync.WaitGroup
@@ -260,7 +282,13 @@ func (c *BoringProxyClient) handleConnection(conn net.Conn, addr string, port in
 		if err != nil {
 			log.Println(err.Error())
 		}
-		upstreamConn.(*net.TCPConn).CloseWrite()
+
+		if c, ok := upstreamConn.(*net.TCPConn); ok {
+			c.CloseWrite()
+		} else if c, ok := upstreamConn.(*tls.Conn); ok {
+			c.CloseWrite()
+		}
+
 		wg.Done()
 	}()
 
