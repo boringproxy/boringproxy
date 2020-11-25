@@ -1,3 +1,40 @@
+
+
+# Eventually 
+
+* If client crashes, it sometimes can't restart tunnels. I think this is
+  because the server still has the sshd processes on the other side running.
+  `killall sshd` works but also boots you out of your live ssh session.
+* Implement custom server bind addresses and ports
+  * Useful for running servers on same machine as boringproxy server, like a
+    normal reverse proxy.
+* On unknown page, redirect to referer if possible
+* Apparently multiple tunnels can bind to a single server port. Looks like
+  maybe only the first one is used to actually tunnel to the clients?
+* CSS-only delete buttons don't show up as targets for links like Vimium
+  * Wrapping labels in buttons and adding a bit of CSS seems to do the trick.
+    * Eh buttons aren't actually doing anything apparently (when hit by
+      keyboard).
+* Implement WebSockets tunneling
+* Getting new certs isn't working behind Cloudflare. Might be able to fix by
+  using the HTTP challenge and allowing HTTP on the Cloudflare side.
+* We might need some sort of a transaction or atomicity system on the db to
+  prevent things like 2 people setting the user at the same time and one losing
+  their changes.
+* Endpoint for getting user ID from token
+* CLI help
+* Client restart on panic
+* Don't require username for client
+* Invalid database is wiping out tunnels
+
+
+# Maybe
+
+* OpenSSH server only picks up the first copy of each key. Will probably need
+  to manually combine them for custom keys.
+* Send public key back to clients, so they can automatically try to find the
+  matching private key.
+
 # 31 Oct 2020 Launch List
 
 - [ ] Better docker setup
@@ -23,30 +60,3 @@
 - [x] Demo video
 - [x] Post on /r/selfhosted
 
-
-# Eventually 
-
-* Fix /logo.png in rice box
-* Implement custom server bind addresses and ports
-* On unknown page, redirect to referer if possible
-* Apparently multiple tunnels can bind to a single server port. Looks like
-  maybe only the first one is used to actually tunnel to the clients?
-* CSS-only delete buttons don't show up as targets for links like Vimium
-  * Wrapping labels in buttons and adding a bit of CSS seems to do the trick.
-    * Eh buttons aren't actually doing anything apparently (when hit by
-      keyboard).
-* See if WebSockets tunnel correctly
-* Getting new certs isn't working behind Cloudflare. Might be able to fix by
-  using the HTTP challenge and allowing HTTP on the Cloudflare side.
-* We might need some sort of a transaction or atomicity system on the db to
-  prevent things like 2 people setting the user at the same time and one losing
-  their changes.
-* Endpoint for getting user ID from token
-
-
-# Maybe
-
-* OpenSSH server only picks up the first copy of each key. Will probably need
-  to manually combine them for custom keys.
-* Send public key back to clients, so they can automatically try to find the
-  matching private key.
