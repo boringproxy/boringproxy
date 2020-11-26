@@ -4,7 +4,9 @@ If you have a webserver running on one computer (say your development laptop),
 and you want to expose it securely (ie HTTPS) via a public URL, boringproxy
 allows you to easily do that.
 
-You can learn more at [boringproxy.io](https://boringproxy.io/).
+**NOTE:** For information on downloading and running boringproxy, it's best to
+start on the website, [boringproxy.io](https://boringproxy.io/). The information
+in this README is just for building from source.
 
 
 # Building
