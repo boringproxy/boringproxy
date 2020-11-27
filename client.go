@@ -239,15 +239,21 @@ func (c *BoringProxyClient) BoreTunnel(tunnel Tunnel) context.CancelFunc {
 			}
 			tlsListener := tls.NewListener(listener, tlsConfig)
 
-			http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			httpMux := http.NewServeMux()
+
+			httpMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 				proxyRequest(w, r, tunnel, c.httpClient, tunnel.ClientPort)
 			})
+
+			httpServer := &http.Server{
+				Handler: httpMux,
+			}
 
 			// TODO: It seems inefficient to make a separate HTTP server for each TLS-passthrough tunnel,
 			// but the code is much simpler. The only alternative I've thought of so far involves storing
 			// all the tunnels in a mutexed map and retrieving them from a single HTTP server, same as the
 			// boringproxy server does.
-			go http.Serve(tlsListener, nil)
+			go httpServer.Serve(tlsListener)
 
 		} else {
 

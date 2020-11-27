@@ -296,6 +296,11 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 		}
 	}
 
+	tlsTerm := params.Get("tls-termination")
+	if tlsTerm != "server" && tlsTerm != "client" && tlsTerm != "passthrough" {
+		return nil, errors.New("Invalid tls-termination parameter")
+	}
+
 	request := Tunnel{
 		Domain:           domain,
 		SshKey:           sshKey.Key,
@@ -306,6 +311,7 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 		AllowExternalTcp: allowExternalTcp,
 		AuthUsername:     username,
 		AuthPassword:     password,
+		TlsTermination:   tlsTerm,
 	}
 
 	tunnel, err := a.tunMan.RequestCreateTunnel(request)
