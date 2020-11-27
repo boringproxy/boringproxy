@@ -17,7 +17,8 @@ import (
 )
 
 type BoringProxyConfig struct {
-	WebUiDomain string `json:"webui_domain"`
+	WebUiDomain   string `json:"webui_domain"`
+	SshServerPort int    `json:"ssh_server_port"`
 }
 
 type SmtpConfig struct {
@@ -36,6 +37,7 @@ type BoringProxy struct {
 func Listen() {
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	adminDomain := flagSet.String("admin-domain", "", "Admin Domain")
+	sshServerPort := flagSet.Int("ssh-server-port", 22, "SSH Server Port")
 	flagSet.Parse(os.Args[2:])
 
 	webUiDomain := *adminDomain
@@ -47,7 +49,10 @@ func Listen() {
 		webUiDomain = strings.TrimSpace(text)
 	}
 
-	config := &BoringProxyConfig{WebUiDomain: webUiDomain}
+	config := &BoringProxyConfig{
+		WebUiDomain:   webUiDomain,
+		SshServerPort: *sshServerPort,
+	}
 
 	certmagic.DefaultACME.DisableHTTPChallenge = true
 	//certmagic.DefaultACME.DisableTLSALPNChallenge = true
