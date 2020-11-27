@@ -10,9 +10,11 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -29,9 +31,10 @@ type SmtpConfig struct {
 }
 
 type BoringProxy struct {
-	db         *Database
-	tunMan     *TunnelManager
-	httpClient *http.Client
+	db           *Database
+	tunMan       *TunnelManager
+	httpClient   *http.Client
+	httpListener *PassthroughListener
 }
 
 func Listen() {
@@ -98,16 +101,15 @@ func Listen() {
 		},
 	}
 
-	p := &BoringProxy{db, tunMan, httpClient}
+	httpListener := NewPassthroughListener()
+
+	p := &BoringProxy{db, tunMan, httpClient, httpListener}
 
 	tlsConfig := &tls.Config{
 		GetCertificate: certConfig.GetCertificate,
 		NextProtos:     []string{"h2", "acme-tls/1"},
 	}
-	tlsListener, err := tls.Listen("tcp", ":443", tlsConfig)
-	if err != nil {
-		log.Fatal(err)
-	}
+	tlsListener := tls.NewListener(httpListener, tlsConfig)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		timestamp := time.Now().Format(time.RFC3339)
@@ -131,7 +133,69 @@ func Listen() {
 		}
 	}()
 
-	http.Serve(tlsListener, nil)
+	go http.Serve(tlsListener, nil)
+
+	listener, err := net.Listen("tcp", ":443")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Print(err)
+			continue
+		}
+
+		go p.handleConnection(conn)
+	}
+}
+
+func (p *BoringProxy) handleConnection(clientConn net.Conn) {
+
+	clientHello, clientReader, err := peekClientHello(clientConn)
+	if err != nil {
+		log.Println("peekClientHello error", err)
+		return
+	}
+
+	passConn := NewProxyConn(clientConn, clientReader)
+
+	tunnel, exists := p.db.GetTunnel(clientHello.ServerName)
+
+	if exists && tunnel.TlsPassthrough {
+		p.passthroughRequest(passConn, tunnel)
+	} else {
+		p.httpListener.PassConn(passConn)
+	}
+}
+
+func (p *BoringProxy) passthroughRequest(conn net.Conn, tunnel Tunnel) {
+
+	upstreamAddr := fmt.Sprintf("localhost:%d", tunnel.TunnelPort)
+	upstreamConn, err := net.Dial("tcp", upstreamAddr)
+
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	defer upstreamConn.Close()
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		io.Copy(conn, upstreamConn)
+		conn.(*ProxyConn).CloseWrite()
+		wg.Done()
+	}()
+	go func() {
+		io.Copy(upstreamConn, conn)
+		upstreamConn.(*net.TCPConn).CloseWrite()
+		wg.Done()
+	}()
+
+	wg.Wait()
 }
 
 func (p *BoringProxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
