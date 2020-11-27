@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/caddyserver/certmagic"
 	"golang.org/x/crypto/ssh"
 	"io"
 	"io/ioutil"
@@ -29,6 +30,7 @@ type BoringProxyClient struct {
 	user             string
 	cancelFuncs      map[string]context.CancelFunc
 	cancelFuncsMutex *sync.Mutex
+	certConfig       *certmagic.Config
 }
 
 func NewBoringProxyClient() *BoringProxyClient {
@@ -38,6 +40,9 @@ func NewBoringProxyClient() *BoringProxyClient {
 	name := flagSet.String("client-name", "", "Client name")
 	user := flagSet.String("user", "admin", "user")
 	flagSet.Parse(os.Args[2:])
+
+	certmagic.DefaultACME.DisableHTTPChallenge = true
+	certConfig := certmagic.NewDefault()
 
 	httpClient := &http.Client{}
 	tunnels := make(map[string]Tunnel)
@@ -54,6 +59,7 @@ func NewBoringProxyClient() *BoringProxyClient {
 		user:             *user,
 		cancelFuncs:      cancelFuncs,
 		cancelFuncsMutex: cancelFuncsMutex,
+		certConfig:       certConfig,
 	}
 }
 
@@ -218,21 +224,49 @@ func (c *BoringProxyClient) BoreTunnel(tunnel Tunnel) context.CancelFunc {
 		}
 		//defer listener.Close()
 
-		go func() {
-			for {
-				conn, err := listener.Accept()
-				if err != nil {
-					// TODO: Currently assuming an error means the
-					// tunnel was manually deleted, but there
-					// could be other errors that we should be
-					// attempting to recover from rather than
-					// breaking.
-					break
-					//continue
-				}
-				go c.handleConnection(conn, tunnel.ClientAddress, tunnel.ClientPort)
+		if tunnel.TlsTermination == "client" {
+			// TODO: There's still quite a bit of duplication with what the server does. Could we
+			// encapsulate it into a type?
+			err = c.certConfig.ManageSync([]string{tunnel.Domain})
+			if err != nil {
+				log.Println("CertMagic error at startup")
+				log.Println(err)
 			}
-		}()
+
+			tlsConfig := &tls.Config{
+				GetCertificate: c.certConfig.GetCertificate,
+				NextProtos:     []string{"h2", "acme-tls/1"},
+			}
+			tlsListener := tls.NewListener(listener, tlsConfig)
+
+			http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+				proxyRequest(w, r, tunnel, c.httpClient, tunnel.ClientPort)
+			})
+
+			// TODO: It seems inefficient to make a separate HTTP server for each TLS-passthrough tunnel,
+			// but the code is much simpler. The only alternative I've thought of so far involves storing
+			// all the tunnels in a mutexed map and retrieving them from a single HTTP server, same as the
+			// boringproxy server does.
+			go http.Serve(tlsListener, nil)
+
+		} else {
+
+			go func() {
+				for {
+					conn, err := listener.Accept()
+					if err != nil {
+						// TODO: Currently assuming an error means the
+						// tunnel was manually deleted, but there
+						// could be other errors that we should be
+						// attempting to recover from rather than
+						// breaking.
+						break
+						//continue
+					}
+					go c.handleConnection(conn, tunnel.ClientAddress, tunnel.ClientPort)
+				}
+			}()
+		}
 
 		<-ctx.Done()
 		listener.Close()
