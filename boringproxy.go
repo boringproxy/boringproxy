@@ -83,7 +83,6 @@ func Listen() {
 	auth := NewAuth(db)
 
 	api := NewApi(config, db, auth, tunMan)
-	http.Handle("/api/", http.StripPrefix("/api", api))
 
 	webUiHandler := NewWebUiHandler(config, db, api, auth, tunMan)
 
@@ -110,7 +109,11 @@ func Listen() {
 		srcIp := strings.Split(r.RemoteAddr, ":")[0]
 		fmt.Println(fmt.Sprintf("%s %s %s %s %s", timestamp, srcIp, r.Method, r.Host, r.URL.Path))
 		if r.Host == config.WebUiDomain {
-			webUiHandler.handleWebUiRequest(w, r)
+			if strings.HasPrefix(r.URL.Path, "/api/") {
+				http.StripPrefix("/api", api).ServeHTTP(w, r)
+			} else {
+				webUiHandler.handleWebUiRequest(w, r)
+			}
 		} else {
 			p.proxyRequest(w, r)
 		}
