@@ -2,13 +2,11 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/tls"
 	"flag"
 	"fmt"
 	"github.com/caddyserver/certmagic"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -122,7 +120,16 @@ func Listen() {
 				webUiHandler.handleWebUiRequest(w, r)
 			}
 		} else {
-			p.proxyRequest(w, r)
+
+			tunnel, exists := db.GetTunnel(r.Host)
+			if !exists {
+				errMessage := fmt.Sprintf("No tunnel attached to %s", r.Host)
+				w.WriteHeader(500)
+				io.WriteString(w, errMessage)
+				return
+			}
+
+			proxyRequest(w, r, tunnel, httpClient, tunnel.TunnelPort)
 		}
 	})
 
@@ -163,7 +170,7 @@ func (p *BoringProxy) handleConnection(clientConn net.Conn) {
 
 	tunnel, exists := p.db.GetTunnel(clientHello.ServerName)
 
-	if exists && tunnel.TlsPassthrough {
+	if exists && (tunnel.TlsTermination == "client" || tunnel.TlsTermination == "passthrough") {
 		p.passthroughRequest(passConn, tunnel)
 	} else {
 		p.httpListener.PassConn(passConn)
@@ -196,78 +203,6 @@ func (p *BoringProxy) passthroughRequest(conn net.Conn, tunnel Tunnel) {
 	}()
 
 	wg.Wait()
-}
-
-func (p *BoringProxy) proxyRequest(w http.ResponseWriter, r *http.Request) {
-
-	tunnel, exists := p.db.GetTunnel(r.Host)
-	if !exists {
-		errMessage := fmt.Sprintf("No tunnel attached to %s", r.Host)
-		w.WriteHeader(500)
-		io.WriteString(w, errMessage)
-		return
-	}
-
-	if tunnel.AuthUsername != "" || tunnel.AuthPassword != "" {
-		username, password, ok := r.BasicAuth()
-		if !ok {
-			w.Header()["WWW-Authenticate"] = []string{"Basic"}
-			w.WriteHeader(401)
-			return
-		}
-
-		if username != tunnel.AuthUsername || password != tunnel.AuthPassword {
-			w.Header()["WWW-Authenticate"] = []string{"Basic"}
-			w.WriteHeader(401)
-			// TODO: should probably use a better form of rate limiting
-			time.Sleep(2 * time.Second)
-			return
-		}
-	}
-
-	downstreamReqHeaders := r.Header.Clone()
-
-	upstreamAddr := fmt.Sprintf("localhost:%d", tunnel.TunnelPort)
-	upstreamUrl := fmt.Sprintf("http://%s%s", upstreamAddr, r.URL.RequestURI())
-
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		errMessage := fmt.Sprintf("%s", err)
-		w.WriteHeader(500)
-		io.WriteString(w, errMessage)
-		return
-	}
-
-	upstreamReq, err := http.NewRequest(r.Method, upstreamUrl, bytes.NewReader(body))
-	if err != nil {
-		errMessage := fmt.Sprintf("%s", err)
-		w.WriteHeader(500)
-		io.WriteString(w, errMessage)
-		return
-	}
-
-	upstreamReq.Header = downstreamReqHeaders
-
-	upstreamReq.Header["X-Forwarded-Host"] = []string{r.Host}
-	upstreamReq.Host = fmt.Sprintf("%s:%d", tunnel.ClientAddress, tunnel.ClientPort)
-
-	upstreamRes, err := p.httpClient.Do(upstreamReq)
-	if err != nil {
-		errMessage := fmt.Sprintf("%s", err)
-		w.WriteHeader(502)
-		io.WriteString(w, errMessage)
-		return
-	}
-	defer upstreamRes.Body.Close()
-
-	downstreamResHeaders := w.Header()
-
-	for k, v := range upstreamRes.Header {
-		downstreamResHeaders[k] = v
-	}
-
-	w.WriteHeader(upstreamRes.StatusCode)
-	io.Copy(w, upstreamRes.Body)
 }
 
 func redirectTLS(w http.ResponseWriter, r *http.Request) {

@@ -1,5 +1,4 @@
-// NOTE: The code in this file was mostly copied from this very helpful
-// article:
+// NOTE: A lot of this code was copied from this very helpful article:
 // https://www.agwa.name/blog/post/writing_an_sni_proxy_in_go
 
 package main
@@ -92,7 +91,8 @@ func (c ProxyConn) CloseWrite() error           { return c.conn.(*net.TCPConn).C
 func (c ProxyConn) Read(p []byte) (int, error)  { return c.reader.Read(p) }
 func (c ProxyConn) Write(p []byte) (int, error) { return c.conn.Write(p) }
 
-// TODO: is this safe? Will it actually close properly?
+// TODO: is this safe? Will it actually close properly, or does it need to be
+// connected to the reader somehow?
 func (c ProxyConn) Close() error                       { return c.conn.Close() }
 func (c ProxyConn) LocalAddr() net.Addr                { return c.conn.LocalAddr() }
 func (c ProxyConn) RemoteAddr() net.Addr               { return c.conn.RemoteAddr() }
