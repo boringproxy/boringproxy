@@ -50,6 +50,7 @@ type Tunnel struct {
 	AuthUsername     string `json:"auth_username"`
 	AuthPassword     string `json:"auth_password"`
 	CssId            string `json:"css_id"`
+	TlsPassthrough   bool   `json:"tls_passthrough"`
 }
 
 func NewDatabase() (*Database, error) {
