@@ -11,10 +11,14 @@ function buildArch {
 
 rice embed-go
 
+buildArch linux 386
 buildArch linux amd64
 buildArch linux arm
 buildArch linux arm64
 
+./scripts/build_android.sh
+
+buildArch windows 386 .exe
 buildArch windows amd64 .exe
 
 buildArch darwin amd64
