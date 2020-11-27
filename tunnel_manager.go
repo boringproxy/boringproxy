@@ -83,7 +83,7 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 	}
 
 	tunReq.ServerAddress = m.config.WebUiDomain
-	tunReq.ServerPort = 22
+	tunReq.ServerPort = m.config.SshServerPort
 	tunReq.ServerPublicKey = ""
 	tunReq.Username = m.user.Username
 	tunReq.TunnelPort = port
