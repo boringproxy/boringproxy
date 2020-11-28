@@ -39,9 +39,14 @@ func NewBoringProxyClient() *BoringProxyClient {
 	token := flagSet.String("token", "", "Access token")
 	name := flagSet.String("client-name", "", "Client name")
 	user := flagSet.String("user", "admin", "user")
+	certDir := flagSet.String("cert-dir", "", "TLS cert directory")
 	flagSet.Parse(os.Args[2:])
 
 	certmagic.DefaultACME.DisableHTTPChallenge = true
+
+	if *certDir != "" {
+		certmagic.Default.Storage = &certmagic.FileStorage{*certDir}
+	}
 	certConfig := certmagic.NewDefault()
 
 	httpClient := &http.Client{}
@@ -225,13 +230,6 @@ func (c *BoringProxyClient) BoreTunnel(tunnel Tunnel) context.CancelFunc {
 		//defer listener.Close()
 
 		if tunnel.TlsTermination == "client" {
-			// TODO: There's still quite a bit of duplication with what the server does. Could we
-			// encapsulate it into a type?
-			err = c.certConfig.ManageSync([]string{tunnel.Domain})
-			if err != nil {
-				log.Println("CertMagic error at startup")
-				log.Println(err)
-			}
 
 			tlsConfig := &tls.Config{
 				GetCertificate: c.certConfig.GetCertificate,
@@ -254,6 +252,14 @@ func (c *BoringProxyClient) BoreTunnel(tunnel Tunnel) context.CancelFunc {
 			// all the tunnels in a mutexed map and retrieving them from a single HTTP server, same as the
 			// boringproxy server does.
 			go httpServer.Serve(tlsListener)
+
+			// TODO: There's still quite a bit of duplication with what the server does. Could we
+			// encapsulate it into a type?
+			err = c.certConfig.ManageSync([]string{tunnel.Domain})
+			if err != nil {
+				log.Println("CertMagic error at startup")
+				log.Println(err)
+			}
 
 		} else {
 
