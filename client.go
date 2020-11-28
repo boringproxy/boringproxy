@@ -56,6 +56,19 @@ func NewBoringProxyClient() *BoringProxyClient {
 		}
 	}
 
+	// Use random unprivileged port for ACME challenges. This is necessary
+	// because of the way certmagic works, in that if it fails to bind
+	// HTTPSPort (443 by default) and doesn't detect anything else binding
+	// it, it fails. Obviously the boringproxy client is likely to be
+	// running on a machine where 443 isn't bound, so we need a different
+	// port to hack around this. See here for more details:
+	// https://github.com/caddyserver/certmagic/issues/111
+	var err error
+	certmagic.HTTPSPort, err = randomOpenPort()
+	if err != nil {
+		log.Fatal("Failed get random port for TLS challenges")
+	}
+
 	certmagic.DefaultACME.DisableHTTPChallenge = true
 
 	if *certDir != "" {

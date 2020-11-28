@@ -6,7 +6,9 @@ import (
 	"errors"
 	"io/ioutil"
 	"math/big"
+	"net"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -64,4 +66,21 @@ func genRandomCode(length int) (string, error) {
 		id += string(chars[randIndex.Int64()])
 	}
 	return id, nil
+}
+
+func randomOpenPort() (int, error) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return 0, err
+	}
+
+	addrParts := strings.Split(listener.Addr().String(), ":")
+	port, err := strconv.Atoi(addrParts[len(addrParts)-1])
+	if err != nil {
+		return 0, err
+	}
+
+	listener.Close()
+
+	return port, nil
 }
