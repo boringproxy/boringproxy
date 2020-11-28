@@ -33,7 +33,6 @@ func NewTunnelManager(config *BoringProxyConfig, db *Database, certConfig *certm
 
 	for domainName, tun := range db.GetTunnels() {
 		if tun.TlsTermination == "server" {
-			fmt.Println("getting cert for", domainName)
 			err = certConfig.ManageSync([]string{domainName})
 			if err != nil {
 				log.Println("CertMagic error at startup")
@@ -60,9 +59,11 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 		return Tunnel{}, errors.New("Owner required")
 	}
 
-	err := m.certConfig.ManageSync([]string{tunReq.Domain})
-	if err != nil {
-		return Tunnel{}, errors.New("Failed to get cert")
+	if tunReq.TlsTermination == "server" {
+		err := m.certConfig.ManageSync([]string{tunReq.Domain})
+		if err != nil {
+			return Tunnel{}, errors.New("Failed to get cert")
+		}
 	}
 
 	m.mutex.Lock()
