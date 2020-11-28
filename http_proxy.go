@@ -30,6 +30,8 @@ func proxyRequest(w http.ResponseWriter, r *http.Request, tunnel Tunnel, httpCli
 
 	downstreamReqHeaders := r.Header.Clone()
 
+	// TODO: should probably pass in address instead of using localhost,
+	// mostly for client-terminated TLS
 	upstreamAddr := fmt.Sprintf("localhost:%d", port)
 	upstreamUrl := fmt.Sprintf("http://%s%s", upstreamAddr, r.URL.RequestURI())
 
