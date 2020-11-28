@@ -1,26 +1,20 @@
-#/bin/bash
+#!/bin/bash
 
 version=$(git describe --tags)
-
-function buildArch {
-    echo Building platform $1-$2
-    GOOS=$1 GOARCH=$2 go build -o build/boringproxy-$1-$2$3
-}
 
 ./scripts/generate_logo.sh
 
 rice embed-go
 
-buildArch linux 386
-buildArch linux amd64
-buildArch linux arm
-buildArch linux arm64
+./scripts/build_arch.sh linux 386
+./scripts/build_arch.sh linux amd64
+./scripts/build_arch.sh linux arm
+./scripts/build_arch.sh linux arm64
+./scripts/build_arch.sh android arm
+./scripts/build_arch.sh android arm64
+./scripts/build_arch.sh windows 386 .exe
+./scripts/build_arch.sh windows amd64 .exe
 
-./scripts/build_android.sh
-
-buildArch windows 386 .exe
-buildArch windows amd64 .exe
-
-buildArch darwin amd64
+./scripts/build_arch.sh darwin amd64
 
 tar -czf ./boringproxy_${version}.tar.gz build/

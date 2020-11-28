@@ -1,3 +1,4 @@
+#!/bin/bash
 
 echo Building platform android-arm
 GOOS=android GOARCH=arm CGO_ENABLED=1 CC=$HOME/Android/Sdk/ndk/21.3.6528147/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi30-clang go build -o build/boringproxy-android-arm
