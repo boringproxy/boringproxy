@@ -11,9 +11,7 @@ import (
 	"golang.org/x/crypto/ssh"
 	"io/ioutil"
 	"log"
-	"net"
 	"os/user"
-	"strconv"
 	"strings"
 	"sync"
 )
@@ -75,7 +73,7 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 		return Tunnel{}, errors.New("Tunnel exists for domain " + tunReq.Domain)
 	}
 
-	port, err := randomPort()
+	port, err := randomOpenPort()
 	if err != nil {
 		return Tunnel{}, err
 	}
@@ -223,21 +221,4 @@ func MakeSSHKeyPair() (string, string, error) {
 	pubKey := string(ssh.MarshalAuthorizedKey(pub))
 
 	return pubKey, privKeyBuf.String(), nil
-}
-
-func randomPort() (int, error) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return 0, err
-	}
-
-	addrParts := strings.Split(listener.Addr().String(), ":")
-	port, err := strconv.Atoi(addrParts[len(addrParts)-1])
-	if err != nil {
-		return 0, err
-	}
-
-	listener.Close()
-
-	return port, nil
 }
