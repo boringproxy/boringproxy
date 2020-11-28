@@ -40,6 +40,7 @@ func NewBoringProxyClient() *BoringProxyClient {
 	name := flagSet.String("client-name", "", "Client name")
 	user := flagSet.String("user", "admin", "user")
 	certDir := flagSet.String("cert-dir", "", "TLS cert directory")
+	acmeEmail := flagSet.String("acme-email", "", "Email for ACME (ie Let's Encrypt)")
 	dnsServer := flagSet.String("dns-server", "", "Custom DNS server")
 	flagSet.Parse(os.Args[2:])
 
@@ -60,6 +61,11 @@ func NewBoringProxyClient() *BoringProxyClient {
 	if *certDir != "" {
 		certmagic.Default.Storage = &certmagic.FileStorage{*certDir}
 	}
+
+	if *acmeEmail != "" {
+		certmagic.DefaultACME.Email = *acmeEmail
+	}
+
 	certConfig := certmagic.NewDefault()
 
 	httpClient := &http.Client{}
