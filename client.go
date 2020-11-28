@@ -40,7 +40,20 @@ func NewBoringProxyClient() *BoringProxyClient {
 	name := flagSet.String("client-name", "", "Client name")
 	user := flagSet.String("user", "admin", "user")
 	certDir := flagSet.String("cert-dir", "", "TLS cert directory")
+	dnsServer := flagSet.String("dns-server", "", "Custom DNS server")
 	flagSet.Parse(os.Args[2:])
+
+	if *dnsServer != "" {
+		net.DefaultResolver = &net.Resolver{
+			PreferGo: true,
+			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+				d := net.Dialer{
+					Timeout: time.Millisecond * time.Duration(10000),
+				}
+				return d.DialContext(ctx, "udp", fmt.Sprintf("%s:53", *dnsServer))
+			},
+		}
+	}
 
 	certmagic.DefaultACME.DisableHTTPChallenge = true
 
