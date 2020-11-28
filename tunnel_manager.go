@@ -33,11 +33,14 @@ func NewTunnelManager(config *BoringProxyConfig, db *Database, certConfig *certm
 		log.Fatalf("Unable to get current user: %v", err)
 	}
 
-	for domainName := range db.GetTunnels() {
-		err = certConfig.ManageSync([]string{domainName})
-		if err != nil {
-			log.Println("CertMagic error at startup")
-			log.Println(err)
+	for domainName, tun := range db.GetTunnels() {
+		if tun.TlsTermination == "server" {
+			fmt.Println("getting cert for", domainName)
+			err = certConfig.ManageSync([]string{domainName})
+			if err != nil {
+				log.Println("CertMagic error at startup")
+				log.Println(err)
+			}
 		}
 	}
 
