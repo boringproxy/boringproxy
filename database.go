@@ -1,4 +1,4 @@
-package main
+package boringproxy
 
 import (
 	"encoding/json"
