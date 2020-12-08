@@ -17,14 +17,14 @@ import (
 )
 
 type TunnelManager struct {
-	config     *BoringProxyConfig
+	config     *Config
 	db         *Database
 	mutex      *sync.Mutex
 	certConfig *certmagic.Config
 	user       *user.User
 }
 
-func NewTunnelManager(config *BoringProxyConfig, db *Database, certConfig *certmagic.Config) *TunnelManager {
+func NewTunnelManager(config *Config, db *Database, certConfig *certmagic.Config) *TunnelManager {
 
 	user, err := user.Current()
 	if err != nil {

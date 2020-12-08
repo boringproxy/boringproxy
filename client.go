@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-type BoringProxyClient struct {
+type Client struct {
 	httpClient       *http.Client
 	tunnels          map[string]Tunnel
 	previousEtag     string
@@ -33,7 +33,7 @@ type BoringProxyClient struct {
 	certConfig       *certmagic.Config
 }
 
-func NewBoringProxyClient() *BoringProxyClient {
+func NewClient() *Client {
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	server := flagSet.String("server", "", "boringproxy server")
 	token := flagSet.String("token", "", "Access token")
@@ -86,7 +86,7 @@ func NewBoringProxyClient() *BoringProxyClient {
 	cancelFuncs := make(map[string]context.CancelFunc)
 	cancelFuncsMutex := &sync.Mutex{}
 
-	return &BoringProxyClient{
+	return &Client{
 		httpClient:       httpClient,
 		tunnels:          tunnels,
 		previousEtag:     "",
@@ -100,7 +100,7 @@ func NewBoringProxyClient() *BoringProxyClient {
 	}
 }
 
-func (c *BoringProxyClient) RunPuppetClient() {
+func (c *Client) RunPuppetClient() {
 
 	url := fmt.Sprintf("https://%s/api/users/%s/clients/%s", c.server, c.user, c.clientName)
 	clientReq, err := http.NewRequest("PUT", url, nil)
@@ -129,7 +129,7 @@ func (c *BoringProxyClient) RunPuppetClient() {
 	}
 }
 
-func (c *BoringProxyClient) PollTunnels() error {
+func (c *Client) PollTunnels() error {
 
 	//log.Println("PollTunnels")
 
@@ -175,7 +175,7 @@ func (c *BoringProxyClient) PollTunnels() error {
 	return nil
 }
 
-func (c *BoringProxyClient) SyncTunnels(serverTunnels map[string]Tunnel) {
+func (c *Client) SyncTunnels(serverTunnels map[string]Tunnel) {
 	log.Println("SyncTunnels")
 
 	// update tunnels to match server
@@ -220,7 +220,7 @@ func (c *BoringProxyClient) SyncTunnels(serverTunnels map[string]Tunnel) {
 	}
 }
 
-func (c *BoringProxyClient) BoreTunnel(tunnel Tunnel) context.CancelFunc {
+func (c *Client) BoreTunnel(tunnel Tunnel) context.CancelFunc {
 
 	log.Println("BoreTunnel", tunnel.Domain)
 
@@ -320,7 +320,7 @@ func (c *BoringProxyClient) BoreTunnel(tunnel Tunnel) context.CancelFunc {
 	return cancelFunc
 }
 
-func (c *BoringProxyClient) handleConnection(conn net.Conn, upstreamAddr string, port int) {
+func (c *Client) handleConnection(conn net.Conn, upstreamAddr string, port int) {
 
 	defer conn.Close()
 

@@ -21,8 +21,8 @@ type TokenData struct {
 }
 
 type User struct {
-	IsAdmin bool              `json:"is_admin"`
-	Clients map[string]Client `json:"clients"`
+	IsAdmin bool                `json:"is_admin"`
+	Clients map[string]DbClient `json:"clients"`
 }
 
 type SshKey struct {
@@ -30,7 +30,7 @@ type SshKey struct {
 	Key   string `json:"key"`
 }
 
-type Client struct {
+type DbClient struct {
 }
 
 type Tunnel struct {
@@ -249,7 +249,7 @@ func (d *Database) AddUser(username string, isAdmin bool) error {
 
 	d.Users[username] = User{
 		IsAdmin: isAdmin,
-		Clients: make(map[string]Client),
+		Clients: make(map[string]DbClient),
 	}
 
 	d.persist()

@@ -22,7 +22,7 @@ func main() {
 		boringproxy.Listen()
 
 	case "client":
-		client := boringproxy.NewBoringProxyClient()
+		client := boringproxy.NewClient()
 		client.RunPuppetClient()
 	default:
 		fmt.Println("Invalid command " + command)
