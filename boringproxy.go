@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-type BoringProxyConfig struct {
+type Config struct {
 	WebUiDomain   string `json:"webui_domain"`
 	SshServerPort int    `json:"ssh_server_port"`
 }
@@ -28,7 +28,7 @@ type SmtpConfig struct {
 	Password string
 }
 
-type BoringProxy struct {
+type Server struct {
 	db           *Database
 	tunMan       *TunnelManager
 	httpClient   *http.Client
@@ -51,7 +51,7 @@ func Listen() {
 		webUiDomain = strings.TrimSpace(text)
 	}
 
-	config := &BoringProxyConfig{
+	config := &Config{
 		WebUiDomain:   webUiDomain,
 		SshServerPort: *sshServerPort,
 	}
@@ -105,7 +105,7 @@ func Listen() {
 
 	httpListener := NewPassthroughListener()
 
-	p := &BoringProxy{db, tunMan, httpClient, httpListener}
+	p := &Server{db, tunMan, httpClient, httpListener}
 
 	tlsConfig := &tls.Config{
 		GetCertificate: certConfig.GetCertificate,
@@ -162,7 +162,7 @@ func Listen() {
 	}
 }
 
-func (p *BoringProxy) handleConnection(clientConn net.Conn) {
+func (p *Server) handleConnection(clientConn net.Conn) {
 
 	clientHello, clientReader, err := peekClientHello(clientConn)
 	if err != nil {
@@ -181,7 +181,7 @@ func (p *BoringProxy) handleConnection(clientConn net.Conn) {
 	}
 }
 
-func (p *BoringProxy) passthroughRequest(conn net.Conn, tunnel Tunnel) {
+func (p *Server) passthroughRequest(conn net.Conn, tunnel Tunnel) {
 
 	upstreamAddr := fmt.Sprintf("localhost:%d", tunnel.TunnelPort)
 	upstreamConn, err := net.Dial("tcp", upstreamAddr)

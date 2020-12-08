@@ -14,7 +14,7 @@ import (
 )
 
 type WebUiHandler struct {
-	config          *BoringProxyConfig
+	config          *Config
 	db              *Database
 	api             *Api
 	auth            *Auth
@@ -87,7 +87,7 @@ type TokensData struct {
 	Users  map[string]User
 }
 
-func NewWebUiHandler(config *BoringProxyConfig, db *Database, api *Api, auth *Auth, tunMan *TunnelManager) *WebUiHandler {
+func NewWebUiHandler(config *Config, db *Database, api *Api, auth *Auth, tunMan *TunnelManager) *WebUiHandler {
 	return &WebUiHandler{
 		config:          config,
 		db:              db,

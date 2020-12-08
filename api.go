@@ -13,14 +13,14 @@ import (
 )
 
 type Api struct {
-	config *BoringProxyConfig
+	config *Config
 	db     *Database
 	auth   *Auth
 	tunMan *TunnelManager
 	mux    *http.ServeMux
 }
 
-func NewApi(config *BoringProxyConfig, db *Database, auth *Auth, tunMan *TunnelManager) *Api {
+func NewApi(config *Config, db *Database, auth *Auth, tunMan *TunnelManager) *Api {
 
 	mux := http.NewServeMux()
 
@@ -454,7 +454,7 @@ func (a *Api) SetClient(tokenData TokenData, params url.Values, ownerId, clientI
 
 	// TODO: what if two users try to get then set at the same time?
 	owner, _ := a.db.GetUser(ownerId)
-	owner.Clients[clientId] = Client{}
+	owner.Clients[clientId] = DbClient{}
 	a.db.SetUser(ownerId, owner)
 
 	return nil
