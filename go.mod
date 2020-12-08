@@ -1,4 +1,4 @@
-module github.com/anderspitman/boringproxy
+module github.com/boringproxy/boringproxy
 
 go 1.15
 

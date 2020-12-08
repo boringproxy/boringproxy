@@ -1,7 +1,7 @@
 // NOTE: A lot of this code was copied from this very helpful article:
 // https://www.agwa.name/blog/post/writing_an_sni_proxy_in_go
 
-package main
+package boringproxy
 
 import (
 	"bytes"

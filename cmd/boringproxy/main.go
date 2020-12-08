@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/boringproxy/boringproxy"
 	"log"
 	"os"
 )
@@ -18,10 +19,10 @@ func main() {
 	switch command {
 	case "server":
 		log.Println("Starting up")
-		Listen()
+		boringproxy.Listen()
 
 	case "client":
-		client := NewBoringProxyClient()
+		client := boringproxy.NewBoringProxyClient()
 		client.RunPuppetClient()
 	default:
 		fmt.Println("Invalid command " + command)
