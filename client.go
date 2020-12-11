@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"github.com/caddyserver/certmagic"
 	"golang.org/x/crypto/ssh"
@@ -14,7 +13,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -33,25 +31,26 @@ type Client struct {
 	certConfig       *certmagic.Config
 }
 
-func NewClient() *Client {
-	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	server := flagSet.String("server", "", "boringproxy server")
-	token := flagSet.String("token", "", "Access token")
-	name := flagSet.String("client-name", "", "Client name")
-	user := flagSet.String("user", "admin", "user")
-	certDir := flagSet.String("cert-dir", "", "TLS cert directory")
-	acmeEmail := flagSet.String("acme-email", "", "Email for ACME (ie Let's Encrypt)")
-	dnsServer := flagSet.String("dns-server", "", "Custom DNS server")
-	flagSet.Parse(os.Args[2:])
+type ClientConfig struct {
+	ServerAddr string
+	Token      string
+	ClientName string
+	User       string
+	CertDir    string
+	AcmeEmail  string
+	DnsServer  string
+}
 
-	if *dnsServer != "" {
+func NewClient(config *ClientConfig) *Client {
+
+	if config.DnsServer != "" {
 		net.DefaultResolver = &net.Resolver{
 			PreferGo: true,
 			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
 				d := net.Dialer{
 					Timeout: time.Millisecond * time.Duration(10000),
 				}
-				return d.DialContext(ctx, "udp", fmt.Sprintf("%s:53", *dnsServer))
+				return d.DialContext(ctx, "udp", fmt.Sprintf("%s:53", config.DnsServer))
 			},
 		}
 	}
@@ -71,12 +70,12 @@ func NewClient() *Client {
 
 	certmagic.DefaultACME.DisableHTTPChallenge = true
 
-	if *certDir != "" {
-		certmagic.Default.Storage = &certmagic.FileStorage{*certDir}
+	if config.CertDir != "" {
+		certmagic.Default.Storage = &certmagic.FileStorage{config.CertDir}
 	}
 
-	if *acmeEmail != "" {
-		certmagic.DefaultACME.Email = *acmeEmail
+	if config.AcmeEmail != "" {
+		certmagic.DefaultACME.Email = config.AcmeEmail
 	}
 
 	certConfig := certmagic.NewDefault()
@@ -90,10 +89,10 @@ func NewClient() *Client {
 		httpClient:       httpClient,
 		tunnels:          tunnels,
 		previousEtag:     "",
-		server:           *server,
-		token:            *token,
-		clientName:       *name,
-		user:             *user,
+		server:           config.ServerAddr,
+		token:            config.Token,
+		clientName:       config.ClientName,
+		user:             config.User,
 		cancelFuncs:      cancelFuncs,
 		cancelFuncsMutex: cancelFuncsMutex,
 		certConfig:       certConfig,
