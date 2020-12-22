@@ -1,10 +1,8 @@
 package boringproxy
 
 import (
-	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"time"
 )
@@ -35,7 +33,7 @@ func proxyRequest(w http.ResponseWriter, r *http.Request, tunnel Tunnel, httpCli
 	upstreamAddr := fmt.Sprintf("localhost:%d", port)
 	upstreamUrl := fmt.Sprintf("http://%s%s", upstreamAddr, r.URL.RequestURI())
 
-	body, err := ioutil.ReadAll(r.Body)
+	upstreamReq, err := http.NewRequest(r.Method, upstreamUrl, r.Body)
 	if err != nil {
 		errMessage := fmt.Sprintf("%s", err)
 		w.WriteHeader(500)
@@ -43,13 +41,10 @@ func proxyRequest(w http.ResponseWriter, r *http.Request, tunnel Tunnel, httpCli
 		return
 	}
 
-	upstreamReq, err := http.NewRequest(r.Method, upstreamUrl, bytes.NewReader(body))
-	if err != nil {
-		errMessage := fmt.Sprintf("%s", err)
-		w.WriteHeader(500)
-		io.WriteString(w, errMessage)
-		return
-	}
+	// ContentLength needs to be set manually because otherwise it is
+	// stripped by golang. See:
+	// https://golang.org/pkg/net/http/#Request.Write
+	upstreamReq.ContentLength = r.ContentLength
 
 	upstreamReq.Header = downstreamReqHeaders
 
