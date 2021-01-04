@@ -1,0 +1,14 @@
+[Unit]
+Description=BoringProxy Server
+After=network.target
+
+[Service]
+PrivateTmp=true
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/root/
+ExecStart=/usr/local/bin/boringproxy server -admin-domain bp.example.com
+
+[Install]
+WantedBy=multi-user.target
