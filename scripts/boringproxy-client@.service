@@ -1,0 +1,13 @@
+[Unit]
+Description=BoringProxy Client (%I client)
+After=network.target
+
+[Service]
+PrivateTmp=true
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/local/bin/boringproxy client -server bp.example.com -token your-bp-server-token -client-name %i
+
+[Install]
+WantedBy=multi-user.target
