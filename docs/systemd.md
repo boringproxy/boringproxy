@@ -41,14 +41,6 @@ sudo systemctl enable --now boringproxy-server.service
 
 This will make sure that boringproxy server will always start backup if the host is restarted.
 
-### Notes
-If you have already ran the admin server you will need to migrate the db and change its permissions to keep your existing settings.
-
-```bash
-mv /root/boringproxy_db.json /opt/boringproxy/boringproxy_db.json
-sudo chown boringproxy:boringproxy /opt/boringproxy/boringproxy_db.json
-```
-
 ---
 
 ## boringproxy Client Service
