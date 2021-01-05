@@ -52,7 +52,7 @@ func Listen() {
 
 	if *adminDomain == "" {
 		reader := bufio.NewReader(os.Stdin)
-		log.Print("Enter Admin Domain: ")
+		fmt.Print("Enter Admin Domain: ")
 		text, _ := reader.ReadString('\n')
 		webUiDomain = strings.TrimSpace(text)
 	}
