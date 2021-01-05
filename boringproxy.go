@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
-	"github.com/caddyserver/certmagic"
 	"io"
 	"log"
 	"net"
@@ -14,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/caddyserver/certmagic"
 )
 
 type BoringProxyConfig struct {
@@ -46,7 +47,7 @@ func Listen() {
 
 	if *adminDomain == "" {
 		reader := bufio.NewReader(os.Stdin)
-		log.Print("Enter Admin Domain: ")
+		fmt.Print("Enter Admin Domain: ")
 		text, _ := reader.ReadString('\n')
 		webUiDomain = strings.TrimSpace(text)
 	}
