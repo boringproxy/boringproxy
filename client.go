@@ -7,8 +7,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/caddyserver/certmagic"
-	"golang.org/x/crypto/ssh"
 	"io"
 	"io/ioutil"
 	"log"
@@ -18,6 +16,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/caddyserver/certmagic"
+	"golang.org/x/crypto/ssh"
 )
 
 type BoringProxyClient struct {
@@ -42,7 +43,10 @@ func NewBoringProxyClient() *BoringProxyClient {
 	certDir := flagSet.String("cert-dir", "", "TLS cert directory")
 	acmeEmail := flagSet.String("acme-email", "", "Email for ACME (ie Let's Encrypt)")
 	dnsServer := flagSet.String("dns-server", "", "Custom DNS server")
-	flagSet.Parse(os.Args[2:])
+	err := flagSet.Parse(os.Args[2:])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: parsing flags: %s\n", os.Args[0], err)
+	}
 
 	if *dnsServer != "" {
 		net.DefaultResolver = &net.Resolver{
@@ -63,7 +67,6 @@ func NewBoringProxyClient() *BoringProxyClient {
 	// running on a machine where 443 isn't bound, so we need a different
 	// port to hack around this. See here for more details:
 	// https://github.com/caddyserver/certmagic/issues/111
-	var err error
 	certmagic.HTTPSPort, err = randomOpenPort()
 	if err != nil {
 		log.Fatal("Failed get random port for TLS challenges")
