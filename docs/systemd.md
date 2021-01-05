@@ -26,10 +26,10 @@ sudo chmod 700 /opt/boringproxy
 Download the boringproxy-server.service file
 ```bash
 # with wget
-sudo wget https://raw.githubusercontent.com/boringproxy/boringproxy/master/scripts/boringproxy-server.service -O /etc/systemd/system/boringproxy-server.service
+sudo wget https://raw.githubusercontent.com/boringproxy/boringproxy/master/systemd/boringproxy-server.service -O /etc/systemd/system/boringproxy-server.service
 
 # or with curl
-sudo curl https://raw.githubusercontent.com/boringproxy/boringproxy/master/scripts/build.sh --output /etc/systemd/system/boringproxy-server.service
+sudo curl https://raw.githubusercontent.com/boringproxy/boringproxy/master/systemd/boringproxy-server.service --output /etc/systemd/system/boringproxy-server.service
 ```
 
 Edit `/etc/systemd/system/boringproxy-server.service` and replace the admin domain `bp.example.com` with the domain that the server will be available at. EX: `-admin-domain proxy.bpuser.me`
@@ -67,7 +67,13 @@ sudo systemctl enable --now boringproxy-client@default.service
 This will make sure that boringproxy client will always start backup and reconnect to the boringclient server if the host is restarted or goes down for some reason.
 
 ## Notes
+### Updating an existing boringproxy Server instance
+If you have already ran the admin server you will need to migrate the db and change its permissions to keep your existing settings.
 
+```bash
+sudo mv /root/boringproxy_db.json /opt/boringproxy/boringproxy_db.json
+sudo chown boringproxy:boringproxy /opt/boringproxy/boringproxy_db.json
+```
 
 ### Client Service Unit File
 This systemd service file is a template service which allows you to spawn multiple clients with a specified name. 
