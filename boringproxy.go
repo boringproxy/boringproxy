@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
-	"github.com/caddyserver/certmagic"
 	"io"
 	"log"
 	"net"
@@ -14,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/caddyserver/certmagic"
 )
 
 type Config struct {
@@ -40,13 +41,18 @@ func Listen() {
 	adminDomain := flagSet.String("admin-domain", "", "Admin Domain")
 	sshServerPort := flagSet.Int("ssh-server-port", 22, "SSH Server Port")
 	certDir := flagSet.String("cert-dir", "", "TLS cert directory")
-	flagSet.Parse(os.Args[2:])
+	err := flagSet.Parse(os.Args[2:])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: parsing flags: %s\n", os.Args[0], err)
+	}
+
+	log.Println("Starting up")
 
 	webUiDomain := *adminDomain
 
 	if *adminDomain == "" {
 		reader := bufio.NewReader(os.Stdin)
-		log.Print("Enter Admin Domain: ")
+		fmt.Print("Enter Admin Domain: ")
 		text, _ := reader.ReadString('\n')
 		webUiDomain = strings.TrimSpace(text)
 	}
@@ -64,7 +70,7 @@ func Listen() {
 	//certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
 	certConfig := certmagic.NewDefault()
 
-	err := certConfig.ManageSync([]string{config.WebUiDomain})
+	err = certConfig.ManageSync([]string{config.WebUiDomain})
 	if err != nil {
 		log.Fatal(err)
 	}
