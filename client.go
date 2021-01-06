@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/caddyserver/certmagic"
-	"golang.org/x/crypto/ssh"
 	"io"
 	"io/ioutil"
 	"log"
@@ -16,6 +14,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/caddyserver/certmagic"
+	"golang.org/x/crypto/ssh"
 )
 
 type Client struct {
