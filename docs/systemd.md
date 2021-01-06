@@ -26,11 +26,15 @@ sudo chmod 700 /opt/boringproxy
 Download the boringproxy-server.service file
 ```bash
 # with wget
-sudo wget https://raw.githubusercontent.com/boringproxy/boringproxy/master/systemd/boringproxy-server.service -O /etc/systemd/system/boringproxy-server.service
+wget https://raw.githubusercontent.com/boringproxy/boringproxy/master/systemd/boringproxy-server.service -O /tmp/boringproxy-server.service
 
 # or with curl
-sudo curl https://raw.githubusercontent.com/boringproxy/boringproxy/master/systemd/boringproxy-server.service --output /etc/systemd/system/boringproxy-server.service
+curl https://raw.githubusercontent.com/boringproxy/boringproxy/master/systemd/boringproxy-server.service --output /tmp/boringproxy-server.service
+
+# move the systemd file into the correct location
+sudo mv /tmp/boringproxy-server.service /etc/systemd/system/boringproxy-server.service
 ```
+
 
 Edit `/etc/systemd/system/boringproxy-server.service` and replace the admin domain `bp.example.com` with the domain that the server will be available at. EX: `-admin-domain proxy.bpuser.me`
 
@@ -48,10 +52,12 @@ This will make sure that boringproxy server will always start backup if the host
 Download the boringproxy-client@.service file
 ```bash
 # with wget
-sudo wget https://raw.githubusercontent.com/boringproxy/boringproxy/master/systemd/boringproxy-client%40.service -O "/etc/systemd/system/boringproxy-client@.service"
+wget https://raw.githubusercontent.com/boringproxy/boringproxy/master/systemd/boringproxy-client%40.service -O "/tmp/boringproxy-client@.service"
 
 # or with curl
-sudo curl https://raw.githubusercontent.com/boringproxy/boringproxy/master/systemd/boringproxy-client%40.service --output "/etc/systemd/system/boringproxy-client@.service"
+curl https://raw.githubusercontent.com/boringproxy/boringproxy/master/systemd/boringproxy-client%40.service --output "/tmp/boringproxy-client@.service"
+
+sudo mv /tmp/boringproxy-client@.service /etc/systemd/system/boringproxy-client@.service
 ```
 
 Edit `/etc/systemd/system/boringproxy-client@.service` and replace the server address `bp.example.com` with the domain that the server is located at. EX: `-server proxy.bpuser.me`
