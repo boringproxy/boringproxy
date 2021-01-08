@@ -11,6 +11,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -105,19 +106,29 @@ func (c *Client) RunPuppetClient() {
 	url := fmt.Sprintf("https://%s/api/users/%s/clients/%s", c.server, c.user, c.clientName)
 	clientReq, err := http.NewRequest("PUT", url, nil)
 	if err != nil {
-		log.Fatal("Failed to PUT client")
+		fmt.Fprintf(os.Stderr, "Failed to create request for URL %s", url)
+		os.Exit(1)
 	}
 	if len(c.token) > 0 {
 		clientReq.Header.Add("Authorization", "bearer "+c.token)
 	}
 	resp, err := c.httpClient.Do(clientReq)
 	if err != nil {
-		log.Fatal("Failed to PUT client")
+		fmt.Fprintf(os.Stderr, "Failed to create client. Ensure the server is running. URL: %s", url)
+		os.Exit(1)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		log.Fatal("Failed to PUT client")
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to create client. HTTP Status code: %d. Failed to read body", resp.StatusCode)
+			os.Exit(1)
+		}
+
+		msg := string(body)
+		fmt.Fprintf(os.Stderr, "Failed to create client. Are the user (%s) and token correct? HTTP Status code: %d. Message: %s", c.user, resp.StatusCode, msg)
+		os.Exit(1)
 	}
 
 	for {

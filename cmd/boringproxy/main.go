@@ -17,6 +17,11 @@ Commands:
 Use "%[1]s command -h" for a list of flags for the command.
 `
 
+func fail(msg string) {
+	fmt.Fprintln(os.Stderr, msg)
+	os.Exit(1)
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, os.Args[0]+": Need a command")
@@ -32,7 +37,7 @@ func main() {
 	case "server":
 		boringproxy.Listen()
 	case "client":
-                flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+		flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 		server := flagSet.String("server", "", "boringproxy server")
 		token := flagSet.String("token", "", "Access token")
 		name := flagSet.String("client-name", "", "Client name")
@@ -41,10 +46,22 @@ func main() {
 		acmeEmail := flagSet.String("acme-email", "", "Email for ACME (ie Let's Encrypt)")
 		dnsServer := flagSet.String("dns-server", "", "Custom DNS server")
 
-                err := flagSet.Parse(os.Args[2:])
-                if err != nil {
-                        fmt.Fprintf(os.Stderr, "%s: parsing flags: %s\n", os.Args[0], err)
-                }
+		err := flagSet.Parse(os.Args[2:])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: parsing flags: %s\n", os.Args[0], err)
+		}
+
+		if *server == "" {
+			fail("-server is required")
+		}
+
+		if *token == "" {
+			fail("-token is required")
+		}
+
+		if *name == "" {
+			fail("-client-name is required")
+		}
 
 		config := &boringproxy.ClientConfig{
 			ServerAddr: *server,
@@ -59,7 +76,6 @@ func main() {
 		client := boringproxy.NewClient(config)
 		client.RunPuppetClient()
 	default:
-		fmt.Fprintln(os.Stderr, os.Args[0]+": Invalid command "+command)
-		os.Exit(1)
+		fail(os.Args[0] + ": Invalid command " + command)
 	}
 }
