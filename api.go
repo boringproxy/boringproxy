@@ -64,6 +64,9 @@ func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 			for k, tun := range tunnels {
 				if tun.ClientName != clientName {
 					delete(tunnels, k)
+				} else {
+					tun.ServerPort = a.config.SshServerPort
+					tunnels[k] = tun
 				}
 			}
 		}
