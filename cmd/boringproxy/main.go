@@ -76,7 +76,12 @@ func main() {
 
 		ctx := context.Background()
 
-		client := boringproxy.NewClient(config)
+		client, err := boringproxy.NewClient(config)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+
 		err = client.Run(ctx)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, err.Error())

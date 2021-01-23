@@ -42,7 +42,7 @@ type ClientConfig struct {
 	DnsServer  string `json:"dnsServer,omitempty"`
 }
 
-func NewClient(config *ClientConfig) *Client {
+func NewClient(config *ClientConfig) (*Client, error) {
 
 	if config.DnsServer != "" {
 		net.DefaultResolver = &net.Resolver{
@@ -66,7 +66,7 @@ func NewClient(config *ClientConfig) *Client {
 	var err error
 	certmagic.HTTPSPort, err = randomOpenPort()
 	if err != nil {
-		log.Fatal("Failed get random port for TLS challenges")
+		return nil, errors.New("Failed get random port for TLS challenges")
 	}
 
 	certmagic.DefaultACME.DisableHTTPChallenge = true
@@ -97,7 +97,7 @@ func NewClient(config *ClientConfig) *Client {
 		cancelFuncs:      cancelFuncs,
 		cancelFuncsMutex: cancelFuncsMutex,
 		certConfig:       certConfig,
-	}
+	}, nil
 }
 
 func (c *Client) Run(ctx context.Context) error {
@@ -187,31 +187,34 @@ func (c *Client) SyncTunnels(serverTunnels map[string]Tunnel) {
 	// update tunnels to match server
 	for k, newTun := range serverTunnels {
 
+		bore := false
+
 		tun, exists := c.tunnels[k]
 		if !exists {
 			log.Println("New tunnel", k)
 			c.tunnels[k] = newTun
-
-			ctx, cancel := context.WithCancel(context.Background())
-			go c.BoreTunnel(ctx, newTun)
-
-			c.cancelFuncsMutex.Lock()
-			c.cancelFuncs[k] = cancel
-			c.cancelFuncsMutex.Unlock()
-
+			bore = true
 		} else if newTun != tun {
 			log.Println("Restart tunnel", k)
-
 			c.cancelFuncsMutex.Lock()
 			c.cancelFuncs[k]()
 			c.cancelFuncsMutex.Unlock()
+			bore = true
+		}
 
+		if bore {
 			ctx, cancel := context.WithCancel(context.Background())
-			go c.BoreTunnel(ctx, newTun)
 
 			c.cancelFuncsMutex.Lock()
 			c.cancelFuncs[k] = cancel
 			c.cancelFuncsMutex.Unlock()
+
+			go func(ctx context.Context, tun Tunnel) {
+				err := c.BoreTunnel(ctx, tun)
+				if err != nil {
+					log.Println("BoreTunnel error: ", err)
+				}
+			}(ctx, newTun)
 		}
 	}
 
@@ -222,21 +225,21 @@ func (c *Client) SyncTunnels(serverTunnels map[string]Tunnel) {
 			log.Println("Kill tunnel", k)
 			c.cancelFuncsMutex.Lock()
 			c.cancelFuncs[k]()
-			delete(c.cancelFuncs, k)
-			// TODO: defer this instead
 			c.cancelFuncsMutex.Unlock()
+
+			delete(c.cancelFuncs, k)
 			delete(c.tunnels, k)
 		}
 	}
 }
 
-func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) {
+func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 
 	log.Println("BoreTunnel", tunnel.Domain)
 
 	signer, err := ssh.ParsePrivateKey([]byte(tunnel.TunnelPrivateKey))
 	if err != nil {
-		log.Fatalf("unable to parse private key: %v", err)
+		return errors.New(fmt.Sprintf("Unable to parse private key: %v", err))
 	}
 
 	//var hostKey ssh.PublicKey
@@ -253,9 +256,9 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) {
 	sshHost := fmt.Sprintf("%s:%d", tunnel.ServerAddress, tunnel.ServerPort)
 	client, err := ssh.Dial("tcp", sshHost, config)
 	if err != nil {
-		log.Fatal("Failed to dial: ", err)
+		return errors.New(fmt.Sprintf("Failed to dial: ", err))
 	}
-	//defer client.Close()
+	defer client.Close()
 
 	bindAddr := "127.0.0.1"
 	if tunnel.AllowExternalTcp {
@@ -264,9 +267,9 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) {
 	tunnelAddr := fmt.Sprintf("%s:%d", bindAddr, tunnel.TunnelPort)
 	listener, err := client.Listen("tcp", tunnelAddr)
 	if err != nil {
-		log.Fatal("unable to register tcp forward: ", err)
+		return errors.New(fmt.Sprintf("Unable to register tcp forward for %s:%d %v", bindAddr, tunnel.TunnelPort, err))
 	}
-	//defer listener.Close()
+	defer listener.Close()
 
 	if tunnel.TlsTermination == "client" {
 
@@ -320,8 +323,8 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) {
 	}
 
 	<-ctx.Done()
-	listener.Close()
-	client.Close()
+
+	return nil
 }
 
 func (c *Client) handleConnection(conn net.Conn, upstreamAddr string, port int) {
@@ -391,4 +394,9 @@ func (c *Client) handleConnection(conn net.Conn, upstreamAddr string, port int) 
 	}()
 
 	wg.Wait()
+}
+
+func printJson(data interface{}) {
+	d, _ := json.MarshalIndent(data, "", "  ")
+	fmt.Println(string(d))
 }
