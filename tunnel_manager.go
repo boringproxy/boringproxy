@@ -69,11 +69,6 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	_, exists := m.db.GetTunnel(tunReq.Domain)
-	if exists {
-		return Tunnel{}, errors.New("Tunnel exists for domain " + tunReq.Domain)
-	}
-
 	port, err := randomOpenPort()
 	if err != nil {
 		return Tunnel{}, err
