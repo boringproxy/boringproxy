@@ -34,13 +34,13 @@ type Client struct {
 }
 
 type ClientConfig struct {
-	ServerAddr string
-	Token      string
-	ClientName string
-	User       string
-	CertDir    string
-	AcmeEmail  string
-	DnsServer  string
+	ServerAddr string `json:"serverAddr,omitempty"`
+	Token      string `json:"token,omitempty"`
+	ClientName string `json:"clientName,omitempty"`
+	User       string `json:"user,omitempty"`
+	CertDir    string `json:"certDir,omitempty"`
+	AcmeEmail  string `json:"acmeEmail,omitempty"`
+	DnsServer  string `json:"dnsServer,omitempty"`
 }
 
 func NewClient(config *ClientConfig) *Client {
