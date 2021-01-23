@@ -246,6 +246,7 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 		return nil, errors.New("Invalid owner parameter")
 	}
 
+	// Only admins can create tunnels for other users
 	if tokenData.Owner != owner {
 		user, _ := a.db.GetUser(tokenData.Owner)
 		if !user.IsAdmin {
@@ -307,7 +308,7 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 	request := Tunnel{
 		Domain:           domain,
 		SshKey:           sshKey.Key,
-		Owner:            tokenData.Owner,
+		Owner:            owner,
 		ClientName:       clientName,
 		ClientPort:       clientPort,
 		ClientAddress:    clientAddr,
