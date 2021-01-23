@@ -127,7 +127,7 @@ func (c *Client) Run(ctx context.Context) error {
 	}
 
 	for {
-		err := c.PollTunnels()
+		err := c.PollTunnels(ctx)
 		if err != nil {
 			log.Print(err)
 		}
@@ -135,7 +135,7 @@ func (c *Client) Run(ctx context.Context) error {
 	}
 }
 
-func (c *Client) PollTunnels() error {
+func (c *Client) PollTunnels(ctx context.Context) error {
 
 	//log.Println("PollTunnels")
 
@@ -173,7 +173,7 @@ func (c *Client) PollTunnels() error {
 			return err
 		}
 
-		c.SyncTunnels(tunnels)
+		c.SyncTunnels(ctx, tunnels)
 
 		c.previousEtag = etag
 	}
@@ -181,12 +181,13 @@ func (c *Client) PollTunnels() error {
 	return nil
 }
 
-func (c *Client) SyncTunnels(serverTunnels map[string]Tunnel) {
+func (c *Client) SyncTunnels(ctx context.Context, serverTunnels map[string]Tunnel) {
 	log.Println("SyncTunnels")
 
 	// update tunnels to match server
 	for k, newTun := range serverTunnels {
 
+		// assume tunnels exists and hasn't changed
 		bore := false
 
 		tun, exists := c.tunnels[k]
@@ -203,18 +204,18 @@ func (c *Client) SyncTunnels(serverTunnels map[string]Tunnel) {
 		}
 
 		if bore {
-			ctx, cancel := context.WithCancel(context.Background())
+			cancelCtx, cancel := context.WithCancel(ctx)
 
 			c.cancelFuncsMutex.Lock()
 			c.cancelFuncs[k] = cancel
 			c.cancelFuncsMutex.Unlock()
 
-			go func(ctx context.Context, tun Tunnel) {
-				err := c.BoreTunnel(ctx, tun)
+			go func(closureCtx context.Context, tun Tunnel) {
+				err := c.BoreTunnel(closureCtx, tun)
 				if err != nil {
 					log.Println("BoreTunnel error: ", err)
 				}
-			}(ctx, newTun)
+			}(cancelCtx, newTun)
 		}
 	}
 
