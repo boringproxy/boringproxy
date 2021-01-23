@@ -11,7 +11,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -101,34 +100,30 @@ func NewClient(config *ClientConfig) *Client {
 	}
 }
 
-func (c *Client) RunPuppetClient() {
+func (c *Client) Run(ctx context.Context) error {
 
 	url := fmt.Sprintf("https://%s/api/users/%s/clients/%s", c.server, c.user, c.clientName)
 	clientReq, err := http.NewRequest("PUT", url, nil)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create request for URL %s", url)
-		os.Exit(1)
+		return errors.New(fmt.Sprintf("Failed to create request for URL %s", url))
 	}
 	if len(c.token) > 0 {
 		clientReq.Header.Add("Authorization", "bearer "+c.token)
 	}
 	resp, err := c.httpClient.Do(clientReq)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create client. Ensure the server is running. URL: %s", url)
-		os.Exit(1)
+		return errors.New(fmt.Sprintf("Failed to create client. Ensure the server is running. URL: %s", url))
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to create client. HTTP Status code: %d. Failed to read body", resp.StatusCode)
-			os.Exit(1)
+			return errors.New(fmt.Sprintf("Failed to create client. HTTP Status code: %d. Failed to read body", resp.StatusCode))
 		}
 
 		msg := string(body)
-		fmt.Fprintf(os.Stderr, "Failed to create client. Are the user (%s) and token correct? HTTP Status code: %d. Message: %s", c.user, resp.StatusCode, msg)
-		os.Exit(1)
+		return errors.New(fmt.Sprintf("Failed to create client. Are the user (%s) and token correct? HTTP Status code: %d. Message: %s", c.user, resp.StatusCode, msg))
 	}
 
 	for {
@@ -196,7 +191,9 @@ func (c *Client) SyncTunnels(serverTunnels map[string]Tunnel) {
 		if !exists {
 			log.Println("New tunnel", k)
 			c.tunnels[k] = newTun
-			cancel := c.BoreTunnel(newTun)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			go c.BoreTunnel(ctx, newTun)
 
 			c.cancelFuncsMutex.Lock()
 			c.cancelFuncs[k] = cancel
@@ -209,7 +206,8 @@ func (c *Client) SyncTunnels(serverTunnels map[string]Tunnel) {
 			c.cancelFuncs[k]()
 			c.cancelFuncsMutex.Unlock()
 
-			cancel := c.BoreTunnel(newTun)
+			ctx, cancel := context.WithCancel(context.Background())
+			go c.BoreTunnel(ctx, newTun)
 
 			c.cancelFuncsMutex.Lock()
 			c.cancelFuncs[k] = cancel
@@ -225,110 +223,105 @@ func (c *Client) SyncTunnels(serverTunnels map[string]Tunnel) {
 			c.cancelFuncsMutex.Lock()
 			c.cancelFuncs[k]()
 			delete(c.cancelFuncs, k)
+			// TODO: defer this instead
 			c.cancelFuncsMutex.Unlock()
 			delete(c.tunnels, k)
 		}
 	}
 }
 
-func (c *Client) BoreTunnel(tunnel Tunnel) context.CancelFunc {
+func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) {
 
 	log.Println("BoreTunnel", tunnel.Domain)
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	signer, err := ssh.ParsePrivateKey([]byte(tunnel.TunnelPrivateKey))
+	if err != nil {
+		log.Fatalf("unable to parse private key: %v", err)
+	}
 
-	go func() {
-		signer, err := ssh.ParsePrivateKey([]byte(tunnel.TunnelPrivateKey))
+	//var hostKey ssh.PublicKey
+
+	config := &ssh.ClientConfig{
+		User: tunnel.Username,
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		},
+		//HostKeyCallback: ssh.FixedHostKey(hostKey),
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	sshHost := fmt.Sprintf("%s:%d", tunnel.ServerAddress, tunnel.ServerPort)
+	client, err := ssh.Dial("tcp", sshHost, config)
+	if err != nil {
+		log.Fatal("Failed to dial: ", err)
+	}
+	//defer client.Close()
+
+	bindAddr := "127.0.0.1"
+	if tunnel.AllowExternalTcp {
+		bindAddr = "0.0.0.0"
+	}
+	tunnelAddr := fmt.Sprintf("%s:%d", bindAddr, tunnel.TunnelPort)
+	listener, err := client.Listen("tcp", tunnelAddr)
+	if err != nil {
+		log.Fatal("unable to register tcp forward: ", err)
+	}
+	//defer listener.Close()
+
+	if tunnel.TlsTermination == "client" {
+
+		tlsConfig := &tls.Config{
+			GetCertificate: c.certConfig.GetCertificate,
+			NextProtos:     []string{"h2", "acme-tls/1"},
+		}
+		tlsListener := tls.NewListener(listener, tlsConfig)
+
+		httpMux := http.NewServeMux()
+
+		httpMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			proxyRequest(w, r, tunnel, c.httpClient, tunnel.ClientPort)
+		})
+
+		httpServer := &http.Server{
+			Handler: httpMux,
+		}
+
+		// TODO: It seems inefficient to make a separate HTTP server for each TLS-passthrough tunnel,
+		// but the code is much simpler. The only alternative I've thought of so far involves storing
+		// all the tunnels in a mutexed map and retrieving them from a single HTTP server, same as the
+		// boringproxy server does.
+		go httpServer.Serve(tlsListener)
+
+		// TODO: There's still quite a bit of duplication with what the server does. Could we
+		// encapsulate it into a type?
+		err = c.certConfig.ManageSync([]string{tunnel.Domain})
 		if err != nil {
-			log.Fatalf("unable to parse private key: %v", err)
+			log.Println("CertMagic error at startup")
+			log.Println(err)
 		}
 
-		//var hostKey ssh.PublicKey
+	} else {
 
-		config := &ssh.ClientConfig{
-			User: tunnel.Username,
-			Auth: []ssh.AuthMethod{
-				ssh.PublicKeys(signer),
-			},
-			//HostKeyCallback: ssh.FixedHostKey(hostKey),
-			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		}
-
-		sshHost := fmt.Sprintf("%s:%d", tunnel.ServerAddress, tunnel.ServerPort)
-		client, err := ssh.Dial("tcp", sshHost, config)
-		if err != nil {
-			log.Fatal("Failed to dial: ", err)
-		}
-		//defer client.Close()
-
-		bindAddr := "127.0.0.1"
-		if tunnel.AllowExternalTcp {
-			bindAddr = "0.0.0.0"
-		}
-		tunnelAddr := fmt.Sprintf("%s:%d", bindAddr, tunnel.TunnelPort)
-		listener, err := client.Listen("tcp", tunnelAddr)
-		if err != nil {
-			log.Fatal("unable to register tcp forward: ", err)
-		}
-		//defer listener.Close()
-
-		if tunnel.TlsTermination == "client" {
-
-			tlsConfig := &tls.Config{
-				GetCertificate: c.certConfig.GetCertificate,
-				NextProtos:     []string{"h2", "acme-tls/1"},
-			}
-			tlsListener := tls.NewListener(listener, tlsConfig)
-
-			httpMux := http.NewServeMux()
-
-			httpMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-				proxyRequest(w, r, tunnel, c.httpClient, tunnel.ClientPort)
-			})
-
-			httpServer := &http.Server{
-				Handler: httpMux,
-			}
-
-			// TODO: It seems inefficient to make a separate HTTP server for each TLS-passthrough tunnel,
-			// but the code is much simpler. The only alternative I've thought of so far involves storing
-			// all the tunnels in a mutexed map and retrieving them from a single HTTP server, same as the
-			// boringproxy server does.
-			go httpServer.Serve(tlsListener)
-
-			// TODO: There's still quite a bit of duplication with what the server does. Could we
-			// encapsulate it into a type?
-			err = c.certConfig.ManageSync([]string{tunnel.Domain})
-			if err != nil {
-				log.Println("CertMagic error at startup")
-				log.Println(err)
-			}
-
-		} else {
-
-			go func() {
-				for {
-					conn, err := listener.Accept()
-					if err != nil {
-						// TODO: Currently assuming an error means the
-						// tunnel was manually deleted, but there
-						// could be other errors that we should be
-						// attempting to recover from rather than
-						// breaking.
-						break
-						//continue
-					}
-					go c.handleConnection(conn, tunnel.ClientAddress, tunnel.ClientPort)
+		go func() {
+			for {
+				conn, err := listener.Accept()
+				if err != nil {
+					// TODO: Currently assuming an error means the
+					// tunnel was manually deleted, but there
+					// could be other errors that we should be
+					// attempting to recover from rather than
+					// breaking.
+					break
+					//continue
 				}
-			}()
-		}
+				go c.handleConnection(conn, tunnel.ClientAddress, tunnel.ClientPort)
+			}
+		}()
+	}
 
-		<-ctx.Done()
-		listener.Close()
-		client.Close()
-	}()
-
-	return cancelFunc
+	<-ctx.Done()
+	listener.Close()
+	client.Close()
 }
 
 func (c *Client) handleConnection(conn net.Conn, upstreamAddr string, port int) {

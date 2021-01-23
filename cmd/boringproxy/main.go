@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -73,8 +74,15 @@ func main() {
 			DnsServer:  *dnsServer,
 		}
 
+		ctx := context.Background()
+
 		client := boringproxy.NewClient(config)
-		client.RunPuppetClient()
+		err = client.Run(ctx)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+
 	default:
 		fail(os.Args[0] + ": Invalid command " + command)
 	}
