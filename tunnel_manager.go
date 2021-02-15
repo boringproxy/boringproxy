@@ -11,6 +11,7 @@ import (
 	"golang.org/x/crypto/ssh"
 	"io/ioutil"
 	"log"
+	"os"
 	"os/user"
 	"strings"
 	"sync"
@@ -149,7 +150,13 @@ func (m *TunnelManager) addToAuthorizedKeys(domain string, port int, allowExtern
 
 	authKeysPath := fmt.Sprintf("%s/.ssh/authorized_keys", m.user.HomeDir)
 
-	akBytes, err := ioutil.ReadFile(authKeysPath)
+	akFile, err := os.OpenFile(authKeysPath, os.O_RDWR|os.O_CREATE, 0600)
+	if err != nil {
+		return "", err
+	}
+	defer akFile.Close()
+
+	akBytes, err := ioutil.ReadAll(akFile)
 	if err != nil {
 		return "", err
 	}
@@ -182,7 +189,7 @@ func (m *TunnelManager) addToAuthorizedKeys(domain string, port int, allowExtern
 
 	newAk := fmt.Sprintf("%s%s %s %s\n", akStr, options, pubKey, tunnelId)
 
-	err = ioutil.WriteFile(authKeysPath, []byte(newAk), 0600)
+	_, err = akFile.Write([]byte(newAk))
 	if err != nil {
 		return "", err
 	}
