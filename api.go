@@ -134,7 +134,7 @@ func (a *Api) handleUsers(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		default:
-			w.WriteHeader(406)
+			w.WriteHeader(405)
 			io.WriteString(w, "Invalid method for /users")
 			return
 		}
