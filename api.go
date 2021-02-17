@@ -282,6 +282,16 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 		clientAddr = "127.0.0.1"
 	}
 
+	tunnelPort := 0
+	tunnelPortParam := params.Get("tunnel-port")
+	if tunnelPortParam != "" && tunnelPortParam != "Random" {
+		var err error
+		tunnelPort, err = strconv.Atoi(tunnelPortParam)
+		if err != nil {
+			return nil, errors.New("Invalid tunnel-port parameter")
+		}
+	}
+
 	allowExternalTcp := params.Get("allow-external-tcp") == "on"
 
 	passwordProtect := params.Get("password-protect") == "on"
@@ -312,6 +322,7 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 		ClientName:       clientName,
 		ClientPort:       clientPort,
 		ClientAddress:    clientAddr,
+		TunnelPort:       tunnelPort,
 		AllowExternalTcp: allowExternalTcp,
 		AuthUsername:     username,
 		AuthPassword:     password,
