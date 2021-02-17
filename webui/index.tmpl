@@ -105,7 +105,7 @@
                <div class='input'>
                  <label for="client-name">Client Name:</label>
                  <select id="client-name" name="client-name">
-                   <option value="any">Any</option>
+                   <option value="none">No client</option>
                    {{range $id, $client := (index $.Users $.UserId).Clients}}
                    <option value="{{$id}}">{{$id}}</option>
                    {{end}}
