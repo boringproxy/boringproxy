@@ -70,12 +70,21 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	port, err := randomOpenPort()
-	if err != nil {
-		return Tunnel{}, err
+	if tunReq.TunnelPort == 0 {
+		var err error
+		tunReq.TunnelPort, err = randomOpenPort()
+		if err != nil {
+			return Tunnel{}, err
+		}
+	} else {
+		for _, tun := range m.db.GetTunnels() {
+			if tunReq.TunnelPort == tun.TunnelPort {
+				return Tunnel{}, errors.New("Tunnel port already in use")
+			}
+		}
 	}
 
-	privKey, err := m.addToAuthorizedKeys(tunReq.Domain, port, tunReq.AllowExternalTcp, tunReq.SshKey)
+	privKey, err := m.addToAuthorizedKeys(tunReq.Domain, tunReq.TunnelPort, tunReq.AllowExternalTcp, tunReq.SshKey)
 	if err != nil {
 		return Tunnel{}, err
 	}
@@ -84,7 +93,6 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 	tunReq.ServerPort = m.config.SshServerPort
 	tunReq.ServerPublicKey = ""
 	tunReq.Username = m.user.Username
-	tunReq.TunnelPort = port
 	tunReq.TunnelPrivateKey = privKey
 
 	m.db.SetTunnel(tunReq.Domain, tunReq)
