@@ -131,7 +131,13 @@ func (c *Client) Run(ctx context.Context) error {
 		if err != nil {
 			log.Print(err)
 		}
-		time.Sleep(2 * time.Second)
+
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(2 * time.Second):
+			// continue
+		}
 	}
 }
 
