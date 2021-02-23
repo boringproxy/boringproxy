@@ -84,3 +84,12 @@ func randomOpenPort() (int, error) {
 
 	return port, nil
 }
+
+func stringInArray(value string, array []string) bool {
+	for _, item := range array {
+		if item == value {
+			return true
+		}
+	}
+	return false
+}
