@@ -60,12 +60,40 @@ func proxyRequest(w http.ResponseWriter, r *http.Request, tunnel Tunnel, httpCli
 	}
 	defer upstreamRes.Body.Close()
 
+	var forwardHeaders map[string][]string
+
+	if r.ProtoMajor > 1 {
+		forwardHeaders = stripConnectionHeaders(upstreamRes.Header)
+	} else {
+		forwardHeaders = upstreamRes.Header
+	}
+
 	downstreamResHeaders := w.Header()
 
-	for k, v := range upstreamRes.Header {
+	for k, v := range forwardHeaders {
 		downstreamResHeaders[k] = v
 	}
 
 	w.WriteHeader(upstreamRes.StatusCode)
 	io.Copy(w, upstreamRes.Body)
+}
+
+// Need to strip out headers that shouldn't be forwarded from HTTP/1.1 to
+// HTTP/2. See https://tools.ietf.org/html/rfc7540#section-8.1.2.2
+var connectionHeaders = []string{
+	"Connection", "Keep-Alive", "Proxy-Connection", "Transfer-Encoding", "Upgrade",
+}
+
+func stripConnectionHeaders(headers map[string][]string) map[string][]string {
+	forwardHeaders := make(map[string][]string)
+
+	for k, v := range headers {
+		if stringInArray(k, connectionHeaders) {
+			continue
+		}
+
+		forwardHeaders[k] = v
+	}
+
+	return forwardHeaders
 }
