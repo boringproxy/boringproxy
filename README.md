@@ -1,3 +1,13 @@
+# Disclaimer
+
+boringproxy is currently beta-quality software. While I am a big believer in
+open source, my primary goal at the moment is to build a sustainable
+business around the code I write. So for the most part I can only afford to
+spend time fixing problems that arise in my own usage of boringproxy. That
+said, feel free to create
+[GitHub issues](https://github.com/boringproxy/boringproxy/issues)
+and I'll try to help as I have time.
+
 # What is it?
 
 If you have a webserver running on one computer (say your development laptop),
