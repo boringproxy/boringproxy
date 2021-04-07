@@ -10,12 +10,12 @@ RUN go mod download
 COPY . .
 
 RUN rice embed-go
-RUN CGO_ENABLED=0 go build -o boringproxy
-RUN chmod +x boringproxy
-FROM scratch
+RUN cd cmd/boringproxy && CGO_ENABLED=0 go build -o boringproxy
+
+FROM scratch 
 EXPOSE 80 443
 
-COPY --from=builder /build/boringproxy /
+COPY --from=builder /build/cmd/boringproxy/boringproxy /
 
 ENTRYPOINT ["/boringproxy"]
 CMD ["server"]
