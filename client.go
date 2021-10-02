@@ -81,7 +81,12 @@ func NewClient(config *ClientConfig) (*Client, error) {
 
 	certConfig := certmagic.NewDefault()
 
-	httpClient := &http.Client{}
+	httpClient := &http.Client{
+		// Don't follow redirects
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 	tunnels := make(map[string]Tunnel)
 	cancelFuncs := make(map[string]context.CancelFunc)
 	cancelFuncsMutex := &sync.Mutex{}
