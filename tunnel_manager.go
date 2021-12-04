@@ -197,6 +197,16 @@ func (m *TunnelManager) addToAuthorizedKeys(domain string, port int, allowExtern
 
 	newAk := fmt.Sprintf("%s%s %s %s\n", akStr, options, pubKey, tunnelId)
 
+	// Clear the file
+	err = akFile.Truncate(0)
+	if err != nil {
+		return "", err
+	}
+	_, err = akFile.Seek(0, 0)
+	if err != nil {
+		return "", err
+	}
+
 	_, err = akFile.Write([]byte(newAk))
 	if err != nil {
 		return "", err
