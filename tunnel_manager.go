@@ -76,11 +76,16 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 		if err != nil {
 			return Tunnel{}, err
 		}
-	} else {
-		for _, tun := range m.db.GetTunnels() {
-			if tunReq.TunnelPort == tun.TunnelPort {
-				return Tunnel{}, errors.New("Tunnel port already in use")
-			}
+	}
+
+	for _, tun := range m.db.GetTunnels() {
+		fmt.Println(tunReq.Domain, tun.Domain)
+		if tunReq.Domain == tun.Domain {
+			return Tunnel{}, errors.New("Tunnel domain already in use")
+		}
+
+		if tunReq.TunnelPort == tun.TunnelPort {
+			return Tunnel{}, errors.New("Tunnel port already in use")
 		}
 	}
 
@@ -196,6 +201,16 @@ func (m *TunnelManager) addToAuthorizedKeys(domain string, port int, allowExtern
 	tunnelId := fmt.Sprintf("boringproxy-%s-%d", domain, port)
 
 	newAk := fmt.Sprintf("%s%s %s %s\n", akStr, options, pubKey, tunnelId)
+
+	// Clear the file
+	err = akFile.Truncate(0)
+	if err != nil {
+		return "", err
+	}
+	_, err = akFile.Seek(0, 0)
+	if err != nil {
+		return "", err
+	}
 
 	_, err = akFile.Write([]byte(newAk))
 	if err != nil {
