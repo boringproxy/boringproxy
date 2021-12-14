@@ -4,8 +4,6 @@ version=$(git describe --tags)
 
 ./scripts/generate_logo.sh
 
-rice embed-go
-
 cd ./cmd/boringproxy
 
 ../../scripts/build_x86_64.sh linux
