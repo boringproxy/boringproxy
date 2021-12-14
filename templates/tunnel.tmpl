@@ -1,0 +1,20 @@
+{{ template "header.tmpl" . }}
+
+<div class='tn-attribute'>
+  <div class='tn-attribute__name'>Domain:</div>
+  <div class='tn-attribute__value'>{{$.Tunnel.Domain}}</div>
+</div>
+<div class='tn-attribute'>
+  <div class='tn-attribute__name'>Client:</div>
+  <div class='tn-attribute__value'>{{$.Tunnel.ClientName}}</div>
+</div>
+<div class='tn-attribute'>
+  <div class='tn-attribute__name'>Target:</div>
+  <div class='tn-attribute__value'>{{$.Tunnel.ClientAddress}}:{{$.Tunnel.ClientPort}}</div>
+</div>
+
+<a href="/confirm-delete-tunnel?domain={{$.Tunnel.Domain}}">
+  <button class='button'>Delete</button>
+</a>
+
+{{ template "footer.tmpl" . }}
