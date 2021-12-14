@@ -74,8 +74,11 @@ func (f *PassthroughListener) PassConn(conn net.Conn) {
 }
 
 // This type creates a new net.Conn that's the same as an old one, except a new
-// reader is provided. So it proxies every method except Read. I'm sure there's
-// a cleaner way to do this...
+// reader is provided. So it proxies every method except Read. This is
+// necessary because by calling peekClientHello, part of the reader is read,
+// so we need to create a new reader with the already read data inserted back
+// in the front.
+// I'm sure there's a cleaner way to do this...
 type ProxyConn struct {
 	conn   net.Conn
 	reader io.Reader
