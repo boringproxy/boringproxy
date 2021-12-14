@@ -13,7 +13,7 @@ import (
         "embed"
 )
 
-//go:embed templates 
+//go:embed logo.png templates 
 var fs embed.FS
 
 type WebUiHandler struct {
@@ -111,17 +111,17 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		h.deleteUser(w, r, tokenData)
 	case "/logo.png":
 
-		//logoPngBytes, err := box.Bytes("logo.png")
-		//if err != nil {
-		//	w.WriteHeader(500)
-		//	h.alertDialog(w, r, err.Error(), homePath)
-		//	return
-		//}
+		logoPngBytes, err := fs.ReadFile("logo.png")
+		if err != nil {
+			w.WriteHeader(500)
+			h.alertDialog(w, r, err.Error(), "/")
+			return
+		}
 
-		//w.Header()["Content-Type"] = []string{"image/png"}
-		//w.Header()["Cache-Control"] = []string{"max-age=86400"}
+		w.Header()["Content-Type"] = []string{"image/png"}
+		w.Header()["Cache-Control"] = []string{"max-age=86400"}
 
-		//w.Write(logoPngBytes)
+		w.Write(logoPngBytes)
 
 	case "/":
 		http.Redirect(w, r, "/tunnels", 303)
