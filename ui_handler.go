@@ -11,7 +11,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+        "embed"
 )
+
+//go:embed templates 
+var fs embed.FS
 
 type WebUiHandler struct {
 	config          *Config
@@ -21,6 +25,7 @@ type WebUiHandler struct {
 	tunMan          *TunnelManager
 	box             *rice.Box
 	headHtml        template.HTML
+        tmpl            *template.Template
 	pendingRequests map[string]chan ReqResult
 	mutex           *sync.Mutex
 }
@@ -103,6 +108,13 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 	homePath := "/#/tunnel"
 
+        var err error
+	h.tmpl, err = template.ParseFS(fs, "templates/*.tmpl")
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
 	// Note: h.box and h.headHtml need to be ready before pretty much
 	// everything else, including sendLoginPage
 
@@ -162,7 +174,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 	case "/login":
 		h.handleLogin(w, r)
 	case "/users":
-		h.handleUsers(w, r, tokenData)
+		h.handleUsers(w, r, tokenData, user)
 
 	case "/confirm-delete-user":
 		h.confirmDeleteUser(w, r)
@@ -253,7 +265,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		}
 
 	case "/tunnels":
-		h.handleTunnels(w, r, tokenData)
+		h.handleTunnels(w, r, tokenData, user)
 	case "/confirm-delete-tunnel":
 
 		r.ParseForm()
@@ -276,10 +288,40 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			Head:       h.headHtml,
 			Message:    fmt.Sprintf("Are you sure you want to delete %s?", domain),
 			ConfirmUrl: fmt.Sprintf("/delete-tunnel?domain=%s", domain),
-			CancelUrl:  "/#/tunnels",
+			CancelUrl:  "/tunnels",
 		}
 
 		tmpl.Execute(w, data)
+
+	case "/edit-tunnel":
+		r.ParseForm()
+
+                var users map[string]User
+
+		// TODO: handle security checks in api
+		if user.IsAdmin {
+			users = h.db.GetUsers()
+		} else {
+			users = make(map[string]User)
+			users[tokenData.Owner] = user
+		}
+
+                templateData := struct {
+                        UserId string
+                        User User
+                        Users  map[string]User
+                }{
+                        UserId: tokenData.Owner,
+                        User: user,
+                        Users: users,
+                }
+
+                err := h.tmpl.ExecuteTemplate(w, "edit_tunnel.tmpl", templateData)
+                if err != nil {
+                        w.WriteHeader(500)
+                        io.WriteString(w, err.Error())
+                        return
+                }
 
 	case "/delete-tunnel":
 
@@ -291,6 +333,8 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			h.alertDialog(w, r, err.Error(), "/#/tunnels")
 			return
 		}
+
+		http.Redirect(w, r, "/tunnels", 303)
 
 	case "/tunnel-private-key":
 
@@ -356,30 +400,124 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 	case "/loading":
 		h.handleLoading(w, r)
 	default:
-		w.WriteHeader(404)
-		h.alertDialog(w, r, "Unknown page "+r.URL.Path, "/#/tunnels")
-		return
+                if strings.HasPrefix(r.URL.Path, "/tunnels/") {
+
+                        r.ParseForm()
+
+                        parts := strings.Split(r.URL.Path, "/")
+
+                        if len(parts) != 3 {
+                                w.WriteHeader(400)
+                                h.alertDialog(w, r, "Invalid path", "/#/tunnels")
+                                return
+                        }
+
+                        domain := parts[2]
+
+                        r.Form.Set("domain", domain)
+
+                        tunnel, err := h.api.GetTunnel(tokenData, r.Form)
+                        if err != nil {
+                                w.WriteHeader(400)
+                                h.alertDialog(w, r, err.Error(), "/#/tunnels")
+                                return
+                        }
+
+                        templateData := struct {
+                                Tunnel Tunnel
+                        }{
+                                Tunnel: tunnel,
+                        }
+
+                        err = h.tmpl.ExecuteTemplate(w, "tunnel.tmpl", templateData)
+                        if err != nil {
+                                w.WriteHeader(500)
+                                io.WriteString(w, err.Error())
+                                return
+                        }
+                } else {
+                        w.WriteHeader(404)
+                        h.alertDialog(w, r, "Unknown page "+r.URL.Path, "/#/tunnels")
+                        return
+                }
 	}
 }
 
 func (h *WebUiHandler) handleTokens(w http.ResponseWriter, r *http.Request, user User, tokenData TokenData) {
 
-	if r.Method != "POST" {
+	r.ParseForm()
+
+        switch r.Method {
+        case "GET":
+                var tokens map[string]TokenData
+		var users map[string]User
+
+		// TODO: handle security checks in api
+		if user.IsAdmin {
+			tokens = h.db.GetTokens()
+			users = h.db.GetUsers()
+		} else {
+			tokens = make(map[string]TokenData)
+
+			for token, td := range h.db.GetTokens() {
+				if tokenData.Owner == td.Owner {
+					tokens[token] = td
+				}
+
+			}
+
+			users = make(map[string]User)
+			users[tokenData.Owner] = user
+		}
+
+		qrCodes := make(map[string]template.URL)
+		for token := range tokens {
+			loginUrl := fmt.Sprintf("https://%s/login?access_token=%s", h.config.WebUiDomain, token)
+
+			var png []byte
+			png, err := qrcode.Encode(loginUrl, qrcode.Medium, 256)
+			if err != nil {
+				w.WriteHeader(500)
+				h.alertDialog(w, r, err.Error(), "/#/tokens")
+				return
+			}
+
+			data := base64.StdEncoding.EncodeToString(png)
+			qrCodes[token] = template.URL("data:image/png;base64," + data)
+		}
+
+                templateData := struct {
+                        Tokens map[string]TokenData
+                        User User
+                        Users   map[string]User
+                        QrCodes map[string]template.URL
+                }{
+                        Tokens: tokens,
+                        User: user,
+                        Users: users,
+                        QrCodes: qrCodes,
+                }
+
+                err := h.tmpl.ExecuteTemplate(w, "tokens.tmpl", templateData)
+                if err != nil {
+                        w.WriteHeader(500)
+                        io.WriteString(w, err.Error())
+                        return
+                }
+        case "POST":
+                _, err := h.api.CreateToken(tokenData, r.Form)
+                if err != nil {
+                        w.WriteHeader(500)
+                        h.alertDialog(w, r, err.Error(), "/#/tokens")
+                        return
+                }
+
+                http.Redirect(w, r, "/#/tokens", 303)
+        default:
 		w.WriteHeader(405)
 		h.alertDialog(w, r, "Invalid method for tokens", "/#/tokens")
 		return
 	}
-
-	r.ParseForm()
-
-	_, err := h.api.CreateToken(tokenData, r.Form)
-	if err != nil {
-		w.WriteHeader(500)
-		h.alertDialog(w, r, err.Error(), "/#/tokens")
-		return
-	}
-
-	http.Redirect(w, r, "/#/tokens", 303)
 }
 
 func (h *WebUiHandler) handleSshKeys(w http.ResponseWriter, r *http.Request, user User, tokenData TokenData) {
@@ -460,11 +598,28 @@ func (h *WebUiHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *WebUiHandler) handleTunnels(w http.ResponseWriter, r *http.Request, tokenData TokenData) {
+func (h *WebUiHandler) handleTunnels(w http.ResponseWriter, r *http.Request, tokenData TokenData, user User) {
 
 	switch r.Method {
 	case "POST":
 		h.handleCreateTunnel(w, r, tokenData)
+        case "GET":
+                tunnels := h.api.GetTunnels(tokenData)
+
+                templateData := struct {
+                        User User
+                        Tunnels map[string]Tunnel
+                }{
+                        User: user,
+                        Tunnels: tunnels,
+                }
+
+                err := h.tmpl.ExecuteTemplate(w, "tunnels.tmpl", templateData)
+                if err != nil {
+                        w.WriteHeader(500)
+                        io.WriteString(w, err.Error())
+                        return
+                }
 	default:
 		w.WriteHeader(405)
 		w.Write([]byte("Invalid method for /#/tunnels"))
@@ -553,24 +708,49 @@ func (h *WebUiHandler) sendLoginPage(w http.ResponseWriter, r *http.Request, cod
 	loginTemplate.Execute(w, loginData)
 }
 
-func (h *WebUiHandler) handleUsers(w http.ResponseWriter, r *http.Request, tokenData TokenData) {
-
-	if r.Method != "POST" {
-		w.WriteHeader(405)
-		h.alertDialog(w, r, "Invalid method for users", "/#/users")
-		return
-	}
+func (h *WebUiHandler) handleUsers(w http.ResponseWriter, r *http.Request, tokenData TokenData, user User) {
 
 	r.ParseForm()
 
-	err := h.api.CreateUser(tokenData, r.Form)
-	if err != nil {
-		w.WriteHeader(500)
-		h.alertDialog(w, r, err.Error(), "/#/users")
-		return
-	}
+        switch r.Method {
+        case "GET":
+                var users map[string]User
 
-	http.Redirect(w, r, "/#/users", 303)
+		// TODO: handle security checks in api
+		if user.IsAdmin {
+			users = h.db.GetUsers()
+		} else {
+			users = make(map[string]User)
+			users[tokenData.Owner] = user
+		}
+
+                templateData := struct {
+                        User User
+                        Users   map[string]User
+                }{
+                        User: user,
+                        Users: users,
+                }
+
+                err := h.tmpl.ExecuteTemplate(w, "users.tmpl", templateData)
+                if err != nil {
+                        w.WriteHeader(500)
+                        io.WriteString(w, err.Error())
+                        return
+                }
+        case "POST":
+                err := h.api.CreateUser(tokenData, r.Form)
+                if err != nil {
+                        w.WriteHeader(500)
+                        h.alertDialog(w, r, err.Error(), "/#/users")
+                        return
+                }
+
+                http.Redirect(w, r, "/#/users", 303)
+        default:
+		w.WriteHeader(405)
+		h.alertDialog(w, r, "Invalid method for users", "/#/users")
+        }
 }
 
 func (h *WebUiHandler) confirmDeleteUser(w http.ResponseWriter, r *http.Request) {

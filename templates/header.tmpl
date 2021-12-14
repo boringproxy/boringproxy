@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    
+    <title>boringproxy</title>
+    
+    <link rel="icon" href="/logo.png">
+    
+    <style>
+      {{ template "styles.tmpl" }}
+    </style>
+
+    <style>
+    </style>
+  </head>
+
+  <body>
+    <main>
+      <input type='checkbox' id='menu-toggle'/>
+      <label id='menu-label' for='menu-toggle'>Menu</label>
+
+      <div class='page'>
+        <div class='menu'>
+          <a class='menu-item' href='/tunnels'>Tunnels</a>
+          <a class='menu-item' href='/edit-tunnel'>Add Tunnel</a>
+          <a class='menu-item' href='/tokens'>Tokens</a>
+          {{ if $.User.IsAdmin }}
+          <a class='menu-item' href='/users'>Users</a>
+          {{ end }}
+          <a class='menu-item' href='/confirm-logout'>Logout</a>
+        </div>
+  
+        <div class='content'>
+
