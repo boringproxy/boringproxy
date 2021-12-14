@@ -4,7 +4,7 @@
   <form action="/tunnels" method="POST">
      <div class='input'>
        <label for="domain">Domain:</label>
-       <input type="text" id="domain" name="domain" required>
+       <input type="text" id="domain" name="domain" value="{{$.Domain}}" required>
        <input type="hidden" id="tunnel-owner" name="owner" value="{{$.UserId}}">
      </div>
      <div class='input'>
@@ -30,6 +30,14 @@
        <input type="text" id="client-port" name="client-port">
      </div>
      <div class='input'>
+       <label for="tls-termination">TLS Termination:</label>
+       <select id="tls-termination" name="tls-termination">
+         <option value="client">Client</option>
+         <option value="server">Server</option>
+         <option value="passthrough">Passthrough</option>
+       </select>
+     </div>
+     <div class='input'>
        <label for="allow-external-tcp">Allow External TCP:</label>
        <input type="checkbox" id="allow-external-tcp" name="allow-external-tcp">
      </div>
@@ -44,15 +52,9 @@
          <input type="password" id="password" name="password">
        </div>
      </div>
-     <div class='input'>
-       <label for="tls-termination">TLS Termination:</label>
-       <select id="tls-termination" name="tls-termination">
-         <option value="server">Server</option>
-         <option value="client">Client</option>
-         <option value="passthrough">Passthrough</option>
-       </select>
-     </div>
+
      <button class='button' type="submit">Submit</button>
+
   </form>
 </div>
 {{ template "footer.tmpl" . }}
