@@ -149,6 +149,8 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 	case "/edit-tunnel":
 		r.ParseForm()
 
+		domain := r.Form.Get("domain")
+
 		var users map[string]User
 
 		// TODO: handle security checks in api
@@ -160,10 +162,12 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		}
 
 		templateData := struct {
+			Domain string
 			UserId string
 			User   User
 			Users  map[string]User
 		}{
+			Domain: domain,
 			UserId: tokenData.Owner,
 			User:   user,
 			Users:  users,
