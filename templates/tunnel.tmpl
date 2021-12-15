@@ -17,8 +17,9 @@
   <div class='tn-attribute__value'>{{$.Tunnel.ClientAddress}}:{{$.Tunnel.ClientPort}}</div>
 </div>
 
-<a href="/confirm-delete-tunnel?domain={{$.Tunnel.Domain}}">
-  <button class='button'>Delete</button>
-</a>
+<div class='button-row'>
+  <a class='button' href="/tunnel-private-key?domain={{$.Tunnel.Domain}}">Download Private Key</a>
+  <a class='button' href="/confirm-delete-tunnel?domain={{$.Tunnel.Domain}}">Delete</a>
+</div>
 
 {{ template "footer.tmpl" . }}
