@@ -2,11 +2,11 @@
 
 <div class='tn-attribute'>
   <div class='tn-attribute__name'>Domain:</div>
-  <div class='tn-attribute__value'>{{$.Tunnel.Domain}}</div>
+  <div class='tn-attribute__value'><a href='https://{{$.Tunnel.Domain}}'>{{$.Tunnel.Domain}}</a></div>
 </div>
 <div class='tn-attribute'>
-  <div class='tn-attribute__name'>Owner:</div>
-  <div class='tn-attribute__value'>{{$.Tunnel.Owner}}</div>
+  <div class='tn-attribute__name'>Server Tunnel Port:</div>
+  <div class='tn-attribute__value'>{{$.Tunnel.TunnelPort}}</div>
 </div>
 <div class='tn-attribute'>
   <div class='tn-attribute__name'>Client:</div>
@@ -15,6 +15,18 @@
 <div class='tn-attribute'>
   <div class='tn-attribute__name'>Target:</div>
   <div class='tn-attribute__value'>{{$.Tunnel.ClientAddress}}:{{$.Tunnel.ClientPort}}</div>
+</div>
+<div class='tn-attribute'>
+  <div class='tn-attribute__name'>TLS Termination:</div>
+  <div class='tn-attribute__value'>{{$.Tunnel.TlsTermination}}</div>
+</div>
+<div class='tn-attribute'>
+  <div class='tn-attribute__name'>Allow External TCP:</div>
+  <div class='tn-attribute__value'>{{$.Tunnel.AllowExternalTcp}}</div>
+</div>
+<div class='tn-attribute'>
+  <div class='tn-attribute__name'>Owner:</div>
+  <div class='tn-attribute__value'>{{$.Tunnel.Owner}}</div>
 </div>
 
 <div class='button-row'>
