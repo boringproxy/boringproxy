@@ -3,11 +3,14 @@ package boringproxy
 import (
 	"embed"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	qrcode "github.com/skip2/go-qrcode"
 	"html/template"
 	"io"
 	"net/http"
+	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -53,6 +56,18 @@ type AlertData struct {
 
 type LoginData struct {
 	Head template.HTML
+}
+
+type Request struct {
+	RequestId   string    `json:"request_id"`
+	RedirectUri string    `json:"redirect_uri"`
+	Records     []*Record `json:"records:`
+}
+
+type Record struct {
+	Type  string `json:"type"`
+	Value string `json:"value"`
+	TTL   int    `json:"ttl"`
 }
 
 func NewWebUiHandler(config *Config, db *Database, api *Api, auth *Auth, tunMan *TunnelManager) *WebUiHandler {
@@ -161,19 +176,42 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			users[tokenData.Owner] = user
 		}
 
-		templateData := struct {
-			Domain string
-			UserId string
-			User   User
-			Users  map[string]User
-		}{
-			Domain: domain,
-			UserId: tokenData.Owner,
-			User:   user,
-			Users:  users,
+		requestId, _ := genRandomCode(32)
+
+		req := &Request{
+			RequestId:   requestId,
+			RedirectUri: fmt.Sprintf("http://%s/domain-callback", h.config.PublicIp),
+			Records: []*Record{
+				&Record{
+					Type:  "A",
+					Value: h.config.PublicIp,
+					TTL:   300,
+				},
+			},
 		}
 
-		err := h.tmpl.ExecuteTemplate(w, "edit_tunnel.tmpl", templateData)
+		jsonBytes, err := json.Marshal(req)
+		if err != nil {
+			os.Exit(1)
+		}
+
+		tnLink := "https://takingnames.io/approve?r=" + url.QueryEscape(string(jsonBytes))
+
+		templateData := struct {
+			Domain          string
+			UserId          string
+			User            User
+			Users           map[string]User
+			TakingNamesLink string
+		}{
+			Domain:          domain,
+			UserId:          tokenData.Owner,
+			User:            user,
+			Users:           users,
+			TakingNamesLink: tnLink,
+		}
+
+		err = h.tmpl.ExecuteTemplate(w, "edit_tunnel.tmpl", templateData)
 		if err != nil {
 			w.WriteHeader(500)
 			io.WriteString(w, err.Error())

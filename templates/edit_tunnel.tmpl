@@ -3,6 +3,10 @@
   <h1>Add Tunnel</h1>
   <form action="/tunnels" method="POST">
      <div class='input'>
+       <p>
+         Enter a domain below, or automatically configure DNS using
+         <a href='{{$.TakingNamesLink}}'>TakingNames.io</a>
+       </p>
        <label for="domain">Domain:</label>
        <input type="text" id="domain" name="domain" value="{{$.Domain}}" required>
        <input type="hidden" id="tunnel-owner" name="owner" value="{{$.UserId}}">
