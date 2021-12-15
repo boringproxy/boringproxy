@@ -4,7 +4,7 @@
   <div class='tn-tunnel-list-item'>
     <div class='tn-attribute'>
       <div class='tn-attribute__name'>Domain:</div>
-      <div class='tn-attribute__value'>{{$domain}}</div>
+      <div class='tn-attribute__value'><a href='https://{{$domain}}'>{{$domain}}</a></div>
     </div>
     <div class='tn-attribute'>
       <div class='tn-attribute__name'>Client:</div>
@@ -36,7 +36,7 @@
       {{range $domain, $tunnel:= .Tunnels}}
       <tr>
         <td class='tn-tunnel-table__cell'>
-          {{$domain}} 
+          <a href='https://{{$domain}}'>{{$domain}}</a>
         </td>
         <td class='tn-tunnel-table__cell'>{{$tunnel.ClientName}}</td>
         <td class='tn-tunnel-table__cell'>{{$tunnel.ClientAddress}}:{{$tunnel.ClientPort}}</td>
