@@ -3,6 +3,8 @@ package boringproxy
 import (
 	"bufio"
 	"crypto/tls"
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -20,6 +22,7 @@ import (
 type Config struct {
 	WebUiDomain   string `json:"webui_domain"`
 	SshServerPort int    `json:"ssh_server_port"`
+	PublicIp      string `json:"public_ip"`
 }
 
 type SmtpConfig struct {
@@ -36,6 +39,71 @@ type Server struct {
 	httpListener *PassthroughListener
 }
 
+type IpResponse struct {
+	Ip string `json:"ip"`
+}
+
+func checkPublicAddress(host string, port int) error {
+
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return err
+	}
+	defer ln.Close()
+
+	code, err := genRandomCode(32)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				break
+			}
+			conn.Write([]byte(code))
+			conn.Close()
+		}
+	}()
+
+	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", host, port))
+	if err != nil {
+		return nil
+	}
+	defer conn.Close()
+
+	data, err := io.ReadAll(conn)
+	if err != nil {
+		return nil
+	}
+
+	retCode := string(data)
+
+	if retCode != code {
+		return errors.New("Mismatched codes")
+	}
+
+	return nil
+}
+
+func getPublicIp() (string, error) {
+	resp, err := http.Get("https://api.ipify.org?format=json")
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+
+	var ipRes *IpResponse
+	err = json.Unmarshal([]byte(body), &ipRes)
+	if err != nil {
+		return "", err
+	}
+
+	return ipRes.Ip, nil
+}
+
 func Listen() {
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	adminDomain := flagSet.String("admin-domain", "", "Admin Domain")
@@ -47,6 +115,22 @@ func Listen() {
 	}
 
 	log.Println("Starting up")
+
+	ip, err := getPublicIp()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(ip)
+
+	err = checkPublicAddress(ip, 80)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = checkPublicAddress(ip, 443)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	webUiDomain := *adminDomain
 
@@ -60,6 +144,7 @@ func Listen() {
 	config := &Config{
 		WebUiDomain:   webUiDomain,
 		SshServerPort: *sshServerPort,
+		PublicIp:      ip,
 	}
 
 	certmagic.DefaultACME.DisableHTTPChallenge = true
@@ -123,7 +208,13 @@ func Listen() {
 		timestamp := time.Now().Format(time.RFC3339)
 		srcIp := strings.Split(r.RemoteAddr, ":")[0]
 		fmt.Println(fmt.Sprintf("%s %s %s %s %s", timestamp, srcIp, r.Method, r.Host, r.URL.Path))
-		if r.Host == config.WebUiDomain {
+		if r.URL.Path == "/domain-callback" {
+			r.ParseForm()
+
+			domain := r.Form.Get("domain")
+			// TODO: Check request ID
+			http.Redirect(w, r, fmt.Sprintf("https://%s/edit-tunnel?domain=%s", config.WebUiDomain, domain), 303)
+		} else if r.Host == config.WebUiDomain {
 			if strings.HasPrefix(r.URL.Path, "/api/") {
 				http.StripPrefix("/api", api).ServeHTTP(w, r)
 			} else {
@@ -143,9 +234,8 @@ func Listen() {
 		}
 	})
 
-	// taken from: https://stackoverflow.com/a/37537134/943814
 	go func() {
-		if err := http.ListenAndServe(":80", http.HandlerFunc(redirectTLS)); err != nil {
+		if err := http.ListenAndServe(":80", nil); err != nil {
 			log.Fatalf("ListenAndServe error: %v", err)
 		}
 	}()
@@ -156,6 +246,8 @@ func Listen() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	log.Println("Ready")
 
 	for {
 		conn, err := listener.Accept()
@@ -213,9 +305,4 @@ func (p *Server) passthroughRequest(conn net.Conn, tunnel Tunnel) {
 	}()
 
 	wg.Wait()
-}
-
-func redirectTLS(w http.ResponseWriter, r *http.Request) {
-	url := fmt.Sprintf("https://%s:443%s", r.Host, r.RequestURI)
-	http.Redirect(w, r, url, http.StatusMovedPermanently)
 }
