@@ -9,11 +9,12 @@ import (
 )
 
 type Database struct {
-	Tokens  map[string]TokenData `json:"tokens"`
-	Tunnels map[string]Tunnel    `json:"tunnels"`
-	Users   map[string]User      `json:"users"`
-	SshKeys map[string]SshKey    `json:"ssh_keys"`
-	mutex   *sync.Mutex
+	AdminDomain string               `json:"admin_domain"`
+	Tokens      map[string]TokenData `json:"tokens"`
+	Tunnels     map[string]Tunnel    `json:"tunnels"`
+	Users       map[string]User      `json:"users"`
+	SshKeys     map[string]SshKey    `json:"ssh_keys"`
+	mutex       *sync.Mutex
 }
 
 type TokenData struct {
@@ -92,6 +93,22 @@ func NewDatabase() (*Database, error) {
 	db.persist()
 
 	return db, nil
+}
+
+func (d *Database) SetAdminDomain(adminDomain string) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	d.AdminDomain = adminDomain
+
+	d.persist()
+}
+
+func (d *Database) GetAdminDomain() string {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	return d.AdminDomain
 }
 
 func (d *Database) AddToken(owner string) (string, error) {

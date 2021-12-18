@@ -2,6 +2,7 @@ package boringproxy
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -11,6 +12,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -106,7 +108,7 @@ func getPublicIp() (string, error) {
 
 func Listen() {
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	adminDomain := flagSet.String("admin-domain", "", "Admin Domain")
+	newAdminDomain := flagSet.String("admin-domain", "", "Admin Domain")
 	sshServerPort := flagSet.Int("ssh-server-port", 22, "SSH Server Port")
 	certDir := flagSet.String("cert-dir", "", "TLS cert directory")
 	err := flagSet.Parse(os.Args[2:])
@@ -120,7 +122,6 @@ func Listen() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(ip)
 
 	err = checkPublicAddress(ip, 80)
 	if err != nil {
@@ -132,19 +133,9 @@ func Listen() {
 		log.Fatal(err)
 	}
 
-	webUiDomain := *adminDomain
-
-	if *adminDomain == "" {
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Enter Admin Domain: ")
-		text, _ := reader.ReadString('\n')
-		webUiDomain = strings.TrimSpace(text)
-	}
-
-	config := &Config{
-		WebUiDomain:   webUiDomain,
-		SshServerPort: *sshServerPort,
-		PublicIp:      ip,
+	db, err := NewDatabase()
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	if *certDir != "" {
@@ -155,16 +146,23 @@ func Listen() {
 	//certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
 	certConfig := certmagic.NewDefault()
 
-	err = certConfig.ManageSync([]string{config.WebUiDomain})
-	if err != nil {
-		log.Fatal(err)
+	if *newAdminDomain != "" {
+		db.SetAdminDomain(*newAdminDomain)
 	}
 
-	log.Print("Successfully acquired admin certificate")
+	adminDomain := db.GetAdminDomain()
 
-	db, err := NewDatabase()
-	if err != nil {
-		log.Fatal(err)
+	if adminDomain == "" {
+
+		adminDomain = getAdminDomain(ip, certConfig)
+
+		db.SetAdminDomain(adminDomain)
+	} else {
+		err = certConfig.ManageSync([]string{adminDomain})
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Print(fmt.Sprintf("Successfully acquired certificate for admin domain (%s)", adminDomain))
 	}
 
 	users := db.GetUsers()
@@ -176,7 +174,13 @@ func Listen() {
 		}
 
 		log.Println("Admin token: " + token)
-		log.Println(fmt.Sprintf("Admin login link: https://%s/login?access_token=%s", webUiDomain, token))
+		log.Println(fmt.Sprintf("Admin login link: https://%s/login?access_token=%s", adminDomain, token))
+	}
+
+	config := &Config{
+		WebUiDomain:   adminDomain,
+		SshServerPort: *sshServerPort,
+		PublicIp:      ip,
 	}
 
 	tunMan := NewTunnelManager(config, db, certConfig)
@@ -305,4 +309,96 @@ func (p *Server) passthroughRequest(conn net.Conn, tunnel Tunnel) {
 	}()
 
 	wg.Wait()
+}
+
+func getAdminDomain(ip string, certConfig *certmagic.Config) string {
+	action := prompt("\nNo admin domain set. Enter '1' to input manually, or '2' to configure through TakingNames.io\n")
+
+	var adminDomain string
+
+	switch action {
+	case "1":
+		adminDomain = prompt("\nEnter admin domain:\n")
+
+		err := certConfig.ManageSync([]string{adminDomain})
+		if err != nil {
+			log.Fatal(err)
+		}
+	case "2":
+
+		requestId, _ := genRandomCode(32)
+
+		req := &Request{
+			RequestId:   requestId,
+			RedirectUri: fmt.Sprintf("http://%s/domain-callback", ip),
+			Records: []*Record{
+				&Record{
+					Type:  "A",
+					Value: ip,
+					TTL:   300,
+				},
+			},
+		}
+
+		jsonBytes, err := json.Marshal(req)
+		if err != nil {
+			os.Exit(1)
+		}
+
+		tnLink := "https://takingnames.io/approve?r=" + url.QueryEscape(string(jsonBytes))
+
+		// Create a temporary web server to handle the callback which contains the domain
+
+		mux := http.NewServeMux()
+
+		server := http.Server{
+			Addr:    ":80",
+			Handler: mux,
+		}
+
+		mux.HandleFunc("/domain-callback", func(w http.ResponseWriter, r *http.Request) {
+			r.ParseForm()
+
+			domain := r.Form.Get("domain")
+			returnedReqId := r.Form.Get("request-id")
+
+			if domain == "" {
+				log.Fatal("Blank domain from TakingNames.io")
+			}
+
+			if returnedReqId != requestId {
+				log.Fatal("request-id doesn't match")
+			}
+
+			adminDomain = domain
+
+			err = certConfig.ManageSync([]string{adminDomain})
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			go func() {
+				ctx := context.Background()
+				server.Shutdown(ctx)
+			}()
+
+			http.Redirect(w, r, fmt.Sprintf("https://%s", adminDomain), 303)
+		})
+
+		fmt.Println("Use the link below to select a domain:\n\n" + tnLink)
+
+		server.ListenAndServe()
+
+	default:
+		log.Fatal("Invalid option")
+	}
+
+	return adminDomain
+}
+
+func prompt(promptText string) string {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print(promptText)
+	text, _ := reader.ReadString('\n')
+	return strings.TrimSpace(text)
 }
