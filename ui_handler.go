@@ -180,7 +180,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 		req := &Request{
 			RequestId:   requestId,
-			RedirectUri: fmt.Sprintf("http://%s/domain-callback", h.config.PublicIp),
+			RedirectUri: fmt.Sprintf("https://%s/domain-callback", h.config.WebUiDomain),
 			Records: []*Record{
 				&Record{
 					Type:  "A",
