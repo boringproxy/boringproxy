@@ -147,10 +147,10 @@ func Listen() {
 		PublicIp:      ip,
 	}
 
-	certmagic.DefaultACME.DisableHTTPChallenge = true
 	if *certDir != "" {
 		certmagic.Default.Storage = &certmagic.FileStorage{*certDir}
 	}
+	//certmagic.DefaultACME.DisableHTTPChallenge = true
 	//certmagic.DefaultACME.DisableTLSALPNChallenge = true
 	//certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
 	certConfig := certmagic.NewDefault()
