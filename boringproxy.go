@@ -12,7 +12,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -212,11 +211,43 @@ func Listen() {
 		timestamp := time.Now().Format(time.RFC3339)
 		srcIp := strings.Split(r.RemoteAddr, ":")[0]
 		fmt.Println(fmt.Sprintf("%s %s %s %s %s", timestamp, srcIp, r.Method, r.Host, r.URL.Path))
-		if r.URL.Path == "/domain-callback" {
+		if r.URL.Path == "/webdo/requests" {
 			r.ParseForm()
 
+			requestId := r.Form.Get("request-id")
+
+			dnsRequest, err := db.GetDNSRequest(requestId)
+			if err != nil {
+				w.WriteHeader(500)
+				io.WriteString(w, err.Error())
+				return
+			}
+
+			jsonBytes, err := json.Marshal(dnsRequest)
+			if err != nil {
+				w.WriteHeader(500)
+				io.WriteString(w, err.Error())
+				return
+			}
+
+			w.Write(jsonBytes)
+
+		} else if r.URL.Path == "/webdo/callback" {
+			r.ParseForm()
+
+			requestId := r.Form.Get("request-id")
+
+			// Ensure the request exists
+			_, err := db.GetDNSRequest(requestId)
+			if err != nil {
+				w.WriteHeader(500)
+				io.WriteString(w, err.Error())
+				return
+			}
+
+			db.DeleteDNSRequest(requestId)
+
 			domain := r.Form.Get("domain")
-			// TODO: Check request ID
 			http.Redirect(w, r, fmt.Sprintf("https://%s/edit-tunnel?domain=%s", config.WebUiDomain, domain), 303)
 		} else if r.Host == config.WebUiDomain {
 			if strings.HasPrefix(r.URL.Path, "/api/") {
@@ -328,24 +359,7 @@ func getAdminDomain(ip string, certConfig *certmagic.Config) string {
 
 		requestId, _ := genRandomCode(32)
 
-		req := &Request{
-			RequestId:   requestId,
-			RedirectUri: fmt.Sprintf("http://%s/domain-callback", ip),
-			Records: []*Record{
-				&Record{
-					Type:  "A",
-					Value: ip,
-					TTL:   300,
-				},
-			},
-		}
-
-		jsonBytes, err := json.Marshal(req)
-		if err != nil {
-			os.Exit(1)
-		}
-
-		tnLink := "https://takingnames.io/approve?r=" + url.QueryEscape(string(jsonBytes))
+		tnLink := fmt.Sprintf("https://takingnames.io/webdo?requester=%s&request-id=%s&request-type=%s", ip, requestId, "set-ip")
 
 		// Create a temporary web server to handle the callback which contains the domain
 
@@ -356,7 +370,7 @@ func getAdminDomain(ip string, certConfig *certmagic.Config) string {
 			Handler: mux,
 		}
 
-		mux.HandleFunc("/domain-callback", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/webdo/callback", func(w http.ResponseWriter, r *http.Request) {
 			r.ParseForm()
 
 			domain := r.Form.Get("domain")
@@ -372,7 +386,7 @@ func getAdminDomain(ip string, certConfig *certmagic.Config) string {
 
 			adminDomain = domain
 
-			err = certConfig.ManageSync([]string{adminDomain})
+			err := certConfig.ManageSync([]string{adminDomain})
 			if err != nil {
 				log.Fatal(err)
 			}

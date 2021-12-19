@@ -3,14 +3,14 @@ package boringproxy
 import (
 	"embed"
 	"encoding/base64"
-	"encoding/json"
+	//"encoding/json"
 	"fmt"
 	qrcode "github.com/skip2/go-qrcode"
 	"html/template"
 	"io"
 	"net/http"
-	"net/url"
-	"os"
+	//"net/url"
+	//"os"
 	"strings"
 	"sync"
 	"time"
@@ -56,18 +56,6 @@ type AlertData struct {
 
 type LoginData struct {
 	Head template.HTML
-}
-
-type Request struct {
-	RequestId   string    `json:"request_id"`
-	RedirectUri string    `json:"redirect_uri"`
-	Records     []*Record `json:"records:`
-}
-
-type Record struct {
-	Type  string `json:"type"`
-	Value string `json:"value"`
-	TTL   int    `json:"ttl"`
 }
 
 func NewWebUiHandler(config *Config, db *Database, api *Api, auth *Auth, tunMan *TunnelManager) *WebUiHandler {
@@ -178,11 +166,9 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 		requestId, _ := genRandomCode(32)
 
-		req := &Request{
-			RequestId:   requestId,
-			RedirectUri: fmt.Sprintf("https://%s/domain-callback", h.config.WebUiDomain),
-			Records: []*Record{
-				&Record{
+		req := DNSRequest{
+			Records: []*DNSRecord{
+				&DNSRecord{
 					Type:  "A",
 					Value: h.config.PublicIp,
 					TTL:   300,
@@ -190,12 +176,9 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			},
 		}
 
-		jsonBytes, err := json.Marshal(req)
-		if err != nil {
-			os.Exit(1)
-		}
+		h.db.SetDNSRequest(requestId, req)
 
-		tnLink := "https://takingnames.io/approve?r=" + url.QueryEscape(string(jsonBytes))
+		tnLink := fmt.Sprintf("https://takingnames.io/webdo?requester=%s&request-id=%s", h.config.WebUiDomain, requestId)
 
 		templateData := struct {
 			Domain          string
