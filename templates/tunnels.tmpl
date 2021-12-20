@@ -1,0 +1,54 @@
+{{ template "header.tmpl" . }}
+<div class='tn-tunnel-list'>
+  {{ range $domain, $tunnel:= .Tunnels }}
+  <div class='tn-tunnel-list-item'>
+    <div class='tn-attribute'>
+      <div class='tn-attribute__name'>Domain:</div>
+      <div class='tn-attribute__value'><a href='https://{{$domain}}'>{{$domain}}</a></div>
+    </div>
+    <div class='tn-attribute'>
+      <div class='tn-attribute__name'>Client:</div>
+      <div class='tn-attribute__value'>{{$tunnel.ClientName}}</div>
+    </div>
+    <div class='tn-attribute'>
+      <div class='tn-attribute__name'>Target:</div>
+      <div class='tn-attribute__value'>{{$tunnel.ClientAddress}}:{{$tunnel.ClientPort}}</div>
+    </div>
+    <div class='button-row'>
+      <a class='button' href="/tunnels/{{$domain}}">View</a>
+      <a class='button' href="/confirm-delete-tunnel?domain={{$domain}}">Delete</a>
+    </div>
+  </div>
+  {{ end }}
+</div>
+
+<div class='tn-tunnel-list-table'>
+  <table class='tn-tunnel-table'>
+    <thead>
+      <tr>
+        <th class='tn-tunnel-table__cell'>Domain</th>
+        <th class='tn-tunnel-table__cell'>Client</th>
+        <th class='tn-tunnel-table__cell'>Target</th>
+        <th class='tn-tunnel-table__cell'>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range $domain, $tunnel:= .Tunnels}}
+      <tr>
+        <td class='tn-tunnel-table__cell'>
+          <a href='https://{{$domain}}'>{{$domain}}</a>
+        </td>
+        <td class='tn-tunnel-table__cell'>{{$tunnel.ClientName}}</td>
+        <td class='tn-tunnel-table__cell'>{{$tunnel.ClientAddress}}:{{$tunnel.ClientPort}}</td>
+        <td class='tn-tunnel-table__cell'>
+          <div class='button-row'>
+            <a class='button' href="/tunnels/{{$domain}}">View</a>
+            <a class='button' href="/confirm-delete-tunnel?domain={{$domain}}">Delete</a>
+          </div>
+        </td>
+      </tr>
+      {{ end }}
+    </tbody>
+  </table>
+</div>
+{{ template "footer.tmpl" . }}

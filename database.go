@@ -9,11 +9,13 @@ import (
 )
 
 type Database struct {
-	Tokens  map[string]TokenData `json:"tokens"`
-	Tunnels map[string]Tunnel    `json:"tunnels"`
-	Users   map[string]User      `json:"users"`
-	SshKeys map[string]SshKey    `json:"ssh_keys"`
-	mutex   *sync.Mutex
+	AdminDomain string                `json:"admin_domain"`
+	Tokens      map[string]TokenData  `json:"tokens"`
+	Tunnels     map[string]Tunnel     `json:"tunnels"`
+	Users       map[string]User       `json:"users"`
+	SshKeys     map[string]SshKey     `json:"ssh_keys"`
+	dnsRequests map[string]DNSRequest `json:"dns_requests"`
+	mutex       *sync.Mutex
 }
 
 type TokenData struct {
@@ -31,6 +33,17 @@ type SshKey struct {
 }
 
 type DbClient struct {
+}
+
+type DNSRequest struct {
+	IsAdminDomain bool         `json:"is_admin_domain"`
+	Records       []*DNSRecord `json:"records"`
+}
+
+type DNSRecord struct {
+	Type  string `json:"type"`
+	Value string `json:"value"`
+	TTL   int    `json:"ttl"`
 }
 
 type Tunnel struct {
@@ -85,6 +98,10 @@ func NewDatabase() (*Database, error) {
 		db.SshKeys = make(map[string]SshKey)
 	}
 
+	if db.dnsRequests == nil {
+		db.dnsRequests = make(map[string]DNSRequest)
+	}
+
 	db.mutex = &sync.Mutex{}
 
 	db.mutex.Lock()
@@ -92,6 +109,48 @@ func NewDatabase() (*Database, error) {
 	db.persist()
 
 	return db, nil
+}
+
+func (d *Database) SetAdminDomain(adminDomain string) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	d.AdminDomain = adminDomain
+
+	d.persist()
+}
+func (d *Database) GetAdminDomain() string {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	return d.AdminDomain
+}
+
+func (d *Database) SetDNSRequest(requestId string, request DNSRequest) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	d.dnsRequests[requestId] = request
+
+	// Not currently persisting because dnsRequests is only stored in
+	// memory. May change in the future.
+	//d.persist()
+}
+func (d *Database) GetDNSRequest(requestId string) (DNSRequest, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	if req, ok := d.dnsRequests[requestId]; ok {
+		return req, nil
+	}
+
+	return DNSRequest{}, errors.New("No such DNS Request")
+}
+func (d *Database) DeleteDNSRequest(requestId string) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	delete(d.dnsRequests, requestId)
 }
 
 func (d *Database) AddToken(owner string) (string, error) {

@@ -1,0 +1,21 @@
+{{ template "header.tmpl" . }}
+<div class='list'>
+  {{range $username, $user := .Users}}
+  <div class='list-item'>
+    {{$username}}
+    <a href="/confirm-delete-user?username={{$username}}">
+      <button class='button'>Delete</button>
+    </a>
+  </div>
+  {{end}}
+</div>
+<div class='user-adder'>
+  <form action="/users" method="POST">
+     <label for="username">Username:</label>
+     <input type="text" id="username" name="username" required>
+     <label for="is-admin">Is Admin:</label>
+     <input type="checkbox" id="is-admin" name="is-admin">
+     <button class='button' type="submit">Add User</button>
+  </form>
+</div>
+{{ template "footer.tmpl" . }}

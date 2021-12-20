@@ -40,14 +40,6 @@ source $HOME/.bashrc
 go build
 ```
 
-To embed the web UI into the executable:
-
-```bash
-go get github.com/GeertJohan/go.rice/rice
-rice embed-go
-go build
-```
-
 # Running
 
 ## Server
