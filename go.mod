@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/caddyserver/certmagic v0.12.0
+	github.com/mdp/qrterminal/v3 v3.0.0
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de
 )
@@ -19,4 +20,5 @@ require (
 	golang.org/x/net v0.0.0-20200707034311-ab3426394381 // indirect
 	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd // indirect
 	golang.org/x/text v0.3.0 // indirect
+	rsc.io/qr v0.2.0 // indirect
 )
