@@ -178,7 +178,9 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 		h.db.SetDNSRequest(requestId, req)
 
-		tnLink := fmt.Sprintf("https://takingnames.io/dnsapi?requester=%s&request-id=%s", h.config.WebUiDomain, requestId)
+		adminDomain := h.db.GetAdminDomain()
+
+		tnLink := fmt.Sprintf("https://takingnames.io/dnsapi?requester=%s&request-id=%s", adminDomain, requestId)
 
 		templateData := struct {
 			Domain          string
@@ -351,7 +353,8 @@ func (h *WebUiHandler) handleTokens(w http.ResponseWriter, r *http.Request, user
 
 		qrCodes := make(map[string]template.URL)
 		for token := range tokens {
-			loginUrl := fmt.Sprintf("https://%s/login?access_token=%s", h.config.WebUiDomain, token)
+			adminDomain := h.db.GetAdminDomain()
+			loginUrl := fmt.Sprintf("https://%s/login?access_token=%s", adminDomain, token)
 
 			var png []byte
 			png, err := qrcode.Encode(loginUrl, qrcode.Medium, 256)

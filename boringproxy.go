@@ -2,7 +2,6 @@ package boringproxy
 
 import (
 	"bufio"
-	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -21,7 +20,6 @@ import (
 )
 
 type Config struct {
-	WebUiDomain   string `json:"webui_domain"`
 	SshServerPort int    `json:"ssh_server_port"`
 	PublicIp      string `json:"public_ip"`
 }
@@ -153,9 +151,10 @@ func Listen() {
 
 	if adminDomain == "" {
 
-		adminDomain = getAdminDomain(ip, certConfig)
-
-		db.SetAdminDomain(adminDomain)
+		err = setAdminDomain(ip, certConfig, db)
+		if err != nil {
+			log.Fatal(err)
+		}
 	} else {
 		err = certConfig.ManageSync([]string{adminDomain})
 		if err != nil {
@@ -167,17 +166,17 @@ func Listen() {
 	users := db.GetUsers()
 	if len(users) == 0 {
 		db.AddUser("admin", true)
-		token, err := db.AddToken("admin")
+		//token, err := db.AddToken("admin")
+		_, err := db.AddToken("admin")
 		if err != nil {
 			log.Fatal("Failed to initialize admin user")
 		}
 
-		log.Println("Admin token: " + token)
-		log.Println(fmt.Sprintf("Admin login link: https://%s/login?access_token=%s", adminDomain, token))
+		//log.Println("Admin token: " + token)
+		//log.Println(fmt.Sprintf("Admin login link: https://%s/login?access_token=%s", adminDomain, token))
 	}
 
 	config := &Config{
-		WebUiDomain:   adminDomain,
 		SshServerPort: *sshServerPort,
 		PublicIp:      ip,
 	}
@@ -238,7 +237,7 @@ func Listen() {
 			requestId := r.Form.Get("request-id")
 
 			// Ensure the request exists
-			_, err := db.GetDNSRequest(requestId)
+			dnsRequest, err := db.GetDNSRequest(requestId)
 			if err != nil {
 				w.WriteHeader(500)
 				io.WriteString(w, err.Error())
@@ -248,8 +247,23 @@ func Listen() {
 			db.DeleteDNSRequest(requestId)
 
 			domain := r.Form.Get("domain")
-			http.Redirect(w, r, fmt.Sprintf("https://%s/edit-tunnel?domain=%s", config.WebUiDomain, domain), 303)
-		} else if r.Host == config.WebUiDomain {
+
+			if dnsRequest.IsAdminDomain {
+				db.SetAdminDomain(domain)
+
+				// TODO: Might want to get all certs here, not just the admin domain
+				err := certConfig.ManageSync([]string{domain})
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				http.Redirect(w, r, fmt.Sprintf("https://%s", domain), 303)
+			} else {
+				adminDomain := db.GetAdminDomain()
+				http.Redirect(w, r, fmt.Sprintf("https://%s/edit-tunnel?domain=%s", adminDomain, domain), 303)
+			}
+
+		} else if r.Host == db.GetAdminDomain() {
 			if strings.HasPrefix(r.URL.Path, "/api/") {
 				http.StripPrefix("/api", api).ServeHTTP(w, r)
 			} else {
@@ -342,72 +356,66 @@ func (p *Server) passthroughRequest(conn net.Conn, tunnel Tunnel) {
 	wg.Wait()
 }
 
-func getAdminDomain(ip string, certConfig *certmagic.Config) string {
+func setAdminDomain(ip string, certConfig *certmagic.Config, db *Database) error {
 	action := prompt("\nNo admin domain set. Enter '1' to input manually, or '2' to configure through TakingNames.io\n")
-
-	var adminDomain string
-
 	switch action {
 	case "1":
-		adminDomain = prompt("\nEnter admin domain:\n")
+		adminDomain := prompt("\nEnter admin domain:\n")
 
 		err := certConfig.ManageSync([]string{adminDomain})
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		db.SetAdminDomain(adminDomain)
 	case "2":
+
+		log.Println("Get bootstrap domain")
+
+		resp, err := http.Get("https://takingnames.io/dnsapi/bootstrap-domain")
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
+
+		bootstrapDomain := string(body)
+
+		if resp.StatusCode != 200 {
+			fmt.Println(bootstrapDomain)
+			return errors.New("bootstrap domain request failed")
+		}
+
+		log.Println("Get cert")
+
+		err = certConfig.ManageSync([]string{bootstrapDomain})
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		requestId, _ := genRandomCode(32)
 
-		tnLink := fmt.Sprintf("https://takingnames.io/dnsapi?requester=%s&request-id=%s&request-type=%s", ip, requestId, "set-ip")
-
-		// Create a temporary web server to handle the callback which contains the domain
-
-		mux := http.NewServeMux()
-
-		server := http.Server{
-			Addr:    ":80",
-			Handler: mux,
+		req := DNSRequest{
+			IsAdminDomain: true,
+			Records: []*DNSRecord{
+				&DNSRecord{
+					Type:  "A",
+					Value: ip,
+					TTL:   300,
+				},
+			},
 		}
 
-		mux.HandleFunc("/dnsapi/callback", func(w http.ResponseWriter, r *http.Request) {
-			r.ParseForm()
+		db.SetDNSRequest(requestId, req)
 
-			domain := r.Form.Get("domain")
-			returnedReqId := r.Form.Get("request-id")
-
-			if domain == "" {
-				log.Fatal("Blank domain from TakingNames.io")
-			}
-
-			if returnedReqId != requestId {
-				log.Fatal("request-id doesn't match")
-			}
-
-			adminDomain = domain
-
-			err := certConfig.ManageSync([]string{adminDomain})
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			go func() {
-				ctx := context.Background()
-				server.Shutdown(ctx)
-			}()
-
-			http.Redirect(w, r, fmt.Sprintf("https://%s", adminDomain), 303)
-		})
-
-		fmt.Println("Use the link below to select a domain:\n\n" + tnLink)
-
-		server.ListenAndServe()
+		tnLink := fmt.Sprintf("https://takingnames.io/dnsapi?requester=%s&request-id=%s", bootstrapDomain, requestId)
+		fmt.Println("Use the link below to select an admin domain:\n\n" + tnLink + "\n")
 
 	default:
 		log.Fatal("Invalid option")
 	}
 
-	return adminDomain
+	return nil
 }
 
 func prompt(promptText string) string {
