@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/caddyserver/certmagic"
+	"github.com/mdp/qrterminal/v3"
 )
 
 type Config struct {
@@ -108,6 +109,7 @@ func Listen() {
 	newAdminDomain := flagSet.String("admin-domain", "", "Admin Domain")
 	sshServerPort := flagSet.Int("ssh-server-port", 22, "SSH Server Port")
 	certDir := flagSet.String("cert-dir", "", "TLS cert directory")
+	printLogin := flagSet.Bool("print-login", false, "Prints admin login information")
 	err := flagSet.Parse(os.Args[2:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: parsing flags: %s\n", os.Args[0], err)
@@ -163,17 +165,26 @@ func Listen() {
 		log.Print(fmt.Sprintf("Successfully acquired certificate for admin domain (%s)", adminDomain))
 	}
 
+	// Add admin user if it doesn't already exist
 	users := db.GetUsers()
 	if len(users) == 0 {
 		db.AddUser("admin", true)
-		//token, err := db.AddToken("admin")
 		_, err := db.AddToken("admin")
 		if err != nil {
 			log.Fatal("Failed to initialize admin user")
 		}
 
-		//log.Println("Admin token: " + token)
-		//log.Println(fmt.Sprintf("Admin login link: https://%s/login?access_token=%s", adminDomain, token))
+	}
+
+	if *printLogin {
+		tokens := db.GetTokens()
+
+		for token, tokenData := range tokens {
+			if tokenData.Owner == "admin" {
+				printLoginInfo(token, db.GetAdminDomain())
+				break
+			}
+		}
 	}
 
 	config := &Config{
@@ -423,4 +434,11 @@ func prompt(promptText string) string {
 	fmt.Print(promptText)
 	text, _ := reader.ReadString('\n')
 	return strings.TrimSpace(text)
+}
+
+func printLoginInfo(token, adminDomain string) {
+	log.Println("Admin token: " + token)
+	url := fmt.Sprintf("https://%s/login?access_token=%s", adminDomain, token)
+	log.Println(fmt.Sprintf("Admin login link: %s", url))
+	qrterminal.GenerateHalfBlock(url, qrterminal.L, os.Stdout)
 }
