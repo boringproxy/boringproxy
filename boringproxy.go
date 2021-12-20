@@ -211,7 +211,7 @@ func Listen() {
 		timestamp := time.Now().Format(time.RFC3339)
 		srcIp := strings.Split(r.RemoteAddr, ":")[0]
 		fmt.Println(fmt.Sprintf("%s %s %s %s %s", timestamp, srcIp, r.Method, r.Host, r.URL.Path))
-		if r.URL.Path == "/webdo/requests" {
+		if r.URL.Path == "/dnsapi/requests" {
 			r.ParseForm()
 
 			requestId := r.Form.Get("request-id")
@@ -232,7 +232,7 @@ func Listen() {
 
 			w.Write(jsonBytes)
 
-		} else if r.URL.Path == "/webdo/callback" {
+		} else if r.URL.Path == "/dnsapi/callback" {
 			r.ParseForm()
 
 			requestId := r.Form.Get("request-id")
@@ -359,7 +359,7 @@ func getAdminDomain(ip string, certConfig *certmagic.Config) string {
 
 		requestId, _ := genRandomCode(32)
 
-		tnLink := fmt.Sprintf("https://takingnames.io/webdo?requester=%s&request-id=%s&request-type=%s", ip, requestId, "set-ip")
+		tnLink := fmt.Sprintf("https://takingnames.io/dnsapi?requester=%s&request-id=%s&request-type=%s", ip, requestId, "set-ip")
 
 		// Create a temporary web server to handle the callback which contains the domain
 
@@ -370,7 +370,7 @@ func getAdminDomain(ip string, certConfig *certmagic.Config) string {
 			Handler: mux,
 		}
 
-		mux.HandleFunc("/webdo/callback", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/dnsapi/callback", func(w http.ResponseWriter, r *http.Request) {
 			r.ParseForm()
 
 			domain := r.Form.Get("domain")

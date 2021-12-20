@@ -178,7 +178,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 		h.db.SetDNSRequest(requestId, req)
 
-		tnLink := fmt.Sprintf("https://takingnames.io/webdo?requester=%s&request-id=%s", h.config.WebUiDomain, requestId)
+		tnLink := fmt.Sprintf("https://takingnames.io/dnsapi?requester=%s&request-id=%s", h.config.WebUiDomain, requestId)
 
 		templateData := struct {
 			Domain          string
