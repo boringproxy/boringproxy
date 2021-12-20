@@ -1,0 +1,27 @@
+{{ template "header.tmpl" . }}
+<div class='list'>
+  {{range $token, $tokenData := .Tokens}}
+
+  <div class='list-item'>
+    <span class='token'>{{$token}} ({{$tokenData.Owner}})</span>
+    <a href='/login?access_token={{$token}}'>Login link</a>
+    <img class='qr-code' src='{{index $.QrCodes $token}}' width=100 height=100>
+    <a href="/confirm-delete-token?token={{$token}}">
+      <button class='button'>Delete</button>
+    </a>
+  </div>
+  {{end}}
+</div>
+
+<div class='token-adder'>
+  <form action="/tokens" method="POST">
+     <label for="token-owner">Owner:</label>
+     <select id="token-owner" name="owner">
+       {{range $username, $user := .Users}}
+       <option value="{{$username}}">{{$username}}</option>
+       {{end}}
+     </select>
+     <button class='button' type="submit">Add Token</button>
+  </form>
+</div>
+{{ template "footer.tmpl" . }}

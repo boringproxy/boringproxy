@@ -1,0 +1,64 @@
+{{ template "header.tmpl" . }}
+<div class='tunnel-adder'>
+  <h1>Add Tunnel</h1>
+  <form action="/tunnels" method="POST">
+     <div class='input'>
+       <p>
+         Enter a domain below, or automatically configure DNS using
+         <a href='{{$.TakingNamesLink}}'>TakingNames.io</a>
+       </p>
+       <label for="domain">Domain:</label>
+       <input type="text" id="domain" name="domain" value="{{$.Domain}}" required>
+       <input type="hidden" id="tunnel-owner" name="owner" value="{{$.UserId}}">
+     </div>
+     <div class='input'>
+       <label for="tunnel-port">Tunnel Port:</label>
+       <input type="text" id="tunnel-port" name="tunnel-port" value="Random">
+     </div>
+
+     <div class='input'>
+       <label for="client-name">Client Name:</label>
+       <select id="client-name" name="client-name">
+         <option value="none">No client</option>
+         {{range $id, $client := (index $.Users $.UserId).Clients}}
+         <option value="{{$id}}">{{$id}}</option>
+         {{end}}
+       </select>
+     </div>
+     <div class='input'>
+       <label for="client-addr">Client Address:</label>
+       <input type="text" id="client-addr" name="client-addr" value='127.0.0.1'>
+     </div>
+     <div class='input'>
+       <label for="client-port">Client Port:</label>
+       <input type="text" id="client-port" name="client-port">
+     </div>
+     <div class='input'>
+       <label for="tls-termination">TLS Termination:</label>
+       <select id="tls-termination" name="tls-termination">
+         <option value="client">Client</option>
+         <option value="server">Server</option>
+         <option value="passthrough">Passthrough</option>
+       </select>
+     </div>
+     <div class='input'>
+       <label for="allow-external-tcp">Allow External TCP:</label>
+       <input type="checkbox" id="allow-external-tcp" name="allow-external-tcp">
+     </div>
+     <div class='input'>
+       <label for="password-protect">Password Protect:</label>
+       <input type="checkbox" id="password-protect" name="password-protect">
+
+       <div id='login-inputs'>
+         <label for="username">Username:</label>
+         <input type="text" id="username" name="username">
+         <label for="password">Password:</label>
+         <input type="password" id="password" name="password">
+       </div>
+     </div>
+
+     <button class='button' type="submit">Submit</button>
+
+  </form>
+</div>
+{{ template "footer.tmpl" . }}

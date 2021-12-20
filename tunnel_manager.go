@@ -79,7 +79,6 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 	}
 
 	for _, tun := range m.db.GetTunnels() {
-		fmt.Println(tunReq.Domain, tun.Domain)
 		if tunReq.Domain == tun.Domain {
 			return Tunnel{}, errors.New("Tunnel domain already in use")
 		}
@@ -94,7 +93,7 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 		return Tunnel{}, err
 	}
 
-	tunReq.ServerAddress = m.config.WebUiDomain
+	tunReq.ServerAddress = m.db.GetAdminDomain()
 	tunReq.ServerPort = m.config.SshServerPort
 	tunReq.ServerPublicKey = ""
 	tunReq.Username = m.user.Username

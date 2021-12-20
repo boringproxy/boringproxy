@@ -11,4 +11,3 @@ WORKDIR boringproxy
 RUN ./scripts/install_go.sh
 ENV PATH="${PATH}:/usr/local/go/bin"
 ENV PATH="${PATH}:/root/go/bin"
-RUN go get github.com/GeertJohan/go.rice/rice

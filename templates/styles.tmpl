@@ -7,6 +7,7 @@
 
 * {
   box-sizing: border-box;
+  font-family: Arial;
 }
 
 html {
@@ -21,6 +22,51 @@ body {
 
 main {
   width: 100%;
+}
+
+.tn-tunnel-list-table {
+  display: none;
+}
+
+.tn-tunnel-list-item {
+  padding: 10px;
+  border: 1px solid var(--main-color);
+}
+
+.tn-attribute {
+  padding: 5px;
+}
+.tn-attribute__name {
+  font-weight: bold;
+}
+
+.tn-tunnel-table, .tn-tunnel-table__cell {
+  border: 1px solid var(--main-color);
+  border-collapse: collapse;
+  text-align: center;
+  padding: 10px;
+  word-wrap: break-word;
+}
+.tn-tunnel-table {
+  width: 100%;
+}
+.tn-tunnel-table__link {
+  display: contents;
+}
+.tn-tunnel-table__row:hover {
+  background: var(--hover-color);
+  cursor: pointer;
+}
+.tn-tunnel-table__cell {
+  max-width: 256px;
+}
+
+.tn-tunnel-link {
+  color: #000;
+  text-decoration: none;
+}
+.tn-tunnel-link:hover {
+  background: var(--hover-color);
 }
 
 #menu-label {
@@ -145,12 +191,6 @@ main {
   margin: .2em;
 }
 
-.tunnel-adder form {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-}
-
 .ssh-key-adder form {
   display: flex;
   flex-direction: row;
@@ -158,16 +198,13 @@ main {
 }
 
 .input {
-  padding: .7em;
   margin: .2em;
-  border: 1px solid var(--main-color);
-  display: flex;
-  flex-direction: column;
 }
 
 .input label {
   padding: .2em;
   font-weight: bold;
+  display: block;
 }
 
 #login-inputs {
@@ -193,17 +230,14 @@ main {
 
 .page {
   margin-top: var(--menu-label-height);
-  display: none;
+  /*display: none;*/
   flex-direction: column;
+  display: flex;
 }
 
 .qr-code {
   width: 8em;
   height: 8em;
-}
-
-main *:target {
-  display: flex;
 }
 
 .dialog {
@@ -229,7 +263,7 @@ main *:target {
   z-index: 1010;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 960px) {
 
   main {
     display: flex;
@@ -254,5 +288,13 @@ main *:target {
 
   .content {
     width: 100%;
+  }
+
+  .tn-tunnel-list-table {
+    display: block;
+  }
+
+  .tn-tunnel-list {
+    display: none;
   }
 }
