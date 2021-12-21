@@ -35,9 +35,10 @@ type DNSRequest struct {
 }
 
 type DNSRecord struct {
-	Type  string `json:"type"`
-	Value string `json:"value"`
-	TTL   int    `json:"ttl"`
+	Type     string `json:"type"`
+	Value    string `json:"value"`
+	TTL      int    `json:"ttl"`
+	Priority int    `json:"priority"`
 }
 
 type Tunnel struct {

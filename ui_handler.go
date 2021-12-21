@@ -259,6 +259,13 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		http.Redirect(w, r, "/tunnels", 303)
 	case "/loading":
 		h.handleLoading(w, r)
+	case "/alert":
+
+		r.ParseForm()
+
+		message := r.Form.Get("message")
+
+		h.alertDialog(w, r, message, "/")
 	default:
 		if strings.HasPrefix(r.URL.Path, "/tunnels/") {
 
