@@ -118,6 +118,7 @@ func Listen() {
 	printLogin := flagSet.Bool("print-login", false, "Prints admin login information")
 	httpPort := flagSet.Int("http-port", 80, "HTTP (insecure) port")
 	httpsPort := flagSet.Int("https-port", 443, "HTTPS (secure) port")
+	allowHttp := flagSet.Bool("allow-http", false, "Allow unencrypted (HTTP) requests")
 	err := flagSet.Parse(os.Args[2:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: parsing flags: %s\n", os.Args[0], err)
@@ -308,9 +309,22 @@ func Listen() {
 	})
 
 	go func() {
-		if err := http.ListenAndServe(fmt.Sprintf(":%d", *httpPort), nil); err != nil {
-			log.Fatalf("ListenAndServe error: %v", err)
+
+		if *allowHttp {
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", *httpPort), nil); err != nil {
+				log.Fatalf("ListenAndServe error: %v", err)
+			}
+		} else {
+			redirectTLS := func(w http.ResponseWriter, r *http.Request) {
+				url := fmt.Sprintf("https://%s:%d%s", r.Host, *httpsPort, r.RequestURI)
+				http.Redirect(w, r, url, http.StatusMovedPermanently)
+			}
+
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", *httpPort), http.HandlerFunc(redirectTLS)); err != nil {
+				log.Fatalf("ListenAndServe error: %v", err)
+			}
 		}
+
 	}()
 
 	go http.Serve(tlsListener, nil)
