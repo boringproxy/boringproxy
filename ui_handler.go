@@ -24,7 +24,6 @@ type WebUiHandler struct {
 	db              *Database
 	api             *Api
 	auth            *Auth
-	tunMan          *TunnelManager
 	headHtml        template.HTML
 	tmpl            *template.Template
 	pendingRequests map[string]chan ReqResult
@@ -58,13 +57,12 @@ type LoginData struct {
 	Head template.HTML
 }
 
-func NewWebUiHandler(config *Config, db *Database, api *Api, auth *Auth, tunMan *TunnelManager) *WebUiHandler {
+func NewWebUiHandler(config *Config, db *Database, api *Api, auth *Auth) *WebUiHandler {
 	return &WebUiHandler{
 		config:          config,
 		db:              db,
 		api:             api,
 		auth:            auth,
-		tunMan:          tunMan,
 		pendingRequests: make(map[string]chan ReqResult),
 		mutex:           &sync.Mutex{},
 	}
