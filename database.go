@@ -41,7 +41,6 @@ type DNSRecord struct {
 }
 
 type Tunnel struct {
-	Owner            string `json:"owner"`
 	Domain           string `json:"domain"`
 	ServerAddress    string `json:"server_address"`
 	ServerPort       int    `json:"server_port"`
@@ -49,14 +48,17 @@ type Tunnel struct {
 	Username         string `json:"username"`
 	TunnelPort       int    `json:"tunnel_port"`
 	TunnelPrivateKey string `json:"tunnel_private_key"`
-	ClientName       string `json:"client_name"`
 	ClientAddress    string `json:"client_address"`
 	ClientPort       int    `json:"client_port"`
 	AllowExternalTcp bool   `json:"allow_external_tcp"`
-	AuthUsername     string `json:"auth_username"`
-	AuthPassword     string `json:"auth_password"`
-	CssId            string `json:"css_id"`
-	TlsTermination   string `json:"tls_termination"`
+
+	// TODO: These are not used by clients and shouldn't be returned in
+	// API calls.
+	Owner          string `json:"owner"`
+	ClientName     string `json:"client_name"`
+	AuthUsername   string `json:"auth_username"`
+	AuthPassword   string `json:"auth_password"`
+	TlsTermination string `json:"tls_termination"`
 }
 
 func NewDatabase() (*Database, error) {
