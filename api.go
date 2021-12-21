@@ -254,17 +254,6 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 		}
 	}
 
-	sshKeyId := params.Get("ssh-key-id")
-
-	var sshKey SshKey
-	if sshKeyId != "" {
-		var exists bool
-		sshKey, exists = a.db.GetSshKey(sshKeyId)
-		if !exists {
-			return nil, errors.New("SSH key does not exist")
-		}
-	}
-
 	clientName := params.Get("client-name")
 
 	clientPort := 0
@@ -317,7 +306,6 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 
 	request := Tunnel{
 		Domain:           domain,
-		SshKey:           sshKey.Key,
 		Owner:            owner,
 		ClientName:       clientName,
 		ClientPort:       clientPort,
@@ -487,38 +475,6 @@ func (a *Api) DeleteClient(tokenData TokenData, ownerId, clientId string) error 
 	owner, _ := a.db.GetUser(ownerId)
 	delete(owner.Clients, clientId)
 	a.db.SetUser(ownerId, owner)
-
-	return nil
-}
-
-func (a *Api) GetSshKeys(tokenData TokenData) map[string]SshKey {
-
-	user, _ := a.db.GetUser(tokenData.Owner)
-
-	var keys map[string]SshKey
-
-	if user.IsAdmin {
-		keys = a.db.GetSshKeys()
-	} else {
-		keys = make(map[string]SshKey)
-
-		for id, key := range a.db.GetSshKeys() {
-			if tokenData.Owner == key.Owner {
-				keys[id] = key
-			}
-		}
-	}
-
-	return keys
-}
-
-func (a *Api) DeleteSshKey(tokenData TokenData, params url.Values) error {
-	id := params.Get("id")
-	if id == "" {
-		return errors.New("Invalid id parameter")
-	}
-
-	a.db.DeleteSshKey(id)
 
 	return nil
 }

@@ -88,7 +88,7 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 		}
 	}
 
-	privKey, err := m.addToAuthorizedKeys(tunReq.Domain, tunReq.TunnelPort, tunReq.AllowExternalTcp, tunReq.SshKey)
+	privKey, err := m.addToAuthorizedKeys(tunReq.Domain, tunReq.TunnelPort, tunReq.AllowExternalTcp)
 	if err != nil {
 		return Tunnel{}, err
 	}
@@ -158,7 +158,7 @@ func (m *TunnelManager) GetPort(domain string) (int, error) {
 	return tunnel.TunnelPort, nil
 }
 
-func (m *TunnelManager) addToAuthorizedKeys(domain string, port int, allowExternalTcp bool, sshKey string) (string, error) {
+func (m *TunnelManager) addToAuthorizedKeys(domain string, port int, allowExternalTcp bool) (string, error) {
 
 	authKeysPath := fmt.Sprintf("%s/.ssh/authorized_keys", m.user.HomeDir)
 
@@ -178,17 +178,12 @@ func (m *TunnelManager) addToAuthorizedKeys(domain string, port int, allowExtern
 	var privKey string
 	var pubKey string
 
-	if sshKey == "" {
-		pubKey, privKey, err = MakeSSHKeyPair()
-		if err != nil {
-			return "", err
-		}
-
-		pubKey = strings.TrimSpace(pubKey)
-	} else {
-		privKey = ""
-		pubKey = sshKey
+	pubKey, privKey, err = MakeSSHKeyPair()
+	if err != nil {
+		return "", err
 	}
+
+	pubKey = strings.TrimSpace(pubKey)
 
 	bindAddr := "127.0.0.1"
 	if allowExternalTcp {
