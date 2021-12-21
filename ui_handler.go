@@ -96,8 +96,6 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 	tunnels := h.api.GetTunnels(tokenData)
 
 	for domain, tun := range tunnels {
-		// TODO: might yield non-unique names
-		tun.CssId = strings.ReplaceAll(domain, ".", "-")
 		tunnels[domain] = tun
 	}
 
