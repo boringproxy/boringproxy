@@ -207,7 +207,7 @@ func Listen() {
 
 	api := NewApi(config, db, auth, tunMan)
 
-	webUiHandler := NewWebUiHandler(config, db, api, auth, tunMan)
+	webUiHandler := NewWebUiHandler(config, db, api, auth)
 
 	httpClient := &http.Client{
 		// Don't follow redirects
