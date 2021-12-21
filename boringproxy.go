@@ -288,6 +288,24 @@ func Listen() {
 				http.Redirect(w, r, fmt.Sprintf("https://%s/edit-tunnel?domain=%s", adminDomain, domain), 303)
 			}
 
+		} else if r.URL.Path == "/dnsapi/failure" {
+
+			r.ParseForm()
+
+			requestId := r.Form.Get("request-id")
+
+			// Ensure the request exists
+			_, err := db.GetDNSRequest(requestId)
+			if err != nil {
+				w.WriteHeader(500)
+				io.WriteString(w, err.Error())
+				return
+			}
+
+			db.DeleteDNSRequest(requestId)
+
+			http.Redirect(w, r, "/alert?message=Domain request failed", 303)
+
 		} else if hostDomain == db.GetAdminDomain() {
 			if strings.HasPrefix(r.URL.Path, "/api/") {
 				http.StripPrefix("/api", api).ServeHTTP(w, r)
