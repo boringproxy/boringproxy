@@ -236,21 +236,6 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		h.confirmDeleteToken(w, r)
 	case "/delete-token":
 		h.deleteToken(w, r, tokenData)
-	//case "/ssh-keys":
-	//	h.handleSshKeys(w, r, user, tokenData)
-	//case "/delete-ssh-key":
-
-	//	r.ParseForm()
-
-	//	err := h.api.DeleteSshKey(tokenData, r.Form)
-	//	if err != nil {
-	//		w.WriteHeader(400)
-	//		h.alertDialog(w, r, err.Error(), "/ssh-keys")
-	//		return
-	//	}
-
-	//	http.Redirect(w, r, "/ssh-keys", 303)
-
 	case "/confirm-logout":
 
 		data := &ConfirmData{
@@ -400,49 +385,6 @@ func (h *WebUiHandler) handleTokens(w http.ResponseWriter, r *http.Request, user
 		h.alertDialog(w, r, "Invalid method for tokens", "/tokens")
 		return
 	}
-}
-
-func (h *WebUiHandler) handleSshKeys(w http.ResponseWriter, r *http.Request, user User, tokenData TokenData) {
-
-	if r.Method != "POST" {
-		w.WriteHeader(405)
-		h.alertDialog(w, r, "Invalid method for /ssh-keys", "/ssh-keys")
-		return
-	}
-
-	r.ParseForm()
-
-	id := r.Form.Get("id")
-	if id == "" {
-		w.WriteHeader(400)
-		h.alertDialog(w, r, "Invalid id parameter", "/ssh-keys")
-		return
-	}
-
-	keyParam := r.Form.Get("key")
-	if keyParam == "" {
-		w.WriteHeader(400)
-		h.alertDialog(w, r, "Invalid key parameter", "/ssh-keys")
-		return
-	}
-
-	keyParam = strings.TrimSpace(keyParam)
-	parts := strings.Split(keyParam, " ")
-
-	if len(parts) > 2 {
-		keyParam = strings.Join(parts[:2], " ")
-	}
-
-	key := SshKey{Owner: tokenData.Owner, Key: keyParam}
-
-	err := h.db.AddSshKey(id, key)
-	if err != nil {
-		w.WriteHeader(400)
-		h.alertDialog(w, r, err.Error(), "/ssh-keys")
-		return
-	}
-
-	http.Redirect(w, r, "/ssh-keys", 303)
 }
 
 func (h *WebUiHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
