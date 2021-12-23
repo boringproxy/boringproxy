@@ -39,10 +39,6 @@ type Server struct {
 	httpListener *PassthroughListener
 }
 
-type IpResponse struct {
-	Ip string `json:"ip"`
-}
-
 func checkPublicAddress(host string, port int) error {
 
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
@@ -94,20 +90,14 @@ func checkPublicAddress(host string, port int) error {
 }
 
 func getPublicIp() (string, error) {
-	resp, err := http.Get("https://api.ipify.org?format=json")
+	resp, err := http.Get("https://takingnames.io/my-ip")
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 
-	var ipRes *IpResponse
-	err = json.Unmarshal([]byte(body), &ipRes)
-	if err != nil {
-		return "", err
-	}
-
-	return ipRes.Ip, nil
+	return string(body), nil
 }
 
 func Listen() {
