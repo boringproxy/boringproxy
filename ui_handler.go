@@ -160,36 +160,16 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			users[tokenData.Owner] = user
 		}
 
-		requestId, _ := genRandomCode(32)
-
-		req := DNSRequest{
-			Records: []*DNSRecord{
-				&DNSRecord{
-					Type:  "A",
-					Value: h.config.PublicIp,
-					TTL:   300,
-				},
-			},
-		}
-
-		h.db.SetDNSRequest(requestId, req)
-
-		adminDomain := h.db.GetAdminDomain()
-
-		tnLink := fmt.Sprintf("https://takingnames.io/dnsapi?requester=%s&request-id=%s", adminDomain, requestId)
-
 		templateData := struct {
-			Domain          string
-			UserId          string
-			User            User
-			Users           map[string]User
-			TakingNamesLink string
+			Domain string
+			UserId string
+			User   User
+			Users  map[string]User
 		}{
-			Domain:          domain,
-			UserId:          tokenData.Owner,
-			User:            user,
-			Users:           users,
-			TakingNamesLink: tnLink,
+			Domain: domain,
+			UserId: tokenData.Owner,
+			User:   user,
+			Users:  users,
 		}
 
 		err = h.tmpl.ExecuteTemplate(w, "edit_tunnel.tmpl", templateData)
@@ -266,6 +246,26 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		message := r.Form.Get("message")
 
 		h.alertDialog(w, r, message, "/")
+	case "/takingnames":
+		requestId, _ := genRandomCode(32)
+
+		req := DNSRequest{
+			Records: []*DNSRecord{
+				&DNSRecord{
+					Type:  "A",
+					Value: h.config.PublicIp,
+					TTL:   300,
+				},
+			},
+		}
+
+		h.db.SetDNSRequest(requestId, req)
+
+		adminDomain := h.db.GetAdminDomain()
+
+		tnLink := fmt.Sprintf("https://takingnames.io/dnsapi?requester=%s&request-id=%s", adminDomain, requestId)
+
+		http.Redirect(w, r, tnLink, 303)
 	default:
 		if strings.HasPrefix(r.URL.Path, "/tunnels/") {
 
