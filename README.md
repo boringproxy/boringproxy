@@ -36,8 +36,23 @@ If you don't already have golang installed:
 source $HOME/.bashrc
 ```
 
+Make the logo image file. It gets baked into the executable so it needs to
+be available at build time. Note that you don't have to use the official
+logo for the build. Any PNG will do. It's currently just used for the favicon.
+
 ```bash
+./scripts/generate_logo.sh
+```
+
+```bash
+cd cmd/boringproxy
 go build
+```
+
+Give the executable permission to bind low ports (ie 80/443):
+
+```bash
+sudo setcap cap_net_bind_service=+ep boringproxy
 ```
 
 # Running
@@ -45,11 +60,11 @@ go build
 ## Server
 
 ```bash
-boringproxy server -admin-domain bpdemo.brng.pro
+./boringproxy server
 ```
 
 ## Client
 
 ```bash
-boringproxy client -server bpdemo.brng.pro -token fKFIjefKDFLEFijKDFJKELJF -client-name demo-client -user demo-user
+./boringproxy client -server bpdemo.brng.pro -token fKFIjefKDFLEFijKDFJKELJF -client-name demo-client -user demo-user
 ```
