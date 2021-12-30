@@ -11,6 +11,7 @@ import (
 	"net/http"
 	//"net/url"
 	//"os"
+	"golang.org/x/oauth2"
 	"strings"
 	"sync"
 	"time"
@@ -261,9 +262,13 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 		h.db.SetDNSRequest(requestId, req)
 
-		adminDomain := h.db.GetAdminDomain()
+		//adminDomain := h.db.GetAdminDomain()
 
-		tnLink := fmt.Sprintf("https://takingnames.io/dnsapi?requester=%s&request-id=%s", adminDomain, requestId)
+		//tnLink := fmt.Sprintf("https://takingnames.io/dnsapi?requester=%s&request-id=%s", adminDomain, requestId)
+		//redirectUri := fmt.Sprintf("%s/namedrop/auth-success", adminDomain)
+		//tnLink := fmt.Sprintf("https://takingnames.io/namedrop/authorize?client_id=%s&redirect_uri=%s&scope=subdomain&state=%s", adminDomain, redirectUri, requestId)
+
+		tnLink := h.config.oauth2Config.AuthCodeURL(requestId, oauth2.AccessTypeOffline)
 
 		http.Redirect(w, r, tnLink, 303)
 	default:
