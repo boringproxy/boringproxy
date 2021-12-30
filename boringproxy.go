@@ -2,11 +2,13 @@ package boringproxy
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"golang.org/x/oauth2"
 	"io"
 	"log"
 	"net"
@@ -23,6 +25,7 @@ import (
 type Config struct {
 	SshServerPort int    `json:"ssh_server_port"`
 	PublicIp      string `json:"public_ip"`
+	oauth2Config  *oauth2.Config
 }
 
 type SmtpConfig struct {
@@ -37,6 +40,11 @@ type Server struct {
 	tunMan       *TunnelManager
 	httpClient   *http.Client
 	httpListener *PassthroughListener
+}
+
+type NamedropTokenData struct {
+	Owner string `json:"owner"`
+	Scope string `json:"scope"`
 }
 
 func checkPublicAddress(host string, port int) error {
@@ -186,9 +194,21 @@ func Listen() {
 		}
 	}
 
+	oauthConf := &oauth2.Config{
+		ClientID:     db.GetAdminDomain(),
+		ClientSecret: "fake-secret",
+		Scopes:       []string{"subdomain"},
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://takingnames.io/namedrop/authorize",
+			TokenURL: "https://takingnames.io/namedrop/token",
+		},
+		RedirectURL: fmt.Sprintf("%s/namedrop/auth-success", db.GetAdminDomain()),
+	}
+
 	config := &Config{
 		SshServerPort: *sshServerPort,
 		PublicIp:      ip,
+		oauth2Config:  oauthConf,
 	}
 
 	tunMan := NewTunnelManager(config, db, certConfig)
@@ -246,10 +266,12 @@ func Listen() {
 
 			w.Write(jsonBytes)
 
-		} else if r.URL.Path == "/dnsapi/callback" {
+		} else if r.URL.Path == "/namedrop/auth-success" {
 			r.ParseForm()
 
-			requestId := r.Form.Get("request-id")
+			requestId := r.Form.Get("state")
+
+			code := r.Form.Get("code")
 
 			// Ensure the request exists
 			dnsRequest, err := db.GetDNSRequest(requestId)
@@ -261,7 +283,32 @@ func Listen() {
 
 			db.DeleteDNSRequest(requestId)
 
-			domain := r.Form.Get("domain")
+			ctx := context.Background()
+			tok, err := oauthConf.Exchange(ctx, code)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+
+			accessToken := tok.AccessToken
+
+			resp, err := http.Get("https://takingnames.io/namedrop/token-data?access_token=" + accessToken)
+			if err != nil {
+				w.WriteHeader(500)
+				io.WriteString(w, err.Error())
+				return
+			}
+			defer resp.Body.Close()
+			bodyJson, err := io.ReadAll(resp.Body)
+
+			var namedropTokenData NamedropTokenData
+			err = json.Unmarshal(bodyJson, &namedropTokenData)
+			if err != nil {
+				w.WriteHeader(500)
+				io.WriteString(w, err.Error())
+				return
+			}
+
+			domain := namedropTokenData.Scope
 
 			if dnsRequest.IsAdminDomain {
 				db.SetAdminDomain(domain)
