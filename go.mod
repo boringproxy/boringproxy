@@ -2,10 +2,13 @@ module github.com/boringproxy/boringproxy
 
 go 1.17
 
+replace github.com/takingnames/namedrop-go => ../namedrop-go
+
 require (
 	github.com/caddyserver/certmagic v0.12.0
 	github.com/mdp/qrterminal/v3 v3.0.0
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
+	github.com/takingnames/namedrop-go v0.0.0-00010101000000-000000000000
 	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 )
