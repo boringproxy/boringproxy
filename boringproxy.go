@@ -2,6 +2,7 @@ package boringproxy
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -305,21 +306,76 @@ func Listen() {
 				return
 			}
 
-			domain := namedropTokenData.Scope
+			if len(namedropTokenData.Scopes) < 1 {
+				w.WriteHeader(500)
+				io.WriteString(w, "No scopes returned")
+				return
+			}
+
+			domain := namedropTokenData.Scopes[0].Domain
+			host := namedropTokenData.Scopes[0].Host
+
+			createRecordReq := namedrop.Record{
+				Domain: domain,
+				Host:   host,
+				Type:   "A",
+				Value:  config.PublicIp,
+				TTL:    300,
+			}
+
+			createRecordReqJson, err := json.Marshal(createRecordReq)
+			if err != nil {
+				w.WriteHeader(500)
+				io.WriteString(w, err.Error())
+				return
+			}
+
+			url := "https://takingnames.io/namedrop/records?access_token=" + accessToken
+			req, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(createRecordReqJson))
+			if err != nil {
+				w.WriteHeader(500)
+				io.WriteString(w, err.Error())
+				return
+			}
+
+			resp, err := httpClient.Do(req)
+			if err != nil {
+				w.WriteHeader(500)
+				io.WriteString(w, err.Error())
+				return
+			}
+			defer resp.Body.Close()
+
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				w.WriteHeader(500)
+				io.WriteString(w, err.Error())
+				return
+			}
+
+			fmt.Println(string(body))
+
+			if resp.StatusCode != 200 {
+				w.WriteHeader(500)
+				io.WriteString(w, "Invalid status code")
+				return
+			}
+
+			fqdn := host + "." + domain
 
 			if dnsRequest.IsAdminDomain {
-				db.SetAdminDomain(domain)
+				db.SetAdminDomain(fqdn)
 
 				// TODO: Might want to get all certs here, not just the admin domain
-				err := certConfig.ManageSync([]string{domain})
+				err := certConfig.ManageSync([]string{fqdn})
 				if err != nil {
 					log.Fatal(err)
 				}
 
-				http.Redirect(w, r, fmt.Sprintf("https://%s", domain), 303)
+				http.Redirect(w, r, fmt.Sprintf("https://%s", fqdn), 303)
 			} else {
 				adminDomain := db.GetAdminDomain()
-				http.Redirect(w, r, fmt.Sprintf("https://%s/edit-tunnel?domain=%s", adminDomain, domain), 303)
+				http.Redirect(w, r, fmt.Sprintf("https://%s/edit-tunnel?domain=%s", adminDomain, fqdn), 303)
 			}
 
 		} else if r.URL.Path == "/dnsapi/failure" {
