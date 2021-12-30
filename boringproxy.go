@@ -20,6 +20,8 @@ import (
 
 	"github.com/caddyserver/certmagic"
 	"github.com/mdp/qrterminal/v3"
+
+	"github.com/takingnames/namedrop-go"
 )
 
 type Config struct {
@@ -40,11 +42,6 @@ type Server struct {
 	tunMan       *TunnelManager
 	httpClient   *http.Client
 	httpListener *PassthroughListener
-}
-
-type NamedropTokenData struct {
-	Owner string `json:"owner"`
-	Scope string `json:"scope"`
 }
 
 func checkPublicAddress(host string, port int) error {
@@ -291,16 +288,16 @@ func Listen() {
 
 			accessToken := tok.AccessToken
 
-			resp, err := http.Get("https://takingnames.io/namedrop/token-data?access_token=" + accessToken)
+			tokenResp, err := http.Get("https://takingnames.io/namedrop/token-data?access_token=" + accessToken)
 			if err != nil {
 				w.WriteHeader(500)
 				io.WriteString(w, err.Error())
 				return
 			}
-			defer resp.Body.Close()
-			bodyJson, err := io.ReadAll(resp.Body)
+			defer tokenResp.Body.Close()
+			bodyJson, err := io.ReadAll(tokenResp.Body)
 
-			var namedropTokenData NamedropTokenData
+			var namedropTokenData namedrop.TokenData
 			err = json.Unmarshal(bodyJson, &namedropTokenData)
 			if err != nil {
 				w.WriteHeader(500)
