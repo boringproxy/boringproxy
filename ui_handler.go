@@ -250,23 +250,9 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 	case "/takingnames":
 		requestId, _ := genRandomCode(32)
 
-		req := DNSRequest{
-			Records: []*DNSRecord{
-				&DNSRecord{
-					Type:  "A",
-					Value: h.config.PublicIp,
-					TTL:   300,
-				},
-			},
-		}
+		req := DNSRequest{}
 
 		h.db.SetDNSRequest(requestId, req)
-
-		//adminDomain := h.db.GetAdminDomain()
-
-		//tnLink := fmt.Sprintf("https://takingnames.io/dnsapi?requester=%s&request-id=%s", adminDomain, requestId)
-		//redirectUri := fmt.Sprintf("%s/namedrop/auth-success", adminDomain)
-		//tnLink := fmt.Sprintf("https://takingnames.io/namedrop/authorize?client_id=%s&redirect_uri=%s&scope=subdomain&state=%s", adminDomain, redirectUri, requestId)
 
 		tnLink := h.config.oauth2Config.AuthCodeURL(requestId, oauth2.AccessTypeOffline)
 

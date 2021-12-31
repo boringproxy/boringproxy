@@ -30,8 +30,7 @@ type DbClient struct {
 }
 
 type DNSRequest struct {
-	IsAdminDomain bool         `json:"is_admin_domain"`
-	Records       []*DNSRecord `json:"records"`
+	IsAdminDomain bool `json:"is_admin_domain"`
 }
 
 type DNSRecord struct {
