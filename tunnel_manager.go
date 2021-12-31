@@ -1,6 +1,7 @@
 package boringproxy
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -34,7 +35,7 @@ func NewTunnelManager(config *Config, db *Database, certConfig *certmagic.Config
 
 	for domainName, tun := range db.GetTunnels() {
 		if tun.TlsTermination == "server" {
-			err = certConfig.ManageSync([]string{domainName})
+			err = certConfig.ManageSync(context.Background(), []string{domainName})
 			if err != nil {
 				log.Println("CertMagic error at startup")
 				log.Println(err)
@@ -61,7 +62,7 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 	}
 
 	if tunReq.TlsTermination == "server" {
-		err := m.certConfig.ManageSync([]string{tunReq.Domain})
+		err := m.certConfig.ManageSync(context.Background(), []string{tunReq.Domain})
 		if err != nil {
 			return Tunnel{}, errors.New("Failed to get cert")
 		}

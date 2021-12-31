@@ -309,7 +309,7 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 
 		// TODO: There's still quite a bit of duplication with what the server does. Could we
 		// encapsulate it into a type?
-		err = c.certConfig.ManageSync([]string{tunnel.Domain})
+		err = c.certConfig.ManageSync(ctx, []string{tunnel.Domain})
 		if err != nil {
 			log.Println("CertMagic error at startup")
 			log.Println(err)
