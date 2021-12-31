@@ -150,6 +150,17 @@ func Listen() {
 	//certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
 	certConfig := certmagic.NewDefault()
 
+	oauthConf := &oauth2.Config{
+		ClientID:     db.GetAdminDomain(),
+		ClientSecret: "fake-secret",
+		Scopes:       []string{"subdomain"},
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://takingnames.io/namedrop/authorize",
+			TokenURL: "https://takingnames.io/namedrop/token",
+		},
+		RedirectURL: fmt.Sprintf("%s/namedrop/auth-success", db.GetAdminDomain()),
+	}
+
 	if *newAdminDomain != "" {
 		db.SetAdminDomain(*newAdminDomain)
 	}
@@ -158,7 +169,7 @@ func Listen() {
 
 	if adminDomain == "" {
 
-		err = setAdminDomain(ip, certConfig, db)
+		err = setAdminDomain(ip, certConfig, db, oauthConf)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -190,17 +201,6 @@ func Listen() {
 				break
 			}
 		}
-	}
-
-	oauthConf := &oauth2.Config{
-		ClientID:     db.GetAdminDomain(),
-		ClientSecret: "fake-secret",
-		Scopes:       []string{"subdomain"},
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  "https://takingnames.io/namedrop/authorize",
-			TokenURL: "https://takingnames.io/namedrop/token",
-		},
-		RedirectURL: fmt.Sprintf("%s/namedrop/auth-success", db.GetAdminDomain()),
 	}
 
 	config := &Config{
@@ -243,28 +243,7 @@ func Listen() {
 		hostParts := strings.Split(r.Host, ":")
 		hostDomain := hostParts[0]
 
-		if r.URL.Path == "/dnsapi/requests" {
-			r.ParseForm()
-
-			requestId := r.Form.Get("request-id")
-
-			dnsRequest, err := db.GetDNSRequest(requestId)
-			if err != nil {
-				w.WriteHeader(500)
-				io.WriteString(w, err.Error())
-				return
-			}
-
-			jsonBytes, err := json.Marshal(dnsRequest)
-			if err != nil {
-				w.WriteHeader(500)
-				io.WriteString(w, err.Error())
-				return
-			}
-
-			w.Write(jsonBytes)
-
-		} else if r.URL.Path == "/namedrop/auth-success" {
+		if r.URL.Path == "/namedrop/auth-success" {
 			r.ParseForm()
 
 			requestId := r.Form.Get("state")
@@ -353,11 +332,9 @@ func Listen() {
 				return
 			}
 
-			fmt.Println(string(body))
-
 			if resp.StatusCode != 200 {
 				w.WriteHeader(500)
-				io.WriteString(w, "Invalid status code")
+				io.WriteString(w, "Invalid status code. Body: "+string(body))
 				return
 			}
 
@@ -365,6 +342,9 @@ func Listen() {
 
 			if dnsRequest.IsAdminDomain {
 				db.SetAdminDomain(fqdn)
+
+				oauthConf.ClientID = fqdn
+				oauthConf.RedirectURL = fmt.Sprintf("%s/namedrop/auth-success", fqdn)
 
 				// TODO: Might want to get all certs here, not just the admin domain
 				err := certConfig.ManageSync([]string{fqdn})
@@ -378,11 +358,11 @@ func Listen() {
 				http.Redirect(w, r, fmt.Sprintf("https://%s/edit-tunnel?domain=%s", adminDomain, fqdn), 303)
 			}
 
-		} else if r.URL.Path == "/dnsapi/failure" {
+		} else if r.URL.Path == "/namedrop/auth-failure" {
 
 			r.ParseForm()
 
-			requestId := r.Form.Get("request-id")
+			requestId := r.Form.Get("state")
 
 			// Ensure the request exists
 			_, err := db.GetDNSRequest(requestId)
@@ -502,7 +482,7 @@ func (p *Server) passthroughRequest(conn net.Conn, tunnel Tunnel) {
 	wg.Wait()
 }
 
-func setAdminDomain(ip string, certConfig *certmagic.Config, db *Database) error {
+func setAdminDomain(ip string, certConfig *certmagic.Config, db *Database, oauthConf *oauth2.Config) error {
 	action := prompt("\nNo admin domain set. Enter '1' to input manually, or '2' to configure through TakingNames.io\n")
 	switch action {
 	case "1":
@@ -518,7 +498,7 @@ func setAdminDomain(ip string, certConfig *certmagic.Config, db *Database) error
 
 		log.Println("Get bootstrap domain")
 
-		resp, err := http.Get("https://takingnames.io/dnsapi/bootstrap-domain")
+		resp, err := http.Get("https://takingnames.io/namedrop/ip-domain")
 		if err != nil {
 			return err
 		}
@@ -543,18 +523,14 @@ func setAdminDomain(ip string, certConfig *certmagic.Config, db *Database) error
 
 		req := DNSRequest{
 			IsAdminDomain: true,
-			Records: []*DNSRecord{
-				&DNSRecord{
-					Type:  "A",
-					Value: ip,
-					TTL:   300,
-				},
-			},
 		}
 
 		db.SetDNSRequest(requestId, req)
 
-		tnLink := fmt.Sprintf("https://takingnames.io/dnsapi?requester=%s&request-id=%s", bootstrapDomain, requestId)
+		oauthConf.ClientID = bootstrapDomain
+		oauthConf.RedirectURL = fmt.Sprintf("%s/namedrop/auth-success", bootstrapDomain)
+		tnLink := oauthConf.AuthCodeURL(requestId, oauth2.AccessTypeOffline)
+
 		fmt.Println("Use the link below to select an admin domain:\n\n" + tnLink + "\n")
 
 	default:
