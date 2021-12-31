@@ -2,14 +2,10 @@ package boringproxy
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"crypto/tls"
-	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
-	"golang.org/x/oauth2"
 	"io"
 	"log"
 	"net"
@@ -26,9 +22,9 @@ import (
 )
 
 type Config struct {
-	SshServerPort int    `json:"ssh_server_port"`
-	PublicIp      string `json:"public_ip"`
-	oauth2Config  *oauth2.Config
+	SshServerPort  int    `json:"ssh_server_port"`
+	PublicIp       string `json:"public_ip"`
+	namedropClient *namedrop.Client
 }
 
 type SmtpConfig struct {
@@ -43,67 +39,6 @@ type Server struct {
 	tunMan       *TunnelManager
 	httpClient   *http.Client
 	httpListener *PassthroughListener
-}
-
-func checkPublicAddress(host string, port int) error {
-
-	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		return err
-	}
-	defer ln.Close()
-
-	code, err := genRandomCode(32)
-	if err != nil {
-		return err
-	}
-
-	go func() {
-		for {
-			conn, err := ln.Accept()
-			if err != nil {
-				break
-			}
-			conn.Write([]byte(code))
-			conn.Close()
-		}
-	}()
-
-	addr := fmt.Sprintf("%s:%d", host, port)
-	conn, err := net.DialTimeout("tcp", addr, time.Second)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	go func() {
-		time.Sleep(time.Second)
-		conn.Close()
-	}()
-
-	data, err := io.ReadAll(conn)
-	if err != nil {
-		return errors.New(fmt.Sprintf("Error connecting to public address %s. Probably timed out", addr))
-	}
-
-	retCode := string(data)
-
-	if retCode != code {
-		return errors.New("Mismatched codes")
-	}
-
-	return nil
-}
-
-func getPublicIp() (string, error) {
-	resp, err := http.Get("https://takingnames.io/my-ip")
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-
-	return string(body), nil
 }
 
 func Listen() {
@@ -122,22 +57,24 @@ func Listen() {
 
 	log.Println("Starting up")
 
-	ip, err := getPublicIp()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = checkPublicAddress(ip, *httpPort)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = checkPublicAddress(ip, *httpsPort)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	db, err := NewDatabase()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	namedropClient := namedrop.NewClient(db, db.GetAdminDomain(), "takingnames.io/namedrop")
+
+	ip, err := namedropClient.GetPublicIp()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = namedrop.CheckPublicAddress(ip, *httpPort)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = namedrop.CheckPublicAddress(ip, *httpsPort)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -150,19 +87,6 @@ func Listen() {
 	//certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
 	certConfig := certmagic.NewDefault()
 
-	oauthConf := &oauth2.Config{
-		ClientID:     db.GetAdminDomain(),
-		ClientSecret: "fake-secret",
-		Scopes:       []string{"subdomain"},
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  "https://takingnames.io/namedrop/authorize",
-			TokenURL: "https://takingnames.io/namedrop/token",
-		},
-		RedirectURL: fmt.Sprintf("%s/namedrop/auth-success", db.GetAdminDomain()),
-	}
-
-	namedropClient := namedrop.NewClient(db, db.GetAdminDomain(), "takingnames.io/namedrop")
-
 	if *newAdminDomain != "" {
 		db.SetAdminDomain(*newAdminDomain)
 	}
@@ -171,7 +95,7 @@ func Listen() {
 
 	if adminDomain == "" {
 
-		err = setAdminDomain(certConfig, db, oauthConf, namedropClient)
+		err = setAdminDomain(certConfig, db, namedropClient)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -206,9 +130,9 @@ func Listen() {
 	}
 
 	config := &Config{
-		SshServerPort: *sshServerPort,
-		PublicIp:      ip,
-		oauth2Config:  oauthConf,
+		SshServerPort:  *sshServerPort,
+		PublicIp:       ip,
+		namedropClient: namedropClient,
 	}
 
 	tunMan := NewTunnelManager(config, db, certConfig)
@@ -249,49 +173,12 @@ func Listen() {
 			r.ParseForm()
 
 			requestId := r.Form.Get("state")
-
 			code := r.Form.Get("code")
 
-			// Ensure the request exists
-			dnsRequest, err := db.GetDNSRequest(requestId)
+			namedropTokenData, err := namedropClient.GetToken(requestId, code)
 			if err != nil {
 				w.WriteHeader(500)
 				io.WriteString(w, err.Error())
-				return
-			}
-
-			db.DeleteDNSRequest(requestId)
-
-			ctx := context.Background()
-			tok, err := oauthConf.Exchange(ctx, code)
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-
-			accessToken := tok.AccessToken
-
-			fmt.Println(accessToken)
-
-			tokenResp, err := http.Get("https://takingnames.io/namedrop/token-data?access_token=" + accessToken)
-			if err != nil {
-				w.WriteHeader(500)
-				io.WriteString(w, err.Error())
-				return
-			}
-			defer tokenResp.Body.Close()
-			bodyJson, err := io.ReadAll(tokenResp.Body)
-
-			var namedropTokenData namedrop.TokenData
-			err = json.Unmarshal(bodyJson, &namedropTokenData)
-			if err != nil {
-				w.WriteHeader(500)
-				io.WriteString(w, err.Error())
-				return
-			}
-
-			if len(namedropTokenData.Scopes) < 1 {
-				w.WriteHeader(500)
-				io.WriteString(w, "No scopes returned")
 				return
 			}
 
@@ -306,49 +193,18 @@ func Listen() {
 				TTL:    300,
 			}
 
-			createRecordReqJson, err := json.Marshal(createRecordReq)
+			err = namedropClient.CreateRecord(createRecordReq)
 			if err != nil {
 				w.WriteHeader(500)
 				io.WriteString(w, err.Error())
-				return
-			}
-
-			url := "https://takingnames.io/namedrop/records?access_token=" + accessToken
-			req, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(createRecordReqJson))
-			if err != nil {
-				w.WriteHeader(500)
-				io.WriteString(w, err.Error())
-				return
-			}
-
-			resp, err := httpClient.Do(req)
-			if err != nil {
-				w.WriteHeader(500)
-				io.WriteString(w, err.Error())
-				return
-			}
-			defer resp.Body.Close()
-
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				w.WriteHeader(500)
-				io.WriteString(w, err.Error())
-				return
-			}
-
-			if resp.StatusCode != 200 {
-				w.WriteHeader(500)
-				io.WriteString(w, "Invalid status code. Body: "+string(body))
 				return
 			}
 
 			fqdn := host + "." + domain
 
-			if dnsRequest.IsAdminDomain {
+			if db.GetAdminDomain() == "" {
 				db.SetAdminDomain(fqdn)
-
-				oauthConf.ClientID = fqdn
-				oauthConf.RedirectURL = fmt.Sprintf("%s/namedrop/auth-success", fqdn)
+				namedropClient.SetDomain(fqdn)
 
 				// TODO: Might want to get all certs here, not just the admin domain
 				err := certConfig.ManageSync(r.Context(), []string{fqdn})
@@ -486,7 +342,7 @@ func (p *Server) passthroughRequest(conn net.Conn, tunnel Tunnel) {
 	wg.Wait()
 }
 
-func setAdminDomain(certConfig *certmagic.Config, db *Database, oauthConf *oauth2.Config, namedropClient *namedrop.Client) error {
+func setAdminDomain(certConfig *certmagic.Config, db *Database, namedropClient *namedrop.Client) error {
 	action := prompt("\nNo admin domain set. Enter '1' to input manually, or '2' to configure through TakingNames.io\n")
 	switch action {
 	case "1":
