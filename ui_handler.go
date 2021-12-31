@@ -15,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/takingnames/namedrop-go"
 )
 
 //go:embed logo.png templates
@@ -250,7 +252,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 	case "/takingnames":
 		requestId, _ := genRandomCode(32)
 
-		req := DNSRequest{}
+		req := namedrop.DNSRequest{}
 
 		h.db.SetDNSRequest(requestId, req)
 

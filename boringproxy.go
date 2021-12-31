@@ -161,6 +161,8 @@ func Listen() {
 		RedirectURL: fmt.Sprintf("%s/namedrop/auth-success", db.GetAdminDomain()),
 	}
 
+	namedropClient := namedrop.NewClient(db, db.GetAdminDomain(), "takingnames.io/namedrop")
+
 	if *newAdminDomain != "" {
 		db.SetAdminDomain(*newAdminDomain)
 	}
@@ -169,12 +171,12 @@ func Listen() {
 
 	if adminDomain == "" {
 
-		err = setAdminDomain(ip, certConfig, db, oauthConf)
+		err = setAdminDomain(certConfig, db, oauthConf, namedropClient)
 		if err != nil {
 			log.Fatal(err)
 		}
 	} else {
-		err = certConfig.ManageSync([]string{adminDomain})
+		err = certConfig.ManageSync(context.Background(), []string{adminDomain})
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -268,6 +270,8 @@ func Listen() {
 
 			accessToken := tok.AccessToken
 
+			fmt.Println(accessToken)
+
 			tokenResp, err := http.Get("https://takingnames.io/namedrop/token-data?access_token=" + accessToken)
 			if err != nil {
 				w.WriteHeader(500)
@@ -347,7 +351,7 @@ func Listen() {
 				oauthConf.RedirectURL = fmt.Sprintf("%s/namedrop/auth-success", fqdn)
 
 				// TODO: Might want to get all certs here, not just the admin domain
-				err := certConfig.ManageSync([]string{fqdn})
+				err := certConfig.ManageSync(r.Context(), []string{fqdn})
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -482,13 +486,13 @@ func (p *Server) passthroughRequest(conn net.Conn, tunnel Tunnel) {
 	wg.Wait()
 }
 
-func setAdminDomain(ip string, certConfig *certmagic.Config, db *Database, oauthConf *oauth2.Config) error {
+func setAdminDomain(certConfig *certmagic.Config, db *Database, oauthConf *oauth2.Config, namedropClient *namedrop.Client) error {
 	action := prompt("\nNo admin domain set. Enter '1' to input manually, or '2' to configure through TakingNames.io\n")
 	switch action {
 	case "1":
 		adminDomain := prompt("\nEnter admin domain:\n")
 
-		err := certConfig.ManageSync([]string{adminDomain})
+		err := certConfig.ManageSync(context.Background(), []string{adminDomain})
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -498,40 +502,12 @@ func setAdminDomain(ip string, certConfig *certmagic.Config, db *Database, oauth
 
 		log.Println("Get bootstrap domain")
 
-		resp, err := http.Get("https://takingnames.io/namedrop/ip-domain")
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-		body, err := io.ReadAll(resp.Body)
-
-		bootstrapDomain := string(body)
-
-		if resp.StatusCode != 200 {
-			fmt.Println(bootstrapDomain)
-			return errors.New("bootstrap domain request failed")
-		}
-
-		log.Println("Get cert")
-
-		err = certConfig.ManageSync([]string{bootstrapDomain})
+		namedropLink, err := namedropClient.BootstrapLink()
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		requestId, _ := genRandomCode(32)
-
-		req := DNSRequest{
-			IsAdminDomain: true,
-		}
-
-		db.SetDNSRequest(requestId, req)
-
-		oauthConf.ClientID = bootstrapDomain
-		oauthConf.RedirectURL = fmt.Sprintf("%s/namedrop/auth-success", bootstrapDomain)
-		tnLink := oauthConf.AuthCodeURL(requestId, oauth2.AccessTypeOffline)
-
-		fmt.Println("Use the link below to select an admin domain:\n\n" + tnLink + "\n")
+		fmt.Println("Use the link below to select an admin domain:\n\n" + namedropLink + "\n")
 
 	default:
 		log.Fatal("Invalid option")

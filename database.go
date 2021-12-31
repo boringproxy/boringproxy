@@ -6,14 +6,16 @@ import (
 	"io/ioutil"
 	"log"
 	"sync"
+
+	"github.com/takingnames/namedrop-go"
 )
 
 type Database struct {
-	AdminDomain string                `json:"admin_domain"`
-	Tokens      map[string]TokenData  `json:"tokens"`
-	Tunnels     map[string]Tunnel     `json:"tunnels"`
-	Users       map[string]User       `json:"users"`
-	dnsRequests map[string]DNSRequest `json:"dns_requests"`
+	AdminDomain string                         `json:"admin_domain"`
+	Tokens      map[string]TokenData           `json:"tokens"`
+	Tunnels     map[string]Tunnel              `json:"tunnels"`
+	Users       map[string]User                `json:"users"`
+	dnsRequests map[string]namedrop.DNSRequest `json:"dns_requests"`
 	mutex       *sync.Mutex
 }
 
@@ -27,10 +29,6 @@ type User struct {
 }
 
 type DbClient struct {
-}
-
-type DNSRequest struct {
-	IsAdminDomain bool `json:"is_admin_domain"`
 }
 
 type DNSRecord struct {
@@ -90,7 +88,7 @@ func NewDatabase() (*Database, error) {
 	}
 
 	if db.dnsRequests == nil {
-		db.dnsRequests = make(map[string]DNSRequest)
+		db.dnsRequests = make(map[string]namedrop.DNSRequest)
 	}
 
 	db.mutex = &sync.Mutex{}
@@ -117,7 +115,7 @@ func (d *Database) GetAdminDomain() string {
 	return d.AdminDomain
 }
 
-func (d *Database) SetDNSRequest(requestId string, request DNSRequest) {
+func (d *Database) SetDNSRequest(requestId string, request namedrop.DNSRequest) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
@@ -127,7 +125,7 @@ func (d *Database) SetDNSRequest(requestId string, request DNSRequest) {
 	// memory. May change in the future.
 	//d.persist()
 }
-func (d *Database) GetDNSRequest(requestId string) (DNSRequest, error) {
+func (d *Database) GetDNSRequest(requestId string) (namedrop.DNSRequest, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
@@ -135,7 +133,7 @@ func (d *Database) GetDNSRequest(requestId string) (DNSRequest, error) {
 		return req, nil
 	}
 
-	return DNSRequest{}, errors.New("No such DNS Request")
+	return namedrop.DNSRequest{}, errors.New("No such DNS Request")
 }
 func (d *Database) DeleteDNSRequest(requestId string) {
 	d.mutex.Lock()
