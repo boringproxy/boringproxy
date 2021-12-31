@@ -11,12 +11,9 @@ import (
 	"net/http"
 	//"net/url"
 	//"os"
-	"golang.org/x/oauth2"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/takingnames/namedrop-go"
 )
 
 //go:embed logo.png templates
@@ -250,15 +247,10 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 		h.alertDialog(w, r, message, "/")
 	case "/takingnames":
-		requestId, _ := genRandomCode(32)
 
-		req := namedrop.DNSRequest{}
+		namedropLink := h.config.namedropClient.DomainRequestLink()
 
-		h.db.SetDNSRequest(requestId, req)
-
-		tnLink := h.config.oauth2Config.AuthCodeURL(requestId, oauth2.AccessTypeOffline)
-
-		http.Redirect(w, r, tnLink, 303)
+		http.Redirect(w, r, namedropLink, 303)
 	default:
 		if strings.HasPrefix(r.URL.Path, "/tunnels/") {
 
