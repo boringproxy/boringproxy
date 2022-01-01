@@ -33,12 +33,14 @@ func NewTunnelManager(config *Config, db *Database, certConfig *certmagic.Config
 		log.Fatalf("Unable to get current user: %v", err)
 	}
 
-	for domainName, tun := range db.GetTunnels() {
-		if tun.TlsTermination == "server" {
-			err = certConfig.ManageSync(context.Background(), []string{domainName})
-			if err != nil {
-				log.Println("CertMagic error at startup")
-				log.Println(err)
+	if config.autoCerts {
+		for domainName, tun := range db.GetTunnels() {
+			if tun.TlsTermination == "server" {
+				err = certConfig.ManageSync(context.Background(), []string{domainName})
+				if err != nil {
+					log.Println("CertMagic error at startup")
+					log.Println(err)
+				}
 			}
 		}
 	}
@@ -62,9 +64,11 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 	}
 
 	if tunReq.TlsTermination == "server" {
-		err := m.certConfig.ManageSync(context.Background(), []string{tunReq.Domain})
-		if err != nil {
-			return Tunnel{}, errors.New("Failed to get cert")
+		if m.config.autoCerts {
+			err := m.certConfig.ManageSync(context.Background(), []string{tunReq.Domain})
+			if err != nil {
+				return Tunnel{}, errors.New("Failed to get cert")
+			}
 		}
 	}
 

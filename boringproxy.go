@@ -25,6 +25,7 @@ type Config struct {
 	SshServerPort  int    `json:"ssh_server_port"`
 	PublicIp       string `json:"public_ip"`
 	namedropClient *namedrop.Client
+	autoCerts      bool
 }
 
 type SmtpConfig struct {
@@ -71,12 +72,18 @@ func Listen() {
 
 	err = namedrop.CheckPublicAddress(ip, *httpPort)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Printf("WARNING: Failed to access port %d from the internet\n", *httpPort)
 	}
 
 	err = namedrop.CheckPublicAddress(ip, *httpsPort)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Printf("WARNING: Failed to access port %d from the internet\n", *httpsPort)
+	}
+
+	autoCerts := true
+	if *httpPort != 80 || *httpsPort != 443 {
+		fmt.Printf("WARNING: LetsEncrypt only supports HTTP/HTTPS ports 80/443. You are using %d/%d. Disabling automatic certificate management\n", *httpPort, *httpsPort)
+		autoCerts = false
 	}
 
 	if *certDir != "" {
@@ -95,16 +102,18 @@ func Listen() {
 
 	if adminDomain == "" {
 
-		err = setAdminDomain(certConfig, db, namedropClient)
+		err = setAdminDomain(certConfig, db, namedropClient, autoCerts)
 		if err != nil {
 			log.Fatal(err)
 		}
 	} else {
-		err = certConfig.ManageSync(context.Background(), []string{adminDomain})
-		if err != nil {
-			log.Fatal(err)
+		if autoCerts {
+			err = certConfig.ManageSync(context.Background(), []string{adminDomain})
+			if err != nil {
+				log.Fatal(err)
+			}
+			log.Print(fmt.Sprintf("Successfully acquired certificate for admin domain (%s)", adminDomain))
 		}
-		log.Print(fmt.Sprintf("Successfully acquired certificate for admin domain (%s)", adminDomain))
 	}
 
 	// Add admin user if it doesn't already exist
@@ -133,6 +142,7 @@ func Listen() {
 		SshServerPort:  *sshServerPort,
 		PublicIp:       ip,
 		namedropClient: namedropClient,
+		autoCerts:      autoCerts,
 	}
 
 	tunMan := NewTunnelManager(config, db, certConfig)
@@ -206,10 +216,12 @@ func Listen() {
 				db.SetAdminDomain(fqdn)
 				namedropClient.SetDomain(fqdn)
 
-				// TODO: Might want to get all certs here, not just the admin domain
-				err := certConfig.ManageSync(r.Context(), []string{fqdn})
-				if err != nil {
-					log.Fatal(err)
+				if autoCerts {
+					// TODO: Might want to get all certs here, not just the admin domain
+					err := certConfig.ManageSync(r.Context(), []string{fqdn})
+					if err != nil {
+						log.Fatal(err)
+					}
 				}
 
 				http.Redirect(w, r, fmt.Sprintf("https://%s", fqdn), 303)
@@ -342,15 +354,17 @@ func (p *Server) passthroughRequest(conn net.Conn, tunnel Tunnel) {
 	wg.Wait()
 }
 
-func setAdminDomain(certConfig *certmagic.Config, db *Database, namedropClient *namedrop.Client) error {
+func setAdminDomain(certConfig *certmagic.Config, db *Database, namedropClient *namedrop.Client, autoCerts bool) error {
 	action := prompt("\nNo admin domain set. Enter '1' to input manually, or '2' to configure through TakingNames.io\n")
 	switch action {
 	case "1":
 		adminDomain := prompt("\nEnter admin domain:\n")
 
-		err := certConfig.ManageSync(context.Background(), []string{adminDomain})
-		if err != nil {
-			log.Fatal(err)
+		if autoCerts {
+			err := certConfig.ManageSync(context.Background(), []string{adminDomain})
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 
 		db.SetAdminDomain(adminDomain)
