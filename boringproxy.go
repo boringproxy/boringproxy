@@ -224,7 +224,19 @@ func Listen() {
 					}
 				}
 
-				http.Redirect(w, r, fmt.Sprintf("https://%s", fqdn), 303)
+				url := fmt.Sprintf("https://%s", fqdn)
+
+				// Automatically log using the first found admin token. This is safe to do here
+				// because we know that retrieving the admin domain was initiating from the CLI.
+				tokens := db.GetTokens()
+				for token, tokenData := range tokens {
+					if tokenData.Owner == "admin" {
+						url = url + "/login?access_token=" + token
+						break
+					}
+				}
+
+				http.Redirect(w, r, url, 303)
 			} else {
 				adminDomain := db.GetAdminDomain()
 				http.Redirect(w, r, fmt.Sprintf("https://%s/edit-tunnel?domain=%s", adminDomain, fqdn), 303)
