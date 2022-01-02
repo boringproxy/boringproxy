@@ -227,7 +227,7 @@ func Listen() {
 				url := fmt.Sprintf("https://%s", fqdn)
 
 				// Automatically log using the first found admin token. This is safe to do here
-				// because we know that retrieving the admin domain was initiating from the CLI.
+				// because we know that retrieving the admin domain was initiated from the CLI.
 				tokens := db.GetTokens()
 				for token, tokenData := range tokens {
 					if tokenData.Owner == "admin" {
