@@ -1,13 +1,3 @@
-# Disclaimer
-
-boringproxy is currently beta-quality software. While I am a big believer in
-open source, my primary goal at the moment is to build a sustainable
-business around the code I write. So for the most part I can only afford to
-spend time fixing problems that arise in my own usage of boringproxy. That
-said, feel free to create
-[GitHub issues](https://github.com/boringproxy/boringproxy/issues)
-and I'll try to help as I have time.
-
 # What is it?
 
 If you have a webserver running on one computer (say your development laptop),
@@ -68,3 +58,16 @@ sudo setcap cap_net_bind_service=+ep boringproxy
 ```bash
 ./boringproxy client -server bpdemo.brng.pro -token fKFIjefKDFLEFijKDFJKELJF -client-name demo-client -user demo-user
 ```
+
+# Getting Help
+
+If you run into problems running boringproxy, the best place to ask for help is
+over at the [IndieBits][0] community, where we have a [dedicated section][1]
+for boringproxy support. If you think you've found a bug, or want to discuss
+development, please [open an issue][2].
+
+[0]: https://forum.indiebits.io
+
+[1]: https://forum.indiebits.io/c/boringproxy-support/9
+
+[2]: https://github.com/boringproxy/boringproxy/issues
