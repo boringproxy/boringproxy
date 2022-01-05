@@ -179,11 +179,19 @@ func Listen() {
 		hostParts := strings.Split(r.Host, ":")
 		hostDomain := hostParts[0]
 
-		if r.URL.Path == "/namedrop/auth-success" {
+		if r.URL.Path == "/namedrop/callback" {
 			r.ParseForm()
 
+			errorParam := r.Form.Get("error")
 			requestId := r.Form.Get("state")
 			code := r.Form.Get("code")
+
+			if errorParam != "" {
+				db.DeleteDNSRequest(requestId)
+
+				http.Redirect(w, r, "/alert?message=Domain request failed", 303)
+				return
+			}
 
 			namedropTokenData, err := namedropClient.GetToken(requestId, code)
 			if err != nil {
@@ -241,24 +249,6 @@ func Listen() {
 				adminDomain := db.GetAdminDomain()
 				http.Redirect(w, r, fmt.Sprintf("https://%s/edit-tunnel?domain=%s", adminDomain, fqdn), 303)
 			}
-
-		} else if r.URL.Path == "/namedrop/auth-failure" {
-
-			r.ParseForm()
-
-			requestId := r.Form.Get("state")
-
-			// Ensure the request exists
-			_, err := db.GetDNSRequest(requestId)
-			if err != nil {
-				w.WriteHeader(500)
-				io.WriteString(w, err.Error())
-				return
-			}
-
-			db.DeleteDNSRequest(requestId)
-
-			http.Redirect(w, r, "/alert?message=Domain request failed", 303)
 
 		} else if hostDomain == db.GetAdminDomain() {
 			if strings.HasPrefix(r.URL.Path, "/api/") {
