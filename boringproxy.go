@@ -367,7 +367,7 @@ func (p *Server) passthroughRequest(conn net.Conn, tunnel Tunnel) {
 }
 
 func setAdminDomain(certConfig *certmagic.Config, db *Database, namedropClient *namedrop.Client, autoCerts bool) error {
-	action := prompt("\nNo admin domain set. Enter '1' to input manually, or '2' to configure through TakingNames.io\n")
+	action := prompt("\nNo admin domain set. Select an option below:\nEnter '1' to input manually\nEnter '2' to configure through TakingNames.io\n")
 	switch action {
 	case "1":
 		adminDomain := prompt("\nEnter admin domain:\n")
@@ -389,7 +389,9 @@ func setAdminDomain(certConfig *certmagic.Config, db *Database, namedropClient *
 			log.Fatal(err)
 		}
 
-		fmt.Println("Use the link below to select an admin domain:\n\n" + namedropLink + "\n")
+		qrterminal.GenerateHalfBlock(namedropLink, qrterminal.L, os.Stdout)
+		fmt.Println("Use the link below or scan the QR code above to select an admin domain:\n")
+		fmt.Printf("%s\n\n", namedropLink)
 
 	default:
 		log.Fatal("Invalid option")
