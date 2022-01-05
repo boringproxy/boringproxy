@@ -10,7 +10,7 @@ require (
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
-	github.com/takingnames/namedrop-go v0.3.0
+	github.com/takingnames/namedrop-go v0.4.0
 )
 
 require (

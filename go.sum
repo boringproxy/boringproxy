@@ -140,6 +140,8 @@ github.com/takingnames/namedrop-go v0.2.0 h1:iHxnQuLvaGP408A9JhtIddPGEb1Ho5N+pQV
 github.com/takingnames/namedrop-go v0.2.0/go.mod h1:E3nx6fxAMfestthd1O3VhbaPesLaiYSGkWXRD1nIc88=
 github.com/takingnames/namedrop-go v0.3.0 h1:qblZaAFQzkxOJvqVbqH3Oqevfd8mSkgF4k9QwS/vkGM=
 github.com/takingnames/namedrop-go v0.3.0/go.mod h1:E3nx6fxAMfestthd1O3VhbaPesLaiYSGkWXRD1nIc88=
+github.com/takingnames/namedrop-go v0.4.0 h1:dtCANCL+pQ/oBftGN5+gIeHglk5Yo/3Qokp5Uw90UHk=
+github.com/takingnames/namedrop-go v0.4.0/go.mod h1:E3nx6fxAMfestthd1O3VhbaPesLaiYSGkWXRD1nIc88=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
