@@ -51,6 +51,7 @@ func Listen() {
 	httpPort := flagSet.Int("http-port", 80, "HTTP (insecure) port")
 	httpsPort := flagSet.Int("https-port", 443, "HTTPS (secure) port")
 	allowHttp := flagSet.Bool("allow-http", false, "Allow unencrypted (HTTP) requests")
+	publicIp := flagSet.String("public-ip", "", "Public IP")
 	err := flagSet.Parse(os.Args[2:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: parsing flags: %s\n", os.Args[0], err)
@@ -65,19 +66,25 @@ func Listen() {
 
 	namedropClient := namedrop.NewClient(db, db.GetAdminDomain(), "takingnames.io/namedrop")
 
-	ip, err := namedropClient.GetPublicIp()
-	if err != nil {
-		fmt.Printf("WARNING: Failed to determine public IP: %s\n", err.Error())
-	} else {
-		err = namedrop.CheckPublicAddress(ip, *httpPort)
-		if err != nil {
-			fmt.Printf("WARNING: Failed to access port %d from the internet\n", *httpPort)
-		}
+	var ip string
 
-		err = namedrop.CheckPublicAddress(ip, *httpsPort)
+	if *publicIp != "" {
+		ip = *publicIp
+	} else {
+		ip, err = namedropClient.GetPublicIp()
 		if err != nil {
-			fmt.Printf("WARNING: Failed to access port %d from the internet\n", *httpsPort)
+			fmt.Printf("WARNING: Failed to determine public IP: %s\n", err.Error())
 		}
+	}
+
+	err = namedrop.CheckPublicAddress(ip, *httpPort)
+	if err != nil {
+		fmt.Printf("WARNING: Failed to access %s:%d from the internet\n", ip, *httpPort)
+	}
+
+	err = namedrop.CheckPublicAddress(ip, *httpsPort)
+	if err != nil {
+		fmt.Printf("WARNING: Failed to access %s:%d from the internet\n", ip, *httpsPort)
 	}
 
 	autoCerts := true
