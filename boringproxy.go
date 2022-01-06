@@ -67,17 +67,17 @@ func Listen() {
 
 	ip, err := namedropClient.GetPublicIp()
 	if err != nil {
-		log.Fatal(err)
-	}
+		fmt.Printf("WARNING: Failed to determine public IP: %s\n", err.Error())
+	} else {
+		err = namedrop.CheckPublicAddress(ip, *httpPort)
+		if err != nil {
+			fmt.Printf("WARNING: Failed to access port %d from the internet\n", *httpPort)
+		}
 
-	err = namedrop.CheckPublicAddress(ip, *httpPort)
-	if err != nil {
-		fmt.Printf("WARNING: Failed to access port %d from the internet\n", *httpPort)
-	}
-
-	err = namedrop.CheckPublicAddress(ip, *httpsPort)
-	if err != nil {
-		fmt.Printf("WARNING: Failed to access port %d from the internet\n", *httpsPort)
+		err = namedrop.CheckPublicAddress(ip, *httpsPort)
+		if err != nil {
+			fmt.Printf("WARNING: Failed to access port %d from the internet\n", *httpsPort)
+		}
 	}
 
 	autoCerts := true
