@@ -12,11 +12,14 @@ import (
 const usage = `Usage: %s [command] [flags]
 
 Commands:
+    version      Prints version information.
     server       Start a new server.
     client       Connect to a server.
 
 Use "%[1]s command -h" for a list of flags for the command.
 `
+
+var Version string
 
 func fail(msg string) {
 	fmt.Fprintln(os.Stderr, msg)
@@ -33,6 +36,8 @@ func main() {
 	command := os.Args[1]
 
 	switch command {
+	case "version":
+		fmt.Println(Version)
 	case "help", "-h", "--help", "-help":
 		fmt.Printf(usage, os.Args[0])
 	case "server":

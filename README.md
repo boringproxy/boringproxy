@@ -49,6 +49,11 @@ cd cmd/boringproxy
 go build
 ```
 
+To build with version information:
+```bash
+go build -ldflags "-X main.Version=$(git describe --tags)"
+```
+
 Give the executable permission to bind low ports (ie 80/443):
 
 ```bash
