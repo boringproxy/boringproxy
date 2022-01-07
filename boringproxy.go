@@ -52,6 +52,7 @@ func Listen() {
 	httpsPort := flagSet.Int("https-port", 443, "HTTPS (secure) port")
 	allowHttp := flagSet.Bool("allow-http", false, "Allow unencrypted (HTTP) requests")
 	publicIp := flagSet.String("public-ip", "", "Public IP")
+	behindProxy := flagSet.Bool("behind-proxy", false, "Whether we're running behind another reverse proxy")
 	err := flagSet.Parse(os.Args[2:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: parsing flags: %s\n", os.Args[0], err)
@@ -273,7 +274,7 @@ func Listen() {
 				return
 			}
 
-			proxyRequest(w, r, tunnel, httpClient, tunnel.TunnelPort)
+			proxyRequest(w, r, tunnel, httpClient, tunnel.TunnelPort, *behindProxy)
 		}
 	})
 

@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func proxyRequest(w http.ResponseWriter, r *http.Request, tunnel Tunnel, httpClient *http.Client, port int) {
+func proxyRequest(w http.ResponseWriter, r *http.Request, tunnel Tunnel, httpClient *http.Client, port int, behindProxy bool) {
 
 	if tunnel.AuthUsername != "" || tunnel.AuthPassword != "" {
 		username, password, ok := r.BasicAuth()
@@ -54,15 +54,16 @@ func proxyRequest(w http.ResponseWriter, r *http.Request, tunnel Tunnel, httpCli
 	// TODO: Handle IPv6 addresses
 	addrParts := strings.Split(r.RemoteAddr, ":")
 	remoteIp := addrParts[0]
+	xForwardedFor := remoteIp
 
-	xForwardedFor := downstreamReqHeaders.Get("X-Forwarded-For")
-	if xForwardedFor == "" {
-		xForwardedFor = remoteIp
-	} else {
-		xForwardedFor = xForwardedFor + ", " + remoteIp
+	if behindProxy {
+		xForwardedFor := downstreamReqHeaders.Get("X-Forwarded-For")
+		if xForwardedFor != "" {
+			xForwardedFor = xForwardedFor + ", " + remoteIp
+		}
 	}
-	upstreamReq.Header.Set("X-Forwarded-For", xForwardedFor)
 
+	upstreamReq.Header.Set("X-Forwarded-For", xForwardedFor)
 	upstreamReq.Header.Set("Forwarded", fmt.Sprintf("for=%s", remoteIp))
 
 	upstreamReq.Host = fmt.Sprintf("%s:%d", tunnel.ClientAddress, tunnel.ClientPort)

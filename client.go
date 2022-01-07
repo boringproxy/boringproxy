@@ -30,16 +30,18 @@ type Client struct {
 	cancelFuncs      map[string]context.CancelFunc
 	cancelFuncsMutex *sync.Mutex
 	certConfig       *certmagic.Config
+	behindProxy      bool
 }
 
 type ClientConfig struct {
-	ServerAddr string `json:"serverAddr,omitempty"`
-	Token      string `json:"token,omitempty"`
-	ClientName string `json:"clientName,omitempty"`
-	User       string `json:"user,omitempty"`
-	CertDir    string `json:"certDir,omitempty"`
-	AcmeEmail  string `json:"acmeEmail,omitempty"`
-	DnsServer  string `json:"dnsServer,omitempty"`
+	ServerAddr  string `json:"serverAddr,omitempty"`
+	Token       string `json:"token,omitempty"`
+	ClientName  string `json:"clientName,omitempty"`
+	User        string `json:"user,omitempty"`
+	CertDir     string `json:"certDir,omitempty"`
+	AcmeEmail   string `json:"acmeEmail,omitempty"`
+	DnsServer   string `json:"dnsServer,omitempty"`
+	BehindProxy bool   `json:"behindProxy,omitempty"`
 }
 
 func NewClient(config *ClientConfig) (*Client, error) {
@@ -102,6 +104,7 @@ func NewClient(config *ClientConfig) (*Client, error) {
 		cancelFuncs:      cancelFuncs,
 		cancelFuncsMutex: cancelFuncsMutex,
 		certConfig:       certConfig,
+		behindProxy:      config.BehindProxy,
 	}, nil
 }
 
@@ -294,7 +297,7 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 		httpMux := http.NewServeMux()
 
 		httpMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			proxyRequest(w, r, tunnel, c.httpClient, tunnel.ClientPort)
+			proxyRequest(w, r, tunnel, c.httpClient, tunnel.ClientPort, c.behindProxy)
 		})
 
 		httpServer := &http.Server{
