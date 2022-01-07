@@ -46,6 +46,7 @@ func main() {
 		certDir := flagSet.String("cert-dir", "", "TLS cert directory")
 		acmeEmail := flagSet.String("acme-email", "", "Email for ACME (ie Let's Encrypt)")
 		dnsServer := flagSet.String("dns-server", "", "Custom DNS server")
+		behindProxy := flagSet.Bool("behind-proxy", false, "Whether we're running behind another reverse proxy")
 
 		err := flagSet.Parse(os.Args[2:])
 		if err != nil {
@@ -65,13 +66,14 @@ func main() {
 		}
 
 		config := &boringproxy.ClientConfig{
-			ServerAddr: *server,
-			Token:      *token,
-			ClientName: *name,
-			User:       *user,
-			CertDir:    *certDir,
-			AcmeEmail:  *acmeEmail,
-			DnsServer:  *dnsServer,
+			ServerAddr:  *server,
+			Token:       *token,
+			ClientName:  *name,
+			User:        *user,
+			CertDir:     *certDir,
+			AcmeEmail:   *acmeEmail,
+			DnsServer:   *dnsServer,
+			BehindProxy: *behindProxy,
 		}
 
 		ctx := context.Background()
