@@ -7,6 +7,13 @@ and a demo video of boringproxy working with TakingNames.io [here](https://youtu
   <img src='https://user-images.githubusercontent.com/7820200/148330003-5f8062ff-22b2-423d-b945-3db87abf10e5.png' width='400'></img>
 </a>
 
+# Getting Help
+
+If you run into problems running boringproxy, the best place to ask for help is
+over at the [IndieBits][0] community, where we have a [dedicated section][1]
+for boringproxy support. If you think you've found a bug, or want to discuss
+development, please [open an issue][2].
+
 
 # What is boringproxy?
 
@@ -73,13 +80,6 @@ sudo setcap cap_net_bind_service=+ep boringproxy
 ```bash
 ./boringproxy client -server bpdemo.brng.pro -token fKFIjefKDFLEFijKDFJKELJF -client-name demo-client -user demo-user
 ```
-
-# Getting Help
-
-If you run into problems running boringproxy, the best place to ask for help is
-over at the [IndieBits][0] community, where we have a [dedicated section][1]
-for boringproxy support. If you think you've found a bug, or want to discuss
-development, please [open an issue][2].
 
 [0]: https://forum.indiebits.io
 
