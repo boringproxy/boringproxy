@@ -30,8 +30,8 @@
 </div>
 
 <div class='button-row'>
-  <a class='button' href="/tunnel-private-key?domain={{$.Tunnel.Domain}}">Download Private Key</a>
-  <a class='button' href="/confirm-delete-tunnel?domain={{$.Tunnel.Domain}}">Delete</a>
+  <a class='button' href="/tunnel-private-key?domain={{$.Tunnel.Domain}}&client={{$.Tunnel.ClientName}}">Download Private Key</a>
+  <a class='button' href="/confirm-delete-tunnel?domain={{$.Tunnel.Domain}}&client={{$.Tunnel.ClientName}}">Delete</a>
 </div>
 
 {{ template "footer.tmpl" . }}

@@ -3,12 +3,15 @@ package boringproxy
 import (
 	"embed"
 	"encoding/base64"
+
 	//"encoding/json"
 	"fmt"
-	qrcode "github.com/skip2/go-qrcode"
 	"html/template"
 	"io"
 	"net/http"
+
+	qrcode "github.com/skip2/go-qrcode"
+
 	//"net/url"
 	//"os"
 	"strings"
@@ -136,10 +139,17 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		}
 		domain := r.Form["domain"][0]
 
+		if len(r.Form["client"]) != 1 {
+			w.WriteHeader(400)
+			w.Write([]byte("Invalid client parameter"))
+			return
+		}
+		client := r.Form["client"][0]
+
 		data := &ConfirmData{
 			Head:       h.headHtml,
-			Message:    fmt.Sprintf("Are you sure you want to delete %s?", domain),
-			ConfirmUrl: fmt.Sprintf("/delete-tunnel?domain=%s", domain),
+			Message:    fmt.Sprintf("Are you sure you want to delete %s|%s?", domain, client),
+			ConfirmUrl: fmt.Sprintf("/delete-tunnel?domain=%s&client=%s", domain, client),
 			CancelUrl:  "/tunnels",
 		}
 
@@ -258,15 +268,17 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 			parts := strings.Split(r.URL.Path, "/")
 
-			if len(parts) != 3 {
+			if len(parts) != 4 {
 				w.WriteHeader(400)
 				h.alertDialog(w, r, "Invalid path", "/tunnels")
 				return
 			}
 
 			domain := parts[2]
+			client := parts[3]
 
 			r.Form.Set("domain", domain)
+			r.Form.Set("client", client)
 
 			tunnel, err := h.api.GetTunnel(tokenData, r.Form)
 			if err != nil {

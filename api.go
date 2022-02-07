@@ -200,9 +200,14 @@ func (a *Api) GetTunnel(tokenData TokenData, params url.Values) (Tunnel, error) 
 		return Tunnel{}, errors.New("Invalid domain parameter")
 	}
 
-	tun, exists := a.db.GetTunnel(domain)
+	client := params.Get("client")
+	if client == "" {
+		return Tunnel{}, errors.New("Invalid client parameter")
+	}
+
+	tun, exists := a.db.GetTunnel(domain + "|" + client)
 	if !exists {
-		return Tunnel{}, errors.New("Tunnel doesn't exist for domain")
+		return Tunnel{}, errors.New("Tunnel doesn't exist for this domain|client combination")
 	}
 
 	user, _ := a.db.GetUser(tokenData.Owner)
@@ -315,6 +320,7 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 		AuthUsername:     username,
 		AuthPassword:     password,
 		TlsTermination:   tlsTerm,
+		Used:             false,
 	}
 
 	tunnel, err := a.tunMan.RequestCreateTunnel(request)
@@ -331,7 +337,12 @@ func (a *Api) DeleteTunnel(tokenData TokenData, params url.Values) error {
 		return errors.New("Invalid domain parameter")
 	}
 
-	tun, exists := a.db.GetTunnel(domain)
+	client := params.Get("client")
+	if client == "" {
+		return errors.New("Invalid client parameter")
+	}
+
+	tun, exists := a.db.GetTunnel(domain + "|" + client)
 	if !exists {
 		return errors.New("Tunnel doesn't exist")
 	}
@@ -343,7 +354,7 @@ func (a *Api) DeleteTunnel(tokenData TokenData, params url.Values) error {
 		}
 	}
 
-	a.tunMan.DeleteTunnel(domain)
+	a.tunMan.DeleteTunnel(domain + "|" + client)
 
 	return nil
 }
