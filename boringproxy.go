@@ -281,7 +281,7 @@ func Listen() {
 			}
 		} else {
 
-			tunnel, exists := db.GetTunnel(hostDomain)
+			tunnel, exists := db.SelectLoadBalancedTunnel(hostDomain)
 			if !exists {
 				errMessage := fmt.Sprintf("No tunnel attached to %s", hostDomain)
 				w.WriteHeader(500)
@@ -342,7 +342,7 @@ func (p *Server) handleConnection(clientConn net.Conn) {
 
 	passConn := NewProxyConn(clientConn, clientReader)
 
-	tunnel, exists := p.db.GetTunnel(clientHello.ServerName)
+	tunnel, exists := p.db.SelectLoadBalancedTunnel(clientHello.ServerName)
 
 	if exists && (tunnel.TlsTermination == "client" || tunnel.TlsTermination == "passthrough") || tunnel.TlsTermination == "client-tls" {
 		p.passthroughRequest(passConn, tunnel)
