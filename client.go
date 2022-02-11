@@ -320,6 +320,18 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 
 	} else {
 
+		if tunnel.TlsTermination == "client-tls" {
+			tlsConfig := &tls.Config{
+				GetCertificate: c.certConfig.GetCertificate,
+			}
+
+			tlsConfig.NextProtos = append([]string{"http/1.1", "h2", "acme-tls/1"}, tlsConfig.NextProtos...)
+
+			tlsListener := tls.NewListener(listener, tlsConfig)
+
+			listener = tlsListener
+		}
+
 		go func() {
 			for {
 				conn, err := listener.Accept()
