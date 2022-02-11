@@ -180,10 +180,15 @@ func Listen() {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		timestamp := time.Now().Format(time.RFC3339)
-		srcIp := strings.Split(r.RemoteAddr, ":")[0]
-		fmt.Println(fmt.Sprintf("%s %s %s %s %s", timestamp, srcIp, r.Method, r.Host, r.URL.Path))
 
-		// TODO: handle ipv6
+		remoteIp, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			w.WriteHeader(500)
+			io.WriteString(w, err.Error())
+			return
+		}
+		fmt.Println(fmt.Sprintf("%s %s %s %s %s", timestamp, remoteIp, r.Method, r.Host, r.URL.Path))
+
 		hostParts := strings.Split(r.Host, ":")
 		hostDomain := hostParts[0]
 
