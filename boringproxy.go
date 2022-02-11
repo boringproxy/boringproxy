@@ -334,7 +334,7 @@ func (p *Server) handleConnection(clientConn net.Conn) {
 
 	tunnel, exists := p.db.GetTunnel(clientHello.ServerName)
 
-	if exists && (tunnel.TlsTermination == "client" || tunnel.TlsTermination == "passthrough") {
+	if exists && (tunnel.TlsTermination == "client" || tunnel.TlsTermination == "passthrough") || tunnel.TlsTermination == "client-tls" {
 		p.passthroughRequest(passConn, tunnel)
 	} else {
 		p.httpListener.PassConn(passConn)
