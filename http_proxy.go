@@ -3,8 +3,8 @@ package boringproxy
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -51,20 +51,25 @@ func proxyRequest(w http.ResponseWriter, r *http.Request, tunnel Tunnel, httpCli
 
 	upstreamReq.Header["X-Forwarded-Host"] = []string{r.Host}
 
-	// TODO: Handle IPv6 addresses
-	addrParts := strings.Split(r.RemoteAddr, ":")
-	remoteIp := addrParts[0]
-	xForwardedFor := remoteIp
+	remoteHost, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		errMessage := fmt.Sprintf("%s", err)
+		w.WriteHeader(500)
+		io.WriteString(w, errMessage)
+		return
+	}
+
+	xForwardedFor := remoteHost
 
 	if behindProxy {
 		xForwardedFor := downstreamReqHeaders.Get("X-Forwarded-For")
 		if xForwardedFor != "" {
-			xForwardedFor = xForwardedFor + ", " + remoteIp
+			xForwardedFor = xForwardedFor + ", " + remoteHost
 		}
 	}
 
 	upstreamReq.Header.Set("X-Forwarded-For", xForwardedFor)
-	upstreamReq.Header.Set("Forwarded", fmt.Sprintf("for=%s", remoteIp))
+	upstreamReq.Header.Set("Forwarded", fmt.Sprintf("for=%s", remoteHost))
 
 	upstreamReq.Host = fmt.Sprintf("%s:%d", tunnel.ClientAddress, tunnel.ClientPort)
 
