@@ -27,6 +27,7 @@ usermod -a -G boringproxy boringproxy
 Create SSH folder for user. BoringProxy assumes the folder already exists. If it does not exist, the program will fail to add tunnels.
 ```bash
 mkdir /home/boringproxy/.ssh
+chown boringproxy:boringproxy /home/boringproxy/.ssh
 ```
 
 ### Download & edit service file
