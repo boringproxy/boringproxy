@@ -81,7 +81,7 @@ To check if boringproxy is still running, you can look if a process is listening
 netstat -tulpn | grep LISTEN | grep 443
 ```
 If nothing is returned, no process is currently using port 443. Alternatively you will receive a result like:
-***tcp6       0      0 :::443                  :::*                    LISTEN      9461/boringproxy ***
+*tcp6       0      0 :::443                  :::*                    LISTEN      9461/boringproxy*
 
 ### Service commands
 
