@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
+	"net"
 	"time"
 )
 
@@ -51,9 +51,9 @@ func proxyRequest(w http.ResponseWriter, r *http.Request, tunnel Tunnel, httpCli
 
 	upstreamReq.Header["X-Forwarded-Host"] = []string{r.Host}
 
-	// TODO: Handle IPv6 addresses
-	addrParts := strings.Split(r.RemoteAddr, ":")
-	remoteIp := addrParts[0]
+	tcpAddr, err := net.ResolveTCPAddr("tcp", r.RemoteAddr)
+	// TODO: Handle err
+	remoteIp := tcpAddr.IP.String()
 	xForwardedFor := remoteIp
 
 	if behindProxy {
