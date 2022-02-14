@@ -297,7 +297,7 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 		httpMux := http.NewServeMux()
 
 		httpMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			proxyRequest(w, r, tunnel, c.httpClient, tunnel.ClientPort, c.behindProxy)
+			proxyRequest(w, r, tunnel, c.httpClient, tunnel.ClientAddress, tunnel.ClientPort, c.behindProxy)
 		})
 
 		httpServer := &http.Server{
