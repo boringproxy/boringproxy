@@ -274,7 +274,7 @@ func Listen() {
 				return
 			}
 
-			proxyRequest(w, r, tunnel, httpClient, tunnel.TunnelPort, *behindProxy)
+			proxyRequest(w, r, tunnel, httpClient, "localhost", tunnel.TunnelPort, *behindProxy)
 		}
 	})
 
