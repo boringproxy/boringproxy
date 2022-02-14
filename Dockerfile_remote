@@ -3,10 +3,13 @@ LABEL boringproxy=builder
 
 ARG GOOS="linux"
 ARG GOARCH="amd64"
+ARG BRANCH="master"
+ARG REPO="https://github.com/boringproxy/boringproxy.git"
 
 WORKDIR /build
 
 RUN apk add git
+RUN git clone --depth 1 --branch "${BRANCH}" ${REPO}
 
 COPY go.* ./
 RUN go mod download
@@ -21,3 +24,4 @@ COPY --from=builder /build/cmd/boringproxy/boringproxy /
 
 ENTRYPOINT ["/boringproxy"]
 CMD ["version"]
+

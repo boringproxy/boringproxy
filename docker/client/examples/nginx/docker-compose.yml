@@ -1,0 +1,19 @@
+version: '3.7'
+
+services:
+  boringproxy:
+    image: ghcr.io/wgrobler/boringproxy:latest
+    restart: unless-stopped
+    command: ["client", "-server", "bp.example.com", "-token", "your-user-token", "-client-name", "docker-nginx", "-user", "your-user-name","-cert-dir", "/certmagic"]
+    volumes:
+      - certmagic:/certmagic
+      - /etc/ssl/certs/:/etc/ssl/certs/:ro
+
+  nginx:
+    image: nginx:1.17
+    hostname: nginx
+    ports:
+      - 8080:80 # Enable port on local machine, can be removed if you only want to use the tunnel
+
+volumes:
+  certmagic:

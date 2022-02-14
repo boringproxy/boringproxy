@@ -1,0 +1,38 @@
+version: '3.7'
+
+services:
+  boringproxy:
+    image: ghcr.io/wgrobler/boringproxy:latest
+    restart: unless-stopped
+    command: ["client", "-server", "bp.example.com", "-token", "your-user-token", "-client-name", "docker-homeassistant", "-user", "your-user-name", "-cert-dir", "/certmagic"]
+    volumes:
+      - certmagic:/certmagic
+      - /etc/ssl/certs/:/etc/ssl/certs/:ro
+    networks:
+      vpcbr:
+        ipv4_address: 10.5.0.2
+
+  homeassistant:
+    hostname: homeassistant
+    restart: unless-stopped
+    image: ghcr.io/home-assistant/home-assistant:latest
+    privileged: true
+    ports:
+      - "8123:8123" # Enable port on local machine, can be removed if you only want to use the tunnel
+    volumes:
+      - ./config:/config # Path to your home assistant config folder
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      vpcbr:
+        ipv4_address: 10.5.0.3
+
+volumes:
+  certmagic:
+
+networks:
+  vpcbr:
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 10.5.0.0/16
+         gateway: 10.5.0.1

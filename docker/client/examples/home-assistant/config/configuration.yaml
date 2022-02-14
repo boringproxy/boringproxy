@@ -1,0 +1,10 @@
+
+# Configure a default setup of Home Assistant (frontend, api, etc)
+default_config:
+
+http:
+  # For extra security Homeassistant blocks proxy requests unless forwaring is set
+  use_x_forwarded_for: true
+  # If you changed the IP address of boringproxy in your docker-compose file, add the correct IP address here
+  trusted_proxies:
+    - 10.5.0.2

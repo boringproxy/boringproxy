@@ -1,8 +1,0 @@
-version: '3.5'
-services:
-  boringproxy:
-    build: ./
-    image: boringproxy
-    ports:
-      - "80:80"
-      - "443:443"
