@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func proxyRequest(w http.ResponseWriter, r *http.Request, tunnel Tunnel, httpClient *http.Client, port int, behindProxy bool) {
+func proxyRequest(w http.ResponseWriter, r *http.Request, tunnel Tunnel, httpClient *http.Client, address string, port int, behindProxy bool) {
 
 	if tunnel.AuthUsername != "" || tunnel.AuthPassword != "" {
 		username, password, ok := r.BasicAuth()
@@ -29,9 +29,7 @@ func proxyRequest(w http.ResponseWriter, r *http.Request, tunnel Tunnel, httpCli
 
 	downstreamReqHeaders := r.Header.Clone()
 
-	// TODO: should probably pass in address instead of using localhost,
-	// mostly for client-terminated TLS
-	upstreamAddr := fmt.Sprintf("localhost:%d", port)
+	upstreamAddr := fmt.Sprintf("%s:%d", address, port)
 	upstreamUrl := fmt.Sprintf("http://%s%s", upstreamAddr, r.URL.RequestURI())
 
 	upstreamReq, err := http.NewRequest(r.Method, upstreamUrl, r.Body)
