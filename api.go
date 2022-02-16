@@ -104,7 +104,7 @@ func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
 		if tokenData.Client != "" {
 			w.WriteHeader(403)
-			io.WriteString(w, fmt.Sprintf("Token can only be used to list tunnels for client %s", tokenData.Client))
+			io.WriteString(w, "Token cannot be used to create tunnels")
 			return
 		}
 
@@ -117,7 +117,7 @@ func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 	case "DELETE":
 		if tokenData.Client != "" {
 			w.WriteHeader(403)
-			io.WriteString(w, fmt.Sprintf("Token can only be used to list tunnels for client %s", tokenData.Client))
+			io.WriteString(w, "Token cannot be used to delete tunnels")
 			return
 		}
 
@@ -148,18 +148,19 @@ func (a *Api) handleUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if tokenData.Client != "" {
-		w.WriteHeader(403)
-		io.WriteString(w, fmt.Sprintf("Token can only be used to list tunnels for client %s", tokenData.Client))
-		return
-	}
-
 	path := r.URL.Path
 	parts := strings.Split(path[1:], "/")
 
 	r.ParseForm()
 
 	if path == "/" {
+
+		if tokenData.Client != "" {
+			w.WriteHeader(403)
+			io.WriteString(w, "Token cannot be used to create users")
+			return
+		}
+
 		switch r.Method {
 		case "POST":
 			err := a.CreateUser(tokenData, r.Form)
@@ -215,7 +216,7 @@ func (a *Api) handleTokens(w http.ResponseWriter, r *http.Request) {
 
 	if tokenData.Client != "" {
 		w.WriteHeader(403)
-		io.WriteString(w, fmt.Sprintf("Token can only be used to list tunnels for client %s", tokenData.Client))
+		io.WriteString(w, "Token cannot be used to manage tokens")
 		return
 	}
 
