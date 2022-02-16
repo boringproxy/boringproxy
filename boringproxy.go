@@ -216,10 +216,15 @@ func Listen() {
 			domain := namedropTokenData.Scopes[0].Domain
 			host := namedropTokenData.Scopes[0].Host
 
+			recordType := "AAAA"
+			if IsIPv4(config.PublicIp) {
+				recordType = "A"
+			}
+
 			createRecordReq := namedrop.Record{
 				Domain: domain,
 				Host:   host,
-				Type:   "A",
+				Type:   recordType,
 				Value:  config.PublicIp,
 				TTL:    300,
 			}
@@ -415,4 +420,9 @@ func printLoginInfo(token, adminDomain string) {
 	url := fmt.Sprintf("https://%s/login?access_token=%s", adminDomain, token)
 	log.Println(fmt.Sprintf("Admin login link: %s", url))
 	qrterminal.GenerateHalfBlock(url, qrterminal.L, os.Stdout)
+}
+
+// Taken from https://stackoverflow.com/a/48519490/943814
+func IsIPv4(address string) bool {
+	return strings.Count(address, ":") < 2
 }
