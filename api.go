@@ -175,8 +175,16 @@ func (a *Api) handleUsers(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else if len(parts) == 3 && parts[1] == "clients" {
+
 		ownerId := parts[0]
 		clientId := parts[2]
+
+		if tokenData.Client != "" && clientId != tokenData.Client {
+			w.WriteHeader(403)
+			io.WriteString(w, "Token cannot be used to modify this user's clients")
+			return
+		}
+
 		if r.Method == "PUT" {
 			err := a.SetClient(tokenData, r.Form, ownerId, clientId)
 			if err != nil {
