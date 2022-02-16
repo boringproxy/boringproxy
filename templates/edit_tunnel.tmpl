@@ -12,15 +12,6 @@
        <input type="hidden" id="tunnel-owner" name="owner" value="{{$.UserId}}">
      </div>
      <div class='input'>
-       <label for="tls-termination">Tunnel Type:</label>
-       <select id="tls-termination" name="tls-termination">
-         <option value="client-tls">Client TLS</option>
-         <option value="client">Client HTTPS</option>
-         <option value="server">Server HTTPS</option>
-         <option value="passthrough">Passthrough</option>
-       </select>
-     </div>
-     <div class='input'>
        <label for="tunnel-port">Tunnel Port:</label>
        <input type="text" id="tunnel-port" name="tunnel-port" value="Random">
      </div>
@@ -41,6 +32,15 @@
      <div class='input'>
        <label for="client-port">Client Port:</label>
        <input type="text" id="client-port" name="client-port">
+     </div>
+     <div class='input'>
+       <label for="tls-termination">TLS Termination:</label>
+       <select id="tls-termination" name="tls-termination">
+         <option value="client">Client HTTPS</option>
+         <option value="server">Server HTTPS</option>
+         <option value="client-tls">Client raw TLS</option>
+         <option value="passthrough">Passthrough</option>
+       </select>
      </div>
      <div class='input'>
        <label for="allow-external-tcp">Allow External TCP:</label>
