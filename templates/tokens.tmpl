@@ -14,7 +14,7 @@
 </div>
 
 <div class='token-adder'>
-  <form action="/tokens" method="POST">
+  <form action="/add-token-client" method="POST">
      <label for="token-owner">Owner:</label>
      <select id="token-owner" name="owner">
        {{range $username, $user := .Users}}

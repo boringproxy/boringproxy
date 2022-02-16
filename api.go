@@ -59,8 +59,24 @@ func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
 		tunnels := a.GetTunnels(tokenData)
 
-		if len(query["client-name"]) == 1 {
-			clientName := query["client-name"][0]
+		// If the token is limited to a specific client, filter out
+		// tunnels for any other clients.
+		if tokenData.Client != "" {
+			for k, tun := range tunnels {
+				if tokenData.Client != tun.ClientName {
+					delete(tunnels, k)
+				}
+			}
+		}
+
+		clientName := query.Get("client-name")
+		if clientName != "" && tokenData.Client != "" && clientName != tokenData.Client {
+			w.WriteHeader(403)
+			w.Write([]byte("Token is not valid for this client"))
+			return
+		}
+
+		if clientName != "" {
 			for k, tun := range tunnels {
 				if tun.ClientName != clientName {
 					delete(tunnels, k)
@@ -85,6 +101,13 @@ func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
 		w.Write([]byte(body))
 	case "POST":
+
+		if tokenData.Client != "" {
+			w.WriteHeader(403)
+			io.WriteString(w, fmt.Sprintf("Token can only be used to list tunnels for client %s", tokenData.Client))
+			return
+		}
+
 		r.ParseForm()
 		_, err := a.CreateTunnel(tokenData, r.Form)
 		if err != nil {
@@ -92,6 +115,12 @@ func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(err.Error()))
 		}
 	case "DELETE":
+		if tokenData.Client != "" {
+			w.WriteHeader(403)
+			io.WriteString(w, fmt.Sprintf("Token can only be used to list tunnels for client %s", tokenData.Client))
+			return
+		}
+
 		r.ParseForm()
 		err := a.DeleteTunnel(tokenData, r.Form)
 		if err != nil {
@@ -116,6 +145,12 @@ func (a *Api) handleUsers(w http.ResponseWriter, r *http.Request) {
 	if !exists {
 		w.WriteHeader(401)
 		io.WriteString(w, "Failed to get token")
+		return
+	}
+
+	if tokenData.Client != "" {
+		w.WriteHeader(403)
+		io.WriteString(w, fmt.Sprintf("Token can only be used to list tunnels for client %s", tokenData.Client))
 		return
 	}
 
@@ -175,6 +210,12 @@ func (a *Api) handleTokens(w http.ResponseWriter, r *http.Request) {
 	if !exists {
 		w.WriteHeader(403)
 		w.Write([]byte("Not authorized"))
+		return
+	}
+
+	if tokenData.Client != "" {
+		w.WriteHeader(403)
+		io.WriteString(w, fmt.Sprintf("Token can only be used to list tunnels for client %s", tokenData.Client))
 		return
 	}
 
@@ -326,6 +367,7 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 }
 
 func (a *Api) DeleteTunnel(tokenData TokenData, params url.Values) error {
+
 	domain := params.Get("domain")
 	if domain == "" {
 		return errors.New("Invalid domain parameter")
@@ -355,14 +397,21 @@ func (a *Api) CreateToken(tokenData TokenData, params url.Values) (string, error
 		return "", errors.New("Invalid owner paramater")
 	}
 
-	if tokenData.Owner != owner {
-		user, _ := a.db.GetUser(tokenData.Owner)
-		if !user.IsAdmin {
-			return "", errors.New("Unauthorized")
+	user, _ := a.db.GetUser(tokenData.Owner)
+
+	if tokenData.Owner != owner && !user.IsAdmin {
+		return "", errors.New("Unauthorized")
+	}
+
+	client := params.Get("client")
+
+	if client != "any" {
+		if _, exists := user.Clients[client]; !exists {
+			return "", errors.New(fmt.Sprintf("Client %s does not exist for user %s", client, owner))
 		}
 	}
 
-	token, err := a.db.AddToken(owner)
+	token, err := a.db.AddToken(owner, client)
 	if err != nil {
 		return "", errors.New("Failed to create token")
 	}

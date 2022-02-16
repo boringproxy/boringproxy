@@ -128,7 +128,7 @@ func Listen() {
 	users := db.GetUsers()
 	if len(users) == 0 {
 		db.AddUser("admin", true)
-		_, err := db.AddToken("admin")
+		_, err := db.AddToken("admin", "any")
 		if err != nil {
 			log.Fatal("Failed to initialize admin user")
 		}

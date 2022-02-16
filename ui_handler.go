@@ -89,6 +89,12 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	if tokenData.Client != "" {
+		w.WriteHeader(403)
+		h.alertDialog(w, r, "This token is limited to a specific client and cannot be used for the web UI", "/")
+		return
+	}
+
 	user, _ := h.db.GetUser(tokenData.Owner)
 
 	tunnels := h.api.GetTunnels(tokenData)
@@ -206,6 +212,27 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		w.Header().Set("Content-Disposition", "attachment; filename=id_rsa")
 		io.WriteString(w, tun.TunnelPrivateKey)
 
+	case "/add-token-client":
+		r.ParseForm()
+
+		owner := r.Form.Get("owner")
+
+		addTokenUser, _ := h.db.GetUser(owner)
+
+		templateData := struct {
+			Owner string
+			User  User
+		}{
+			Owner: owner,
+			User:  addTokenUser,
+		}
+
+		err := h.tmpl.ExecuteTemplate(w, "add_token_client.tmpl", templateData)
+		if err != nil {
+			w.WriteHeader(500)
+			io.WriteString(w, err.Error())
+			return
+		}
 	case "/tokens":
 		h.handleTokens(w, r, user, tokenData)
 	case "/confirm-delete-token":
