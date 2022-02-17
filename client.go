@@ -310,14 +310,6 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 		// boringproxy server does.
 		go httpServer.Serve(tlsListener)
 
-		// TODO: There's still quite a bit of duplication with what the server does. Could we
-		// encapsulate it into a type?
-		err = c.certConfig.ManageSync(ctx, []string{tunnel.Domain})
-		if err != nil {
-			log.Println("CertMagic error at startup")
-			log.Println(err)
-		}
-
 	} else {
 
 		if tunnel.TlsTermination == "client-tls" {
@@ -347,6 +339,14 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 				go c.handleConnection(conn, tunnel.ClientAddress, tunnel.ClientPort)
 			}
 		}()
+	}
+
+	// TODO: There's still quite a bit of duplication with what the server does. Could we
+	// encapsulate it into a type?
+	err = c.certConfig.ManageSync(ctx, []string{tunnel.Domain})
+	if err != nil {
+		log.Println("CertMagic error at startup")
+		log.Println(err)
 	}
 
 	<-ctx.Done()
