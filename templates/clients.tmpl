@@ -1,0 +1,31 @@
+{{ template "header.tmpl" . }}
+<div class='list'>
+  {{range $username, $user := .Users}}
+    {{range $clientName, $client := $user.Clients}}
+
+    <div class='list-item'>
+      <span class='client'>{{$clientName}} ({{$username}})</span>
+      <a href="/confirm-delete-client?owner={{$username}}&client-name={{$clientName}}">
+        <button class='button'>Delete</button>
+      </a>
+    </div>
+
+    {{end}}
+  {{end}}
+</div>
+
+<div class='client-adder'>
+  <form action="/clients" method="POST">
+     <label for="client-owner">Owner:</label>
+     <select id="client-owner" name="owner">
+       {{range $username, $user := .Users}}
+       <option value="{{$username}}">{{$username}}</option>
+       {{end}}
+     </select>
+     <label for="client-name">Client Name:</label>
+     <input type="text" name="client-name" required></input>
+     <button class='button' type="submit">Add Client</button>
+  </form>
+</div>
+
+{{ template "footer.tmpl" . }}

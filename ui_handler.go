@@ -235,10 +235,16 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		}
 	case "/tokens":
 		h.handleTokens(w, r, user, tokenData)
+	case "/clients":
+		h.handleClients(w, r, user, tokenData)
 	case "/confirm-delete-token":
 		h.confirmDeleteToken(w, r)
 	case "/delete-token":
 		h.deleteToken(w, r, tokenData)
+	case "/confirm-delete-client":
+		h.confirmDeleteClient(w, r)
+	case "/delete-client":
+		h.deleteClient(w, r, tokenData)
 	case "/confirm-logout":
 
 		data := &ConfirmData{
@@ -402,6 +408,66 @@ func (h *WebUiHandler) handleTokens(w http.ResponseWriter, r *http.Request, user
 	}
 }
 
+func (h *WebUiHandler) handleClients(w http.ResponseWriter, r *http.Request, user User, tokenData TokenData) {
+
+	r.ParseForm()
+
+	switch r.Method {
+	case "GET":
+		var users map[string]User
+
+		// TODO: handle security checks in api
+		if user.IsAdmin {
+			users = h.db.GetUsers()
+		} else {
+			user, _ := h.db.GetUser(tokenData.Owner)
+			users = make(map[string]User)
+			users[tokenData.Owner] = user
+		}
+
+		clients := make(map[string]DbClient)
+
+		for _, user := range users {
+			for clientName, client := range user.Clients {
+				clients[clientName] = client
+			}
+		}
+
+		templateData := struct {
+			User    User
+			Users   map[string]User
+			Clients map[string]DbClient
+		}{
+			User:    user,
+			Users:   users,
+			Clients: clients,
+		}
+
+		err := h.tmpl.ExecuteTemplate(w, "clients.tmpl", templateData)
+		if err != nil {
+			w.WriteHeader(500)
+			io.WriteString(w, err.Error())
+			return
+		}
+	case "POST":
+
+		owner := r.Form.Get("owner")
+		clientName := r.Form.Get("client-name")
+
+		err := h.api.SetClient(tokenData, r.Form, owner, clientName)
+		if err != nil {
+			w.WriteHeader(500)
+			h.alertDialog(w, r, err.Error(), "/clients")
+			return
+		}
+
+		http.Redirect(w, r, "/clients", 303)
+	default:
+		w.WriteHeader(405)
+		h.alertDialog(w, r, "Invalid method for tokens", "/tokens")
+		return
+	}
+}
 func (h *WebUiHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != "GET" {
@@ -646,7 +712,6 @@ func (h *WebUiHandler) confirmDeleteToken(w http.ResponseWriter, r *http.Request
 		return
 	}
 }
-
 func (h *WebUiHandler) deleteToken(w http.ResponseWriter, r *http.Request, tokenData TokenData) {
 
 	r.ParseForm()
@@ -658,6 +723,44 @@ func (h *WebUiHandler) deleteToken(w http.ResponseWriter, r *http.Request, token
 	}
 
 	http.Redirect(w, r, "/tokens", 303)
+}
+
+func (h *WebUiHandler) confirmDeleteClient(w http.ResponseWriter, r *http.Request) {
+
+	r.ParseForm()
+
+	owner := r.Form.Get("owner")
+	clientName := r.Form.Get("client-name")
+
+	data := &ConfirmData{
+		Head:       h.headHtml,
+		Message:    fmt.Sprintf("Are you sure you want to delete client %s for user %s?", clientName, owner),
+		ConfirmUrl: fmt.Sprintf("/delete-client?owner=%s&client-name=%s", owner, clientName),
+		CancelUrl:  "/clients",
+	}
+
+	err := h.tmpl.ExecuteTemplate(w, "confirm.tmpl", data)
+	if err != nil {
+		w.WriteHeader(500)
+		h.alertDialog(w, r, err.Error(), "/clients")
+		return
+	}
+}
+func (h *WebUiHandler) deleteClient(w http.ResponseWriter, r *http.Request, tokenData TokenData) {
+
+	r.ParseForm()
+
+	owner := r.Form.Get("owner")
+	clientName := r.Form.Get("client-name")
+
+	err := h.api.DeleteClient(tokenData, owner, clientName)
+	if err != nil {
+		w.WriteHeader(500)
+		h.alertDialog(w, r, err.Error(), "/clients")
+		return
+	}
+
+	http.Redirect(w, r, "/clients", 303)
 }
 
 func (h *WebUiHandler) alertDialog(w http.ResponseWriter, r *http.Request, message, redirectUrl string) error {
