@@ -29,6 +29,7 @@ func NewApi(config *Config, db *Database, auth *Auth, tunMan *TunnelManager) *Ap
 	mux.Handle("/tunnels", http.StripPrefix("/tunnels", http.HandlerFunc(api.handleTunnels)))
 	mux.Handle("/users/", http.StripPrefix("/users", http.HandlerFunc(api.handleUsers)))
 	mux.Handle("/tokens/", http.StripPrefix("/tokens", http.HandlerFunc(api.handleTokens)))
+	mux.Handle("/clients/", http.StripPrefix("/clients", http.HandlerFunc(api.handleClients)))
 
 	return api
 }
@@ -238,6 +239,56 @@ func (a *Api) handleTokens(w http.ResponseWriter, r *http.Request) {
 		}
 
 		io.WriteString(w, token)
+	default:
+		w.WriteHeader(405)
+		w.Write([]byte(err.Error()))
+	}
+}
+
+func (a *Api) handleClients(w http.ResponseWriter, r *http.Request) {
+
+	r.ParseForm()
+
+	token, err := extractToken("access_token", r)
+	if err != nil {
+		w.WriteHeader(401)
+		w.Write([]byte("No token provided"))
+		return
+	}
+
+	tokenData, exists := a.db.GetTokenData(token)
+	if !exists {
+		w.WriteHeader(403)
+		w.Write([]byte("Not authorized"))
+		return
+	}
+
+	clientName := r.Form.Get("client-name")
+	if clientName == "" {
+		clientName = tokenData.Client
+
+		if tokenData.Client == "" {
+			w.WriteHeader(400)
+			w.Write([]byte("Missing client-name parameter"))
+			return
+		} else {
+			clientName = tokenData.Client
+		}
+	}
+
+	if tokenData.Client != "" && tokenData.Client != clientName {
+		w.WriteHeader(403)
+		io.WriteString(w, "Token does not have proper permissions")
+		return
+	}
+
+	switch r.Method {
+	case "POST":
+		err := a.SetClient(tokenData, r.Form, tokenData.Owner, clientName)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte(err.Error()))
+		}
 	default:
 		w.WriteHeader(405)
 		w.Write([]byte(err.Error()))

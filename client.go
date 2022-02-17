@@ -115,8 +115,12 @@ func NewClient(config *ClientConfig) (*Client, error) {
 
 func (c *Client) Run(ctx context.Context) error {
 
-	url := fmt.Sprintf("https://%s/api/users/%s/clients/%s", c.server, c.user, c.clientName)
-	clientReq, err := http.NewRequest("PUT", url, nil)
+	url := fmt.Sprintf("https://%s/api/clients/?client-name=%s", c.server, c.clientName)
+	if c.user != "" {
+		url = url + "&user=" + c.user
+	}
+
+	clientReq, err := http.NewRequest("POST", url, nil)
 	if err != nil {
 		return errors.New(fmt.Sprintf("Failed to create request for URL %s", url))
 	}
