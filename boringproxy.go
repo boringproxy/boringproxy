@@ -53,6 +53,7 @@ func Listen() {
 	allowHttp := flagSet.Bool("allow-http", false, "Allow unencrypted (HTTP) requests")
 	publicIp := flagSet.String("public-ip", "", "Public IP")
 	behindProxy := flagSet.Bool("behind-proxy", false, "Whether we're running behind another reverse proxy")
+	acmeUseStaging := flagSet.Bool("acme-use-staging", false, "Use ACME (ie Let's Encrypt) staging servers")
 	err := flagSet.Parse(os.Args[2:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: parsing flags: %s\n", os.Args[0], err)
@@ -99,7 +100,11 @@ func Listen() {
 	}
 	//certmagic.DefaultACME.DisableHTTPChallenge = true
 	//certmagic.DefaultACME.DisableTLSALPNChallenge = true
-	//certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
+
+	if *acmeUseStaging {
+		certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
+	}
+
 	certConfig := certmagic.NewDefault()
 
 	if *newAdminDomain != "" {
