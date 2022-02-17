@@ -418,6 +418,8 @@ func (a *Api) CreateToken(tokenData TokenData, params url.Values) (string, error
 		if _, exists := user.Clients[client]; !exists {
 			return "", errors.New(fmt.Sprintf("Client %s does not exist for user %s", client, owner))
 		}
+	} else {
+		client = ""
 	}
 
 	token, err := a.db.AddToken(owner, client)
