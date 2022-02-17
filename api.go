@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 )
 
 type Api struct {
@@ -149,61 +148,25 @@ func (a *Api) handleUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := r.URL.Path
-	parts := strings.Split(path[1:], "/")
-
 	r.ParseForm()
 
-	if path == "/" {
+	if tokenData.Client != "" {
+		w.WriteHeader(403)
+		io.WriteString(w, "Token cannot be used to create users")
+		return
+	}
 
-		if tokenData.Client != "" {
-			w.WriteHeader(403)
-			io.WriteString(w, "Token cannot be used to create users")
+	switch r.Method {
+	case "POST":
+		err := a.CreateUser(tokenData, r.Form)
+		if err != nil {
+			w.WriteHeader(500)
+			io.WriteString(w, err.Error())
 			return
 		}
-
-		switch r.Method {
-		case "POST":
-			err := a.CreateUser(tokenData, r.Form)
-			if err != nil {
-				w.WriteHeader(500)
-				io.WriteString(w, err.Error())
-				return
-			}
-		default:
-			w.WriteHeader(405)
-			io.WriteString(w, "Invalid method for /users")
-			return
-		}
-	} else if len(parts) == 3 && parts[1] == "clients" {
-
-		ownerId := parts[0]
-		clientId := parts[2]
-
-		if tokenData.Client != "" && clientId != tokenData.Client {
-			w.WriteHeader(403)
-			io.WriteString(w, "Token cannot be used to modify this user's clients")
-			return
-		}
-
-		if r.Method == "PUT" {
-			err := a.SetClient(tokenData, r.Form, ownerId, clientId)
-			if err != nil {
-				w.WriteHeader(500)
-				io.WriteString(w, err.Error())
-				return
-			}
-		} else if r.Method == "DELETE" {
-			err := a.DeleteClient(tokenData, ownerId, clientId)
-			if err != nil {
-				w.WriteHeader(500)
-				io.WriteString(w, err.Error())
-				return
-			}
-		}
-	} else {
-		w.WriteHeader(400)
-		io.WriteString(w, "Invalid /users/<username>/clients request")
+	default:
+		w.WriteHeader(405)
+		io.WriteString(w, "Invalid method for /users")
 		return
 	}
 }
