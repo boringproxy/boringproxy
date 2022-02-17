@@ -265,8 +265,6 @@ func (a *Api) handleClients(w http.ResponseWriter, r *http.Request) {
 
 	clientName := r.Form.Get("client-name")
 	if clientName == "" {
-		clientName = tokenData.Client
-
 		if tokenData.Client == "" {
 			w.WriteHeader(400)
 			w.Write([]byte("Missing client-name parameter"))
@@ -282,12 +280,24 @@ func (a *Api) handleClients(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user := r.Form.Get("user")
+	if user == "" {
+		user = tokenData.Owner
+	}
+
 	switch r.Method {
 	case "POST":
-		err := a.SetClient(tokenData, r.Form, tokenData.Owner, clientName)
+		err := a.SetClient(tokenData, r.Form, user, clientName)
 		if err != nil {
 			w.WriteHeader(500)
 			w.Write([]byte(err.Error()))
+		}
+	case "DELETE":
+		err := a.DeleteClient(tokenData, user, clientName)
+		if err != nil {
+			w.WriteHeader(500)
+			io.WriteString(w, err.Error())
+			return
 		}
 	default:
 		w.WriteHeader(405)
