@@ -4,7 +4,7 @@
     {{range $clientName, $client := $user.Clients}}
 
     <div class='list-item'>
-      <span class='client'>{{$clientName}} ({{$username}})</span>
+      <span class='client'>{{$clientName}} (Owner: {{$username}})</span>
       <a href="/confirm-delete-client?owner={{$username}}&client-name={{$clientName}}">
         <button class='button'>Delete</button>
       </a>
