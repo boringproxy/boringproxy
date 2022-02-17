@@ -34,14 +34,15 @@ type Client struct {
 }
 
 type ClientConfig struct {
-	ServerAddr  string `json:"serverAddr,omitempty"`
-	Token       string `json:"token,omitempty"`
-	ClientName  string `json:"clientName,omitempty"`
-	User        string `json:"user,omitempty"`
-	CertDir     string `json:"certDir,omitempty"`
-	AcmeEmail   string `json:"acmeEmail,omitempty"`
-	DnsServer   string `json:"dnsServer,omitempty"`
-	BehindProxy bool   `json:"behindProxy,omitempty"`
+	ServerAddr     string `json:"serverAddr,omitempty"`
+	Token          string `json:"token,omitempty"`
+	ClientName     string `json:"clientName,omitempty"`
+	User           string `json:"user,omitempty"`
+	CertDir        string `json:"certDir,omitempty"`
+	AcmeEmail      string `json:"acmeEmail,omitempty"`
+	AcmeUseStaging bool   `json:"acmeUseStaging,omitempty"`
+	DnsServer      string `json:"dnsServer,omitempty"`
+	BehindProxy    bool   `json:"behindProxy,omitempty"`
 }
 
 func NewClient(config *ClientConfig) (*Client, error) {
@@ -79,6 +80,10 @@ func NewClient(config *ClientConfig) (*Client, error) {
 
 	if config.AcmeEmail != "" {
 		certmagic.DefaultACME.Email = config.AcmeEmail
+	}
+
+	if config.AcmeUseStaging {
+		certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
 	}
 
 	certConfig := certmagic.NewDefault()
