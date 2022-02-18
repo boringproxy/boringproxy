@@ -1,0 +1,14 @@
+version: '3.7'
+services:
+  boringproxy:
+    container_name: boringproxy-server
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - data:/opt/boringproxy/
+    command: ["server", "-admin-domain", "bp.example.com"]
+
+volumes:
+  data:

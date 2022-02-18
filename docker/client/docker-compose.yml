@@ -1,0 +1,12 @@
+version: '3.7'
+services:
+  boringproxy:
+    container_name: boringproxy-client
+    restart: unless-stopped
+    command: ["client", "-server", "bp.example.com", "-token", "your-user-token", "-client-name", "your-client-name", "-user", "your-user-name", "-cert-dir", "/certmagic"]
+    volumes:
+      - certmagic:/certmagic
+      - /etc/ssl/certs/:/etc/ssl/certs/:ro
+
+volumes:
+  certmagic:
