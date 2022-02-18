@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 )
 
 type Api struct {
@@ -29,6 +28,7 @@ func NewApi(config *Config, db *Database, auth *Auth, tunMan *TunnelManager) *Ap
 	mux.Handle("/tunnels", http.StripPrefix("/tunnels", http.HandlerFunc(api.handleTunnels)))
 	mux.Handle("/users/", http.StripPrefix("/users", http.HandlerFunc(api.handleUsers)))
 	mux.Handle("/tokens/", http.StripPrefix("/tokens", http.HandlerFunc(api.handleTokens)))
+	mux.Handle("/clients/", http.StripPrefix("/clients", http.HandlerFunc(api.handleClients)))
 
 	return api
 }
@@ -59,8 +59,24 @@ func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
 		tunnels := a.GetTunnels(tokenData)
 
-		if len(query["client-name"]) == 1 {
-			clientName := query["client-name"][0]
+		// If the token is limited to a specific client, filter out
+		// tunnels for any other clients.
+		if tokenData.Client != "" {
+			for k, tun := range tunnels {
+				if tokenData.Client != tun.ClientName {
+					delete(tunnels, k)
+				}
+			}
+		}
+
+		clientName := query.Get("client-name")
+		if clientName != "" && tokenData.Client != "" && clientName != tokenData.Client {
+			w.WriteHeader(403)
+			w.Write([]byte("Token is not valid for this client"))
+			return
+		}
+
+		if clientName != "" {
 			for k, tun := range tunnels {
 				if tun.ClientName != clientName {
 					delete(tunnels, k)
@@ -85,6 +101,13 @@ func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 
 		w.Write([]byte(body))
 	case "POST":
+
+		if tokenData.Client != "" {
+			w.WriteHeader(403)
+			io.WriteString(w, "Token cannot be used to create tunnels")
+			return
+		}
+
 		r.ParseForm()
 		_, err := a.CreateTunnel(tokenData, r.Form)
 		if err != nil {
@@ -92,6 +115,12 @@ func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(err.Error()))
 		}
 	case "DELETE":
+		if tokenData.Client != "" {
+			w.WriteHeader(403)
+			io.WriteString(w, "Token cannot be used to delete tunnels")
+			return
+		}
+
 		r.ParseForm()
 		err := a.DeleteTunnel(tokenData, r.Form)
 		if err != nil {
@@ -119,46 +148,25 @@ func (a *Api) handleUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := r.URL.Path
-	parts := strings.Split(path[1:], "/")
-
 	r.ParseForm()
 
-	if path == "/" {
-		switch r.Method {
-		case "POST":
-			err := a.CreateUser(tokenData, r.Form)
-			if err != nil {
-				w.WriteHeader(500)
-				io.WriteString(w, err.Error())
-				return
-			}
-		default:
-			w.WriteHeader(405)
-			io.WriteString(w, "Invalid method for /users")
+	if tokenData.Client != "" {
+		w.WriteHeader(403)
+		io.WriteString(w, "Token cannot be used to create users")
+		return
+	}
+
+	switch r.Method {
+	case "POST":
+		err := a.CreateUser(tokenData, r.Form)
+		if err != nil {
+			w.WriteHeader(500)
+			io.WriteString(w, err.Error())
 			return
 		}
-	} else if len(parts) == 3 && parts[1] == "clients" {
-		ownerId := parts[0]
-		clientId := parts[2]
-		if r.Method == "PUT" {
-			err := a.SetClient(tokenData, r.Form, ownerId, clientId)
-			if err != nil {
-				w.WriteHeader(500)
-				io.WriteString(w, err.Error())
-				return
-			}
-		} else if r.Method == "DELETE" {
-			err := a.DeleteClient(tokenData, ownerId, clientId)
-			if err != nil {
-				w.WriteHeader(500)
-				io.WriteString(w, err.Error())
-				return
-			}
-		}
-	} else {
-		w.WriteHeader(400)
-		io.WriteString(w, "Invalid /users/<username>/clients request")
+	default:
+		w.WriteHeader(405)
+		io.WriteString(w, "Invalid method for /users")
 		return
 	}
 }
@@ -178,6 +186,12 @@ func (a *Api) handleTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if tokenData.Client != "" {
+		w.WriteHeader(403)
+		io.WriteString(w, "Token cannot be used to manage tokens")
+		return
+	}
+
 	switch r.Method {
 	case "POST":
 		r.ParseForm()
@@ -188,6 +202,66 @@ func (a *Api) handleTokens(w http.ResponseWriter, r *http.Request) {
 		}
 
 		io.WriteString(w, token)
+	default:
+		w.WriteHeader(405)
+		w.Write([]byte(err.Error()))
+	}
+}
+
+func (a *Api) handleClients(w http.ResponseWriter, r *http.Request) {
+
+	r.ParseForm()
+
+	token, err := extractToken("access_token", r)
+	if err != nil {
+		w.WriteHeader(401)
+		w.Write([]byte("No token provided"))
+		return
+	}
+
+	tokenData, exists := a.db.GetTokenData(token)
+	if !exists {
+		w.WriteHeader(403)
+		w.Write([]byte("Not authorized"))
+		return
+	}
+
+	clientName := r.Form.Get("client-name")
+	if clientName == "" {
+		if tokenData.Client == "" {
+			w.WriteHeader(400)
+			w.Write([]byte("Missing client-name parameter"))
+			return
+		} else {
+			clientName = tokenData.Client
+		}
+	}
+
+	if tokenData.Client != "" && tokenData.Client != clientName {
+		w.WriteHeader(403)
+		io.WriteString(w, "Token does not have proper permissions")
+		return
+	}
+
+	user := r.Form.Get("user")
+	if user == "" {
+		user = tokenData.Owner
+	}
+
+	switch r.Method {
+	case "POST":
+		err := a.SetClient(tokenData, r.Form, user, clientName)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte(err.Error()))
+		}
+	case "DELETE":
+		err := a.DeleteClient(tokenData, user, clientName)
+		if err != nil {
+			w.WriteHeader(500)
+			io.WriteString(w, err.Error())
+			return
+		}
 	default:
 		w.WriteHeader(405)
 		w.Write([]byte(err.Error()))
@@ -326,6 +400,7 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 }
 
 func (a *Api) DeleteTunnel(tokenData TokenData, params url.Values) error {
+
 	domain := params.Get("domain")
 	if domain == "" {
 		return errors.New("Invalid domain parameter")
@@ -355,14 +430,23 @@ func (a *Api) CreateToken(tokenData TokenData, params url.Values) (string, error
 		return "", errors.New("Invalid owner paramater")
 	}
 
-	if tokenData.Owner != owner {
-		user, _ := a.db.GetUser(tokenData.Owner)
-		if !user.IsAdmin {
-			return "", errors.New("Unauthorized")
-		}
+	user, _ := a.db.GetUser(tokenData.Owner)
+
+	if tokenData.Owner != owner && !user.IsAdmin {
+		return "", errors.New("Unauthorized")
 	}
 
-	token, err := a.db.AddToken(owner)
+	client := params.Get("client")
+
+	if client != "any" {
+		if _, exists := user.Clients[client]; !exists {
+			return "", errors.New(fmt.Sprintf("Client %s does not exist for user %s", client, owner))
+		}
+	} else {
+		client = ""
+	}
+
+	token, err := a.db.AddToken(owner, client)
 	if err != nil {
 		return "", errors.New("Failed to create token")
 	}
