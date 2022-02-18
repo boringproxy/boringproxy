@@ -34,14 +34,15 @@ type Client struct {
 }
 
 type ClientConfig struct {
-	ServerAddr  string `json:"serverAddr,omitempty"`
-	Token       string `json:"token,omitempty"`
-	ClientName  string `json:"clientName,omitempty"`
-	User        string `json:"user,omitempty"`
-	CertDir     string `json:"certDir,omitempty"`
-	AcmeEmail   string `json:"acmeEmail,omitempty"`
-	DnsServer   string `json:"dnsServer,omitempty"`
-	BehindProxy bool   `json:"behindProxy,omitempty"`
+	ServerAddr     string `json:"serverAddr,omitempty"`
+	Token          string `json:"token,omitempty"`
+	ClientName     string `json:"clientName,omitempty"`
+	User           string `json:"user,omitempty"`
+	CertDir        string `json:"certDir,omitempty"`
+	AcmeEmail      string `json:"acmeEmail,omitempty"`
+	AcmeUseStaging bool   `json:"acmeUseStaging,omitempty"`
+	DnsServer      string `json:"dnsServer,omitempty"`
+	BehindProxy    bool   `json:"behindProxy,omitempty"`
 }
 
 func NewClient(config *ClientConfig) (*Client, error) {
@@ -79,6 +80,10 @@ func NewClient(config *ClientConfig) (*Client, error) {
 
 	if config.AcmeEmail != "" {
 		certmagic.DefaultACME.Email = config.AcmeEmail
+	}
+
+	if config.AcmeUseStaging {
+		certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
 	}
 
 	certConfig := certmagic.NewDefault()
@@ -310,14 +315,6 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 		// boringproxy server does.
 		go httpServer.Serve(tlsListener)
 
-		// TODO: There's still quite a bit of duplication with what the server does. Could we
-		// encapsulate it into a type?
-		err = c.certConfig.ManageSync(ctx, []string{tunnel.Domain})
-		if err != nil {
-			log.Println("CertMagic error at startup")
-			log.Println(err)
-		}
-
 	} else {
 
 		if tunnel.TlsTermination == "client-tls" {
@@ -347,6 +344,14 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 				go c.handleConnection(conn, tunnel.ClientAddress, tunnel.ClientPort)
 			}
 		}()
+	}
+
+	// TODO: There's still quite a bit of duplication with what the server does. Could we
+	// encapsulate it into a type?
+	err = c.certConfig.ManageSync(ctx, []string{tunnel.Domain})
+	if err != nil {
+		log.Println("CertMagic error at startup")
+		log.Println(err)
 	}
 
 	<-ctx.Done()
