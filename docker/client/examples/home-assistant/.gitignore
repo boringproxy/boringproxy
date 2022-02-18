@@ -1,7 +1,0 @@
-# Ignore everything in config
-config/*
-# But not these files...
-!config/configuration.yaml
-
-# Ignore everything in development config
-dev-config/*

@@ -8,3 +8,12 @@ boringproxy_*.tar.gz
 
 # Boringproxy database, created if exec is run in boringproxy folder
 boringproxy_db.json
+
+# Development files
+dev.yml
+
+# Docker client examples
+# Ignore everything in config
+docker/client/examples/home-assistant/config/*
+# But not these files...
+!docker/client/examples/home-assistant/config/configuration.yaml
