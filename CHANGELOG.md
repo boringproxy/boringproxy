@@ -1,5 +1,11 @@
 # v0.9.0
 
+* Fix bug where client doesn't automatically detect user because the client
+  defaulted to "admin" when no user was provided.
+
+
+# v0.9.0
+
 * Raw TLS tunnels implemented, which adds WebSockets support.
 * Improved security of tokens. They can now be limited to only work for
   specific clients.
