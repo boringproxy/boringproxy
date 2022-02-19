@@ -47,7 +47,7 @@ func main() {
 		server := flagSet.String("server", "", "boringproxy server")
 		token := flagSet.String("token", "", "Access token")
 		name := flagSet.String("client-name", "", "Client name")
-		user := flagSet.String("user", "admin", "user")
+		user := flagSet.String("user", "", "user")
 		certDir := flagSet.String("cert-dir", "", "TLS cert directory")
 		acmeEmail := flagSet.String("acme-email", "", "Email for ACME (ie Let's Encrypt)")
 		acmeUseStaging := flagSet.Bool("acme-use-staging", false, "Use ACME (ie Let's Encrypt) staging servers")
