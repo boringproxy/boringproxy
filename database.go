@@ -21,7 +21,8 @@ type Database struct {
 }
 
 type TokenData struct {
-	Owner string `json:"owner"`
+	Owner  string `json:"owner"`
+	Client string `json:"client,omitempty"`
 }
 
 type User struct {
@@ -144,7 +145,7 @@ func (d *Database) DeleteDNSRequest(requestId string) {
 	delete(d.dnsRequests, requestId)
 }
 
-func (d *Database) AddToken(owner string) (string, error) {
+func (d *Database) AddToken(owner, client string) (string, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
@@ -158,7 +159,10 @@ func (d *Database) AddToken(owner string) (string, error) {
 		return "", errors.New("Could not generat token")
 	}
 
-	d.Tokens[token] = TokenData{owner}
+	d.Tokens[token] = TokenData{
+		Owner:  owner,
+		Client: client,
+	}
 
 	d.persist()
 

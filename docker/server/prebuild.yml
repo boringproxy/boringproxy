@@ -1,0 +1,4 @@
+version: '3.7'
+services:
+  boringproxy:
+    image: ghcr.io/wgrobler/boringproxy:latest

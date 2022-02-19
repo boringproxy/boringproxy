@@ -53,6 +53,7 @@ func Listen() {
 	allowHttp := flagSet.Bool("allow-http", false, "Allow unencrypted (HTTP) requests")
 	publicIp := flagSet.String("public-ip", "", "Public IP")
 	behindProxy := flagSet.Bool("behind-proxy", false, "Whether we're running behind another reverse proxy")
+	acmeUseStaging := flagSet.Bool("acme-use-staging", false, "Use ACME (ie Let's Encrypt) staging servers")
 	err := flagSet.Parse(os.Args[2:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: parsing flags: %s\n", os.Args[0], err)
@@ -99,7 +100,11 @@ func Listen() {
 	}
 	//certmagic.DefaultACME.DisableHTTPChallenge = true
 	//certmagic.DefaultACME.DisableTLSALPNChallenge = true
-	//certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
+
+	if *acmeUseStaging {
+		certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
+	}
+
 	certConfig := certmagic.NewDefault()
 
 	if *newAdminDomain != "" {
@@ -128,7 +133,7 @@ func Listen() {
 	users := db.GetUsers()
 	if len(users) == 0 {
 		db.AddUser("admin", true)
-		_, err := db.AddToken("admin")
+		_, err := db.AddToken("admin", "")
 		if err != nil {
 			log.Fatal("Failed to initialize admin user")
 		}
@@ -180,10 +185,15 @@ func Listen() {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		timestamp := time.Now().Format(time.RFC3339)
-		srcIp := strings.Split(r.RemoteAddr, ":")[0]
-		fmt.Println(fmt.Sprintf("%s %s %s %s %s", timestamp, srcIp, r.Method, r.Host, r.URL.Path))
 
-		// TODO: handle ipv6
+		remoteIp, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			w.WriteHeader(500)
+			io.WriteString(w, err.Error())
+			return
+		}
+		fmt.Println(fmt.Sprintf("%s %s %s %s %s", timestamp, remoteIp, r.Method, r.Host, r.URL.Path))
+
 		hostParts := strings.Split(r.Host, ":")
 		hostDomain := hostParts[0]
 
@@ -211,10 +221,15 @@ func Listen() {
 			domain := namedropTokenData.Scopes[0].Domain
 			host := namedropTokenData.Scopes[0].Host
 
+			recordType := "AAAA"
+			if IsIPv4(config.PublicIp) {
+				recordType = "A"
+			}
+
 			createRecordReq := namedrop.Record{
 				Domain: domain,
 				Host:   host,
-				Type:   "A",
+				Type:   recordType,
 				Value:  config.PublicIp,
 				TTL:    300,
 			}
@@ -274,7 +289,7 @@ func Listen() {
 				return
 			}
 
-			proxyRequest(w, r, tunnel, httpClient, tunnel.TunnelPort, *behindProxy)
+			proxyRequest(w, r, tunnel, httpClient, "localhost", tunnel.TunnelPort, *behindProxy)
 		}
 	})
 
@@ -329,7 +344,7 @@ func (p *Server) handleConnection(clientConn net.Conn) {
 
 	tunnel, exists := p.db.SelectLoadBalancedTunnel(clientHello.ServerName)
 
-	if exists && (tunnel.TlsTermination == "client" || tunnel.TlsTermination == "passthrough") {
+	if exists && (tunnel.TlsTermination == "client" || tunnel.TlsTermination == "passthrough") || tunnel.TlsTermination == "client-tls" {
 		p.passthroughRequest(passConn, tunnel)
 	} else {
 		p.httpListener.PassConn(passConn)
@@ -410,4 +425,9 @@ func printLoginInfo(token, adminDomain string) {
 	url := fmt.Sprintf("https://%s/login?access_token=%s", adminDomain, token)
 	log.Println(fmt.Sprintf("Admin login link: %s", url))
 	qrterminal.GenerateHalfBlock(url, qrterminal.L, os.Stdout)
+}
+
+// Taken from https://stackoverflow.com/a/48519490/943814
+func IsIPv4(address string) bool {
+	return strings.Count(address, ":") < 2
 }

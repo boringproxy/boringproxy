@@ -1,0 +1,14 @@
+{{ template "header.tmpl" . }}
+<h1>Add Token</h1>
+<form action="/tokens" method="POST">
+  <input type="hidden" name="owner" value="{{$.Owner}}">
+  <label for="token-client">Limit to client:</label>
+  <select id="token-client" name="client">
+    <option value="any">No</option>
+    {{range $clientName, $c := $.User.Clients}}
+    <option value="{{$clientName}}">{{$clientName}}</option>
+    {{end}}
+  </select>
+  <button class='button' type="submit">Submit</button>
+</form>
+{{ template "footer.tmpl" . }}

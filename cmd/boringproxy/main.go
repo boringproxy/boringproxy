@@ -47,9 +47,10 @@ func main() {
 		server := flagSet.String("server", "", "boringproxy server")
 		token := flagSet.String("token", "", "Access token")
 		name := flagSet.String("client-name", "", "Client name")
-		user := flagSet.String("user", "admin", "user")
+		user := flagSet.String("user", "", "user")
 		certDir := flagSet.String("cert-dir", "", "TLS cert directory")
 		acmeEmail := flagSet.String("acme-email", "", "Email for ACME (ie Let's Encrypt)")
+		acmeUseStaging := flagSet.Bool("acme-use-staging", false, "Use ACME (ie Let's Encrypt) staging servers")
 		dnsServer := flagSet.String("dns-server", "", "Custom DNS server")
 		behindProxy := flagSet.Bool("behind-proxy", false, "Whether we're running behind another reverse proxy")
 
@@ -66,19 +67,16 @@ func main() {
 			fail("-token is required")
 		}
 
-		if *name == "" {
-			fail("-client-name is required")
-		}
-
 		config := &boringproxy.ClientConfig{
-			ServerAddr:  *server,
-			Token:       *token,
-			ClientName:  *name,
-			User:        *user,
-			CertDir:     *certDir,
-			AcmeEmail:   *acmeEmail,
-			DnsServer:   *dnsServer,
-			BehindProxy: *behindProxy,
+			ServerAddr:     *server,
+			Token:          *token,
+			ClientName:     *name,
+			User:           *user,
+			CertDir:        *certDir,
+			AcmeEmail:      *acmeEmail,
+			AcmeUseStaging: *acmeUseStaging,
+			DnsServer:      *dnsServer,
+			BehindProxy:    *behindProxy,
 		}
 
 		ctx := context.Background()

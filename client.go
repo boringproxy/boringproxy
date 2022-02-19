@@ -34,14 +34,15 @@ type Client struct {
 }
 
 type ClientConfig struct {
-	ServerAddr  string `json:"serverAddr,omitempty"`
-	Token       string `json:"token,omitempty"`
-	ClientName  string `json:"clientName,omitempty"`
-	User        string `json:"user,omitempty"`
-	CertDir     string `json:"certDir,omitempty"`
-	AcmeEmail   string `json:"acmeEmail,omitempty"`
-	DnsServer   string `json:"dnsServer,omitempty"`
-	BehindProxy bool   `json:"behindProxy,omitempty"`
+	ServerAddr     string `json:"serverAddr,omitempty"`
+	Token          string `json:"token,omitempty"`
+	ClientName     string `json:"clientName,omitempty"`
+	User           string `json:"user,omitempty"`
+	CertDir        string `json:"certDir,omitempty"`
+	AcmeEmail      string `json:"acmeEmail,omitempty"`
+	AcmeUseStaging bool   `json:"acmeUseStaging,omitempty"`
+	DnsServer      string `json:"dnsServer,omitempty"`
+	BehindProxy    bool   `json:"behindProxy,omitempty"`
 }
 
 func NewClient(config *ClientConfig) (*Client, error) {
@@ -81,6 +82,10 @@ func NewClient(config *ClientConfig) (*Client, error) {
 		certmagic.DefaultACME.Email = config.AcmeEmail
 	}
 
+	if config.AcmeUseStaging {
+		certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
+	}
+
 	certConfig := certmagic.NewDefault()
 
 	httpClient := &http.Client{
@@ -110,8 +115,12 @@ func NewClient(config *ClientConfig) (*Client, error) {
 
 func (c *Client) Run(ctx context.Context) error {
 
-	url := fmt.Sprintf("https://%s/api/users/%s/clients/%s", c.server, c.user, c.clientName)
-	clientReq, err := http.NewRequest("PUT", url, nil)
+	url := fmt.Sprintf("https://%s/api/clients/?client-name=%s", c.server, c.clientName)
+	if c.user != "" {
+		url = url + "&user=" + c.user
+	}
+
+	clientReq, err := http.NewRequest("POST", url, nil)
 	if err != nil {
 		return errors.New(fmt.Sprintf("Failed to create request for URL %s", url))
 	}
@@ -131,7 +140,7 @@ func (c *Client) Run(ctx context.Context) error {
 		}
 
 		msg := string(body)
-		return errors.New(fmt.Sprintf("Failed to create client. Are the user (%s) and token correct? HTTP Status code: %d. Message: %s", c.user, resp.StatusCode, msg))
+		return errors.New(fmt.Sprintf("Failed to create client. Are the user ('%s') and token correct? HTTP Status code: %d. Message: %s", c.user, resp.StatusCode, msg))
 	}
 
 	for {
@@ -297,7 +306,7 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 		httpMux := http.NewServeMux()
 
 		httpMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			proxyRequest(w, r, tunnel, c.httpClient, tunnel.ClientPort, c.behindProxy)
+			proxyRequest(w, r, tunnel, c.httpClient, tunnel.ClientAddress, tunnel.ClientPort, c.behindProxy)
 		})
 
 		httpServer := &http.Server{
@@ -310,15 +319,19 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 		// boringproxy server does.
 		go httpServer.Serve(tlsListener)
 
-		// TODO: There's still quite a bit of duplication with what the server does. Could we
-		// encapsulate it into a type?
-		err = c.certConfig.ManageSync(ctx, []string{tunnel.Domain})
-		if err != nil {
-			log.Println("CertMagic error at startup")
-			log.Println(err)
-		}
-
 	} else {
+
+		if tunnel.TlsTermination == "client-tls" {
+			tlsConfig := &tls.Config{
+				GetCertificate: c.certConfig.GetCertificate,
+			}
+
+			tlsConfig.NextProtos = append([]string{"http/1.1", "h2", "acme-tls/1"}, tlsConfig.NextProtos...)
+
+			tlsListener := tls.NewListener(listener, tlsConfig)
+
+			listener = tlsListener
+		}
 
 		go func() {
 			for {
@@ -335,6 +348,14 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 				go c.handleConnection(conn, tunnel.ClientAddress, tunnel.ClientPort)
 			}
 		}()
+	}
+
+	// TODO: There's still quite a bit of duplication with what the server does. Could we
+	// encapsulate it into a type?
+	err = c.certConfig.ManageSync(ctx, []string{tunnel.Domain})
+	if err != nil {
+		log.Println("CertMagic error at startup")
+		log.Println(err)
 	}
 
 	<-ctx.Done()
