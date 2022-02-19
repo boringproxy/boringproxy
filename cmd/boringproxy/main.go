@@ -67,10 +67,6 @@ func main() {
 			fail("-token is required")
 		}
 
-		if *name == "" {
-			fail("-client-name is required")
-		}
-
 		config := &boringproxy.ClientConfig{
 			ServerAddr:     *server,
 			Token:          *token,
