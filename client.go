@@ -140,7 +140,7 @@ func (c *Client) Run(ctx context.Context) error {
 		}
 
 		msg := string(body)
-		return errors.New(fmt.Sprintf("Failed to create client. Are the user (%s) and token correct? HTTP Status code: %d. Message: %s", c.user, resp.StatusCode, msg))
+		return errors.New(fmt.Sprintf("Failed to create client. Are the user ('%s') and token correct? HTTP Status code: %d. Message: %s", c.user, resp.StatusCode, msg))
 	}
 
 	for {

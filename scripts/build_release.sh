@@ -2,7 +2,7 @@
 
 version=$(git describe --tags)
 
-./scripts/generate_logo.sh
+cp default_logo.png logo.png
 
 cd ./cmd/boringproxy
 
