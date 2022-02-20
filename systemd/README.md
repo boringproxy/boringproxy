@@ -147,7 +147,7 @@ Installing the service on a boringproxy client
 
 Copy service file from GitHub
 ```bash
-wget https://raw.githubusercontent.com/boringproxy/boringproxy/master/systemd/boringproxy-client%40.service
+wget https://raw.githubusercontent.com/boringproxy/boringproxy/master/systemd/boringproxy-client.service
 ```
 
 ### Edit service file to include your setup information
@@ -180,7 +180,7 @@ Edit the service file and change the following:
 Copy service file to */etc/systemd/system/*
 *You can change your-server-name to any name you want to identify the server. This is useful when connecting your client device to multiple servers using different client services.*
 ```bash
-mv ./boringproxy-client@.service /etc/systemd/system/boringproxy-client.service
+mv ./boringproxy-client.service /etc/systemd/system/boringproxy-client.service
 ```
 Reload the service files to include the new service.
 ```bash
