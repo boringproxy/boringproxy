@@ -2,7 +2,7 @@
 
 A service is a program that runs in the background outside the interactive control of system users. Services can also be automatically started on boot.
 
-*The systemd service instructions were writen for Linux*
+*The systemd service instructions were written for Linux*
 
 # Prerequisites
 
@@ -11,8 +11,15 @@ The folling steps assume that boringproxy is already installed. If you haven't i
 
 Boringproxy needs to be installed in **/usr/local/bin/boringproxy** for the default service file to work. If you want to use another path, this can be changed in the service file.
 
+Remember to allow binding to ports 80 and 443 for non root users using setcap:
+
+```bash
+setcap cap_net_bind_service=+ep /usr/local/bin/boringproxy
+```
+
+
 ## Create boringproxy user & group
-The service will be run as user *boringproxy*. Runnning the service as *root* is not recomended.
+The service will be run as user *boringproxy*. Running the service as *root* is not recommended.
 
 Add user *boringproxy*
 ```bash
@@ -50,12 +57,10 @@ wget https://raw.githubusercontent.com/boringproxy/boringproxy/master/systemd/bo
 
 #### Working Directory
 
-Default working directory is */opt/boringproxy/*, you can change this in the service file to another directory.
+Default working directory is */home/boringproxy/*, you can change this in the service file to another directory.
 
-Create the directory if it does not alreay exists
-```bash
-mkdir -p /opt/boringproxy/
-```
+The default directory will be created as part of the user add command. If you choose another directory make sure it exists
+
 #### Boringproxy executable file path
 
 Default location for your boringproxy executable file is */usr/local/bin/boringproxy*, you can change this in the service file to another path.
@@ -90,7 +95,7 @@ To start the server, you will need to change the current directory to your Worki
 
 If no changes were made to the default paths, change the *admin-domain* in the command below to your *admin-domain* and enter your email address when prompted
 ```bash
-runuser -l boringproxy -c 'cd /opt/boringproxy; /usr/local/bin/boringproxy server -admin-domain bp.example.com'
+runuser -l boringproxy -c 'cd /home/boringproxy; /usr/local/bin/boringproxy server -admin-domain bp.example.com'
 ```
 
 If your server was successfully started, close the running process and start it again using the service.
@@ -142,19 +147,17 @@ Installing the service on a boringproxy client
 
 Copy service file from GitHub
 ```bash
-wget https://raw.githubusercontent.com/boringproxy/boringproxy/master/systemd/boringproxy-client%40.service
+wget https://raw.githubusercontent.com/boringproxy/boringproxy/master/systemd/boringproxy-client.service
 ```
 
 ### Edit service file to include your setup information
 
 #### Working Directory
 
-Default working directory is */opt/boringproxy/*, you can change this in the service file to another directory.
+Default working directory is */home/boringproxy/*, you can change this in the service file to another directory.
 
-Create the directory if it does not alreay exists
-```bash
-mkdir -p /opt/boringproxy/
-```
+The default directory will be created as part of the user add command. If you choose another directory make sure it exists
+
 #### Boringproxy executable file path
 
 Default location for your boringproxy executable file is */usr/local/bin/boringproxy*, you can change this in the service file to another path.
@@ -166,17 +169,18 @@ mv ./boringproxy /usr/local/bin/boringproxy
 
 #### ExecStart
 
-Edit the service file and change the folowing:
+Edit the service file and change the following:
 - **bp.example.com** to your *admin-domain*
 - **your-bp-server-token** to your user token
+- **your-email-address** your email address to register with Let's Encrypt
 
 
 ### Install service file to systemd
 
 Copy service file to */etc/systemd/system/*
-*You can change your-server-name to any name you want to identify the server. This is usefull when connecting your client device to multiple servers using different client services.*
+*You can change your-server-name to any name you want to identify the server. This is useful when connecting your client device to multiple servers using different client services.*
 ```bash
-mv ./boringproxy-client@.service /etc/systemd/system/boringproxy-client@your-server-name.service
+mv ./boringproxy-client.service /etc/systemd/system/boringproxy-client.service
 ```
 Reload the service files to include the new service.
 ```bash
@@ -189,20 +193,20 @@ After the above steps are completed, you can execute the service by using the co
 
 Start your service
 ```bash
-systemctl start boringproxy-client@your-server-name.service
+systemctl start boringproxy-client.service
 ```
 
 To check the status of your service
 ```bash
-systemctl status boringproxy-client@your-server-name.service
+systemctl status boringproxy-client.service
 ```
 
 To enable your service on every reboot
 ```bash
-systemctl enable boringproxy-client@your-server-name.service
+systemctl enable boringproxy-client.service
 ```
 
 To disable your service on every reboot
 ```bash
-systemctl disable boringproxy-client@your-server-name.service
+systemctl disable boringproxy-client.service
 ```

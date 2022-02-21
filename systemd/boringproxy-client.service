@@ -1,0 +1,17 @@
+[Unit]
+Description=boringproxy client
+After=network.target
+
+[Service]
+PrivateTmp=true
+Type=simple
+User=boringproxy
+Group=boringproxy
+WorkingDirectory=/home/boringproxy/
+ExecStart=/usr/local/bin/boringproxy client \
+	-server bp.example.com \
+	-token your-bp-server-token \
+	-acme-email your-email-address
+
+[Install]
+WantedBy=multi-user.target

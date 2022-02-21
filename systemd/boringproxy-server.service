@@ -7,8 +7,9 @@ PrivateTmp=true
 Type=simple
 User=boringproxy
 Group=boringproxy
-WorkingDirectory=/opt/boringproxy/
-ExecStart=/usr/local/bin/boringproxy server -admin-domain bp.example.com
+WorkingDirectory=/home/boringproxy/
+ExecStart=/usr/local/bin/boringproxy server \
+	-admin-domain bp.example.com
 
 [Install]
 WantedBy=multi-user.target
