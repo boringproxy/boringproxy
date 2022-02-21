@@ -121,12 +121,7 @@ func (m *TunnelManager) DeleteTunnel(domain string) error {
 
 	m.db.DeleteTunnel(domain)
 
-	// Fix for running in Docker scratch image
-	homeDir := m.user.HomeDir
-	if homeDir == "/" {
-		homeDir = ""
-	}
-	authKeysPath := fmt.Sprintf("%s/.ssh/authorized_keys", homeDir)
+	authKeysPath := fmt.Sprintf("%s/.ssh/authorized_keys", m.user.HomeDir)
 
 	akBytes, err := ioutil.ReadFile(authKeysPath)
 	if err != nil {
@@ -171,21 +166,7 @@ func (m *TunnelManager) GetPort(domain string) (int, error) {
 
 func (m *TunnelManager) addToAuthorizedKeys(domain string, port int, allowExternalTcp bool) (string, error) {
 
-	// Fix for running in Docker scratch image
-	homeDir := m.user.HomeDir
-	if homeDir == "/" {
-		homeDir = ""
-	}
-	authKeysPath := fmt.Sprintf("%s/.ssh/authorized_keys", homeDir)
-	authKeysParentPath := strings.TrimSuffix(authKeysPath, "/authorized_keys")
-
-	// Make sure the path exists (os.O_CREATE doesn't create parent directories)
-	if _, err := os.Stat(authKeysParentPath); os.IsNotExist(err) {
-		err = os.MkdirAll(authKeysParentPath, 0600)
-		if err != nil {
-			return "", err
-		}
-	}
+	authKeysPath := fmt.Sprintf("%s/.ssh/authorized_keys", m.user.HomeDir)
 
 	akFile, err := os.OpenFile(authKeysPath, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
