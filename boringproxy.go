@@ -19,6 +19,7 @@ import (
 	"github.com/mdp/qrterminal/v3"
 
 	"github.com/takingnames/namedrop-go"
+	"github.com/takingnames/waygate-go"
 )
 
 type Config struct {
@@ -88,6 +89,8 @@ func Listen() {
 	if err != nil {
 		fmt.Printf("WARNING: Failed to access %s:%d from the internet\n", ip, *httpsPort)
 	}
+
+	waygateServer := waygate.NewServer(db)
 
 	autoCerts := true
 	if *httpPort != 80 || *httpsPort != 443 {
@@ -182,6 +185,8 @@ func Listen() {
 		NextProtos:     []string{"h2", "acme-tls/1"},
 	}
 	tlsListener := tls.NewListener(httpListener, tlsConfig)
+
+	http.Handle("/waygate/", http.StripPrefix("/waygate", waygateServer))
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		timestamp := time.Now().Format(time.RFC3339)
