@@ -11,8 +11,6 @@ import (
 	"github.com/takingnames/namedrop-go"
 )
 
-var DBFolderPath string
-
 type Database struct {
 	AdminDomain string                         `json:"admin_domain"`
 	Tokens      map[string]TokenData           `json:"tokens"`
@@ -64,13 +62,11 @@ type Tunnel struct {
 	Used         bool
 }
 
-func NewDatabase(path string) (*Database, error) {
+func NewDatabase() (*Database, error) {
 
-	DBFolderPath = path
-
-	dbJson, err := ioutil.ReadFile(DBFolderPath + "boringproxy_db.json")
+	dbJson, err := ioutil.ReadFile("boringproxy_db.json")
 	if err != nil {
-		log.Printf("failed reading %sboringproxy_db.json\n", DBFolderPath)
+		log.Println("failed reading boringproxy_db.json")
 		dbJson = []byte("{}")
 	}
 
@@ -363,5 +359,5 @@ func (d *Database) DeleteUser(username string) {
 }
 
 func (d *Database) persist() {
-	saveJson(d, DBFolderPath+"boringproxy_db.json")
+	saveJson(d, "boringproxy_db.json")
 }
