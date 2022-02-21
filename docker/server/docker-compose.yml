@@ -8,7 +8,10 @@ services:
       - "443:443"
     volumes:
       - data:/opt/boringproxy/
-    command: ["server", "-admin-domain", "bp.example.com"]
+    command: ["server", "-admin-domain", "bp.example.com", "-cert-dir", "/certmagic"]
+    environment:
+      USER: "root"
 
 volumes:
   data:
+  certmagic:
