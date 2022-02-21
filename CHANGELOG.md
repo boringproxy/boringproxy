@@ -1,4 +1,4 @@
-# v0.9.0
+# v0.9.1
 
 * Fix bug where client doesn't automatically detect user because the client
   defaulted to "admin" when no user was provided.
