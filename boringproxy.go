@@ -47,6 +47,7 @@ func Listen() {
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	newAdminDomain := flagSet.String("admin-domain", "", "Admin Domain")
 	sshServerPort := flagSet.Int("ssh-server-port", 22, "SSH Server Port")
+	dbDir := flagSet.String("db-dir", "", "Database file directory")
 	certDir := flagSet.String("cert-dir", "", "TLS cert directory")
 	printLogin := flagSet.Bool("print-login", false, "Prints admin login information")
 	httpPort := flagSet.Int("http-port", 80, "HTTP (insecure) port")
@@ -54,6 +55,7 @@ func Listen() {
 	allowHttp := flagSet.Bool("allow-http", false, "Allow unencrypted (HTTP) requests")
 	publicIp := flagSet.String("public-ip", "", "Public IP")
 	behindProxy := flagSet.Bool("behind-proxy", false, "Whether we're running behind another reverse proxy")
+	acmeEmail := flagSet.String("acme-email", "", "Email for ACME (ie Let's Encrypt)")
 	acmeUseStaging := flagSet.Bool("acme-use-staging", false, "Use ACME (ie Let's Encrypt) staging servers")
 	err := flagSet.Parse(os.Args[2:])
 	if err != nil {
@@ -62,7 +64,7 @@ func Listen() {
 
 	log.Println("Starting up")
 
-	db, err := NewDatabase()
+	db, err := NewDatabase(*dbDir)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -103,6 +105,10 @@ func Listen() {
 	}
 	//certmagic.DefaultACME.DisableHTTPChallenge = true
 	//certmagic.DefaultACME.DisableTLSALPNChallenge = true
+
+	if *acmeEmail != "" {
+		certmagic.DefaultACME.Email = *acmeEmail
+	}
 
 	if *acmeUseStaging {
 		certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
