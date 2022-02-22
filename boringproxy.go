@@ -46,6 +46,7 @@ func Listen() {
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	newAdminDomain := flagSet.String("admin-domain", "", "Admin Domain")
 	sshServerPort := flagSet.Int("ssh-server-port", 22, "SSH Server Port")
+	dbDir := flagSet.String("db-dir", "", "Database file directory")
 	certDir := flagSet.String("cert-dir", "", "TLS cert directory")
 	printLogin := flagSet.Bool("print-login", false, "Prints admin login information")
 	httpPort := flagSet.Int("http-port", 80, "HTTP (insecure) port")
@@ -62,7 +63,7 @@ func Listen() {
 
 	log.Println("Starting up")
 
-	db, err := NewDatabase()
+	db, err := NewDatabase(*dbDir)
 	if err != nil {
 		log.Fatal(err)
 	}
