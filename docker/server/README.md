@@ -4,6 +4,9 @@
 
 Edit docker-compose.yml and change the following under **commands** for service **boringproxy**
 - bp.example.com: your admin domain
+- your-email-address: the email address to register with Let's Encrypt
+
+***Since the -accept-ca-terms flag is set in the compose file, this will automatically accept terms and conditions of Let's Encrypt.***
 
 ## Build image from source and run server in docker
 You can build the image from source. This requires that you clone the GitHub repo and start docker using the compose command below:

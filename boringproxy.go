@@ -57,6 +57,7 @@ func Listen() {
 	behindProxy := flagSet.Bool("behind-proxy", false, "Whether we're running behind another reverse proxy")
 	acmeEmail := flagSet.String("acme-email", "", "Email for ACME (ie Let's Encrypt)")
 	acmeUseStaging := flagSet.Bool("acme-use-staging", false, "Use ACME (ie Let's Encrypt) staging servers")
+	acceptCATerms := flagSet.Bool("accept-ca-terms", false, "Automatically accept CA terms")
 	err := flagSet.Parse(os.Args[2:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: parsing flags: %s\n", os.Args[0], err)
@@ -108,6 +109,11 @@ func Listen() {
 
 	if *acmeEmail != "" {
 		certmagic.DefaultACME.Email = *acmeEmail
+	}
+
+	if *acceptCATerms {
+		certmagic.DefaultACME.Agreed  = true
+		log.Print(fmt.Sprintf("Automatic agreement to CA terms with email (%s)", *acmeEmail))
 	}
 
 	if *acmeUseStaging {
