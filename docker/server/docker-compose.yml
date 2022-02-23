@@ -7,11 +7,13 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - data:/opt/boringproxy/
-    command: ["server", "-admin-domain", "bp.example.com", "-cert-dir", "/certmagic"]
+      - storage:/storage/
+      - ssh://.ssh
+      - /etc/ssl/certs/:/etc/ssl/certs/:ro
+    command: ["server", "-admin-domain", "bp.example.com", "-acme-email", "your-email-address", "-accept-ca-terms", "-cert-dir", "/storage/certmagic", "-print-login"]
     environment:
       USER: "root"
 
 volumes:
-  data:
-  certmagic:
+  storage:
+  ssh:

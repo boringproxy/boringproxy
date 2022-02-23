@@ -17,7 +17,6 @@ RUN if [[ "ORIGIN" == 'remote' ]] ; then git clone --depth 1 --branch "${BRANCH}
 COPY go.* ./
 RUN go mod download
 COPY . .
-RUN export VERSION='2'
 
 RUN cd cmd/boringproxy && CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} \
 	go build -ldflags "-X main.Version=${VERSION}" \
@@ -25,6 +24,7 @@ RUN cd cmd/boringproxy && CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} \
 
 FROM scratch
 EXPOSE 80 443
+WORKDIR /storage
 
 COPY --from=builder /build/cmd/boringproxy/boringproxy /
 
