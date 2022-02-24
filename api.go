@@ -378,6 +378,22 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 		return nil, errors.New("Invalid tls-termination parameter")
 	}
 
+	sshServerAddr := a.db.GetAdminDomain()
+	sshServerAddrParam := params.Get("ssh-server-addr")
+	if sshServerAddrParam != "" {
+		sshServerAddr = sshServerAddrParam
+	}
+
+	sshServerPort := a.config.SshServerPort
+	sshServerPortParam := params.Get("ssh-server-port")
+	if sshServerPortParam != "" {
+		var err error
+		sshServerPort, err = strconv.Atoi(sshServerPortParam)
+		if err != nil {
+			return nil, errors.New("Invalid ssh-server-port parameter")
+		}
+	}
+
 	request := Tunnel{
 		Domain:           domain,
 		Owner:            owner,
@@ -389,6 +405,8 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 		AuthUsername:     username,
 		AuthPassword:     password,
 		TlsTermination:   tlsTerm,
+		ServerAddress:    sshServerAddr,
+		ServerPort:       sshServerPort,
 	}
 
 	tunnel, err := a.tunMan.RequestCreateTunnel(request)
