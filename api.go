@@ -374,7 +374,7 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 	}
 
 	tlsTerm := params.Get("tls-termination")
-	if tlsTerm != "server" && tlsTerm != "client" && tlsTerm != "passthrough" && tlsTerm != "client-tls" {
+	if tlsTerm != "server" && tlsTerm != "client" && tlsTerm != "passthrough" && tlsTerm != "client-tls" && tlsTerm != "server-tls" {
 		return nil, errors.New("Invalid tls-termination parameter")
 	}
 
