@@ -57,6 +57,7 @@ func Listen() {
 	acmeEmail := flagSet.String("acme-email", "", "Email for ACME (ie Let's Encrypt)")
 	acmeUseStaging := flagSet.Bool("acme-use-staging", false, "Use ACME (ie Let's Encrypt) staging servers")
 	acceptCATerms := flagSet.Bool("accept-ca-terms", false, "Automatically accept CA terms")
+	customCA := flagSet.String("custom-ca", "", "Custom ACME CA")
 	err := flagSet.Parse(os.Args[2:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: parsing flags: %s\n", os.Args[0], err)
@@ -115,6 +116,12 @@ func Listen() {
 
 	if *acmeUseStaging {
 		certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
+	}
+
+	if *customCA != "" {
+		//	https://smallstep.com/blog/private-acme-server/
+		//	example: https://<domain>:<port>/acme/acme/directory
+		certmagic.DefaultACME.CA = *customCA
 	}
 
 	certConfig := certmagic.NewDefault()
