@@ -98,8 +98,6 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 		return Tunnel{}, err
 	}
 
-	tunReq.ServerAddress = m.db.GetAdminDomain()
-	tunReq.ServerPort = m.config.SshServerPort
 	tunReq.ServerPublicKey = ""
 	tunReq.Username = m.user.Username
 	tunReq.TunnelPrivateKey = privKey

@@ -276,6 +276,7 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 	}
 
 	sshHost := fmt.Sprintf("%s:%d", tunnel.ServerAddress, tunnel.ServerPort)
+	fmt.Println(sshHost)
 	client, err := ssh.Dial("tcp", sshHost, config)
 	if err != nil {
 		return errors.New(fmt.Sprintf("Failed to dial: ", err))
