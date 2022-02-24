@@ -153,10 +153,8 @@ func Listen() {
 	}
 
 	if *printLogin {
-		tokens := db.GetTokens()
-
-		for token, tokenData := range tokens {
-			if tokenData.Owner == "admin" {
+		for token, tokenData := range db.GetTokens() {
+			if tokenData.Owner == "admin" && tokenData.Client == "" {
 				printLoginInfo(token, db.GetAdminDomain())
 				break
 			}
