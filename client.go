@@ -345,17 +345,30 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 					break
 					//continue
 				}
+
+				// If ALPN type is acme-tls/1, certmagic will do its thing under the hood, and the
+				// connection should not be used.
+				if tlsConn, ok := conn.(*tls.Conn); ok {
+					tlsConn.Handshake()
+					if tlsConn.ConnectionState().NegotiatedProtocol == "acme-tls/1" {
+						tlsConn.Close()
+						continue
+					}
+				}
+
 				go c.handleConnection(conn, tunnel.ClientAddress, tunnel.ClientPort)
 			}
 		}()
 	}
 
-	// TODO: There's still quite a bit of duplication with what the server does. Could we
-	// encapsulate it into a type?
-	err = c.certConfig.ManageSync(ctx, []string{tunnel.Domain})
-	if err != nil {
-		log.Println("CertMagic error at startup")
-		log.Println(err)
+	if tunnel.TlsTermination != "passthrough" {
+		// TODO: There's still quite a bit of duplication with what the server does. Could we
+		// encapsulate it into a type?
+		err = c.certConfig.ManageSync(ctx, []string{tunnel.Domain})
+		if err != nil {
+			log.Println("CertMagic error at startup")
+			log.Println(err)
+		}
 	}
 
 	<-ctx.Done()

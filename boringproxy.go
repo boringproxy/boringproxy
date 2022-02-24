@@ -109,7 +109,7 @@ func Listen() {
 	}
 
 	if *acceptCATerms {
-		certmagic.DefaultACME.Agreed  = true
+		certmagic.DefaultACME.Agreed = true
 		log.Print(fmt.Sprintf("Automatic agreement to CA terms with email (%s)", *acmeEmail))
 	}
 
