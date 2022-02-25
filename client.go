@@ -6,12 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -321,18 +319,6 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 
 	} else {
 
-		if tunnel.TlsTermination == "client-tls" {
-			tlsConfig := &tls.Config{
-				GetCertificate: c.certConfig.GetCertificate,
-			}
-
-			tlsConfig.NextProtos = append([]string{"http/1.1", "h2", "acme-tls/1"}, tlsConfig.NextProtos...)
-
-			tlsListener := tls.NewListener(listener, tlsConfig)
-
-			listener = tlsListener
-		}
-
 		go func() {
 			for {
 				conn, err := listener.Accept()
@@ -345,91 +331,32 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 					break
 					//continue
 				}
-				go c.handleConnection(conn, tunnel.ClientAddress, tunnel.ClientPort)
+
+				var useTls bool
+				if tunnel.TlsTermination == "client-tls" {
+					useTls = true
+				} else {
+					useTls = false
+				}
+
+				go ProxyTcp(conn, tunnel.ClientAddress, tunnel.ClientPort, useTls, c.certConfig)
 			}
 		}()
 	}
 
-	// TODO: There's still quite a bit of duplication with what the server does. Could we
-	// encapsulate it into a type?
-	err = c.certConfig.ManageSync(ctx, []string{tunnel.Domain})
-	if err != nil {
-		log.Println("CertMagic error at startup")
-		log.Println(err)
+	if tunnel.TlsTermination != "passthrough" {
+		// TODO: There's still quite a bit of duplication with what the server does. Could we
+		// encapsulate it into a type?
+		err = c.certConfig.ManageSync(ctx, []string{tunnel.Domain})
+		if err != nil {
+			log.Println("CertMagic error at startup")
+			log.Println(err)
+		}
 	}
 
 	<-ctx.Done()
 
 	return nil
-}
-
-func (c *Client) handleConnection(conn net.Conn, upstreamAddr string, port int) {
-
-	defer conn.Close()
-
-	useTls := false
-	addr := upstreamAddr
-
-	if strings.HasPrefix(upstreamAddr, "https://") {
-		addr = upstreamAddr[len("https://"):]
-		useTls = true
-	}
-
-	var upstreamConn net.Conn
-	var err error
-
-	if useTls {
-		tlsConfig := &tls.Config{
-			InsecureSkipVerify: true,
-		}
-		upstreamConn, err = tls.Dial("tcp", fmt.Sprintf("%s:%d", addr, port), tlsConfig)
-	} else {
-		upstreamConn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", addr, port))
-	}
-
-	if err != nil {
-		log.Print(err)
-		return
-	}
-
-	defer upstreamConn.Close()
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	// Copy request to upstream
-	go func() {
-		_, err := io.Copy(upstreamConn, conn)
-		if err != nil {
-			log.Println(err.Error())
-		}
-
-		if c, ok := upstreamConn.(*net.TCPConn); ok {
-			c.CloseWrite()
-		} else if c, ok := upstreamConn.(*tls.Conn); ok {
-			c.CloseWrite()
-		}
-
-		wg.Done()
-	}()
-
-	// Copy response to downstream
-	go func() {
-		_, err := io.Copy(conn, upstreamConn)
-		//conn.(*net.TCPConn).CloseWrite()
-		if err != nil {
-			log.Println(err.Error())
-		}
-		// TODO: I added this to fix a bug where the copy to
-		// upstreamConn was never closing, even though the copy to
-		// conn was. It seems related to persistent connections going
-		// idle and upstream closing the connection. I'm a bit worried
-		// this might not be thread safe.
-		conn.Close()
-		wg.Done()
-	}()
-
-	wg.Wait()
 }
 
 func printJson(data interface{}) {

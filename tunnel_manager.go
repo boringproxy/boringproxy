@@ -36,7 +36,7 @@ func NewTunnelManager(config *Config, db *Database, certConfig *certmagic.Config
 
 	if config.autoCerts {
 		for _, tun := range db.GetTunnels() {
-			if tun.TlsTermination == "server" {
+			if tun.TlsTermination == "server" || tun.TlsTermination == "server-tls" {
 				err = certConfig.ManageSync(context.Background(), []string{tun.Domain})
 				if err != nil {
 					log.Println("CertMagic error at startup")
@@ -64,7 +64,7 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 		return Tunnel{}, errors.New("Owner required")
 	}
 
-	if tunReq.TlsTermination == "server" {
+	if tunReq.TlsTermination == "server" || tunReq.TlsTermination == "server-tls" {
 		if m.config.autoCerts {
 			err := m.certConfig.ManageSync(context.Background(), []string{tunReq.Domain})
 			if err != nil {
@@ -99,8 +99,6 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 		return Tunnel{}, err
 	}
 
-	tunReq.ServerAddress = m.db.GetAdminDomain()
-	tunReq.ServerPort = m.config.SshServerPort
 	tunReq.ServerPublicKey = ""
 	tunReq.Username = m.user.Username
 	tunReq.TunnelPrivateKey = privKey

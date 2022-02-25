@@ -46,6 +46,7 @@ func Listen() {
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	newAdminDomain := flagSet.String("admin-domain", "", "Admin Domain")
 	sshServerPort := flagSet.Int("ssh-server-port", 22, "SSH Server Port")
+	dbDir := flagSet.String("db-dir", "", "Database file directory")
 	certDir := flagSet.String("cert-dir", "", "TLS cert directory")
 	printLogin := flagSet.Bool("print-login", false, "Prints admin login information")
 	httpPort := flagSet.Int("http-port", 80, "HTTP (insecure) port")
@@ -53,7 +54,9 @@ func Listen() {
 	allowHttp := flagSet.Bool("allow-http", false, "Allow unencrypted (HTTP) requests")
 	publicIp := flagSet.String("public-ip", "", "Public IP")
 	behindProxy := flagSet.Bool("behind-proxy", false, "Whether we're running behind another reverse proxy")
+	acmeEmail := flagSet.String("acme-email", "", "Email for ACME (ie Let's Encrypt)")
 	acmeUseStaging := flagSet.Bool("acme-use-staging", false, "Use ACME (ie Let's Encrypt) staging servers")
+	acceptCATerms := flagSet.Bool("accept-ca-terms", false, "Automatically accept CA terms")
 	err := flagSet.Parse(os.Args[2:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: parsing flags: %s\n", os.Args[0], err)
@@ -61,7 +64,7 @@ func Listen() {
 
 	log.Println("Starting up")
 
-	db, err := NewDatabase()
+	db, err := NewDatabase(*dbDir)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -100,6 +103,15 @@ func Listen() {
 	}
 	//certmagic.DefaultACME.DisableHTTPChallenge = true
 	//certmagic.DefaultACME.DisableTLSALPNChallenge = true
+
+	if *acmeEmail != "" {
+		certmagic.DefaultACME.Email = *acmeEmail
+	}
+
+	if *acceptCATerms {
+		certmagic.DefaultACME.Agreed = true
+		log.Print(fmt.Sprintf("Automatic agreement to CA terms with email (%s)", *acmeEmail))
+	}
 
 	if *acmeUseStaging {
 		certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
@@ -328,11 +340,11 @@ func Listen() {
 			continue
 		}
 
-		go p.handleConnection(conn)
+		go p.handleConnection(conn, certConfig)
 	}
 }
 
-func (p *Server) handleConnection(clientConn net.Conn) {
+func (p *Server) handleConnection(clientConn net.Conn, certConfig *certmagic.Config) {
 
 	clientHello, clientReader, err := peekClientHello(clientConn)
 	if err != nil {
@@ -348,21 +360,31 @@ func (p *Server) handleConnection(clientConn net.Conn) {
 			log.Println("Retrying...")
 		}
 
-		tunnel, exists := p.db.SelectLoadBalancedTunnel(clientHello.ServerName)
-		if exists && (tunnel.TlsTermination == "client" || tunnel.TlsTermination == "passthrough") || tunnel.TlsTermination == "client-tls" {
-			err = p.passthroughRequest(passConn, tunnel)
+	tunnel, exists := p.db.SelectLoadBalancedTunnel(clientHello.ServerName)
+	if exists && (tunnel.TlsTermination == "client" || tunnel.TlsTermination == "passthrough") || tunnel.TlsTermination == "client-tls" {
+		err = p.passthroughRequest(passConn, tunnel)
 
-			if err != nil {
-				log.Printf("Tunnel %s|%s connection failed\n", tunnel.Domain, tunnel.ClientName)
-				retry++
-				continue
-			} else {
-				break
-			}
+		if err != nil {
+			log.Printf("Tunnel %s|%s connection failed\n", tunnel.Domain, tunnel.ClientName)
+			retry++
+			continue
 		} else {
-			p.httpListener.PassConn(passConn)
 			break
 		}
+	} else if exists && tunnel.TlsTermination == "server-tls" {
+		useTls := true
+		err := ProxyTcp(passConn, "127.0.0.1", tunnel.TunnelPort, useTls, certConfig)
+		if err != nil {
+			log.Println(err.Error())
+			log.Printf("Tunnel %s|%s connection failed\n", tunnel.Domain, tunnel.ClientName)
+			retry++
+			continue
+		} else {
+			break
+		}
+	} else {
+		p.httpListener.PassConn(passConn)
+		break
 	}
 }
 
