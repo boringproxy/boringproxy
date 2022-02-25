@@ -155,7 +155,7 @@ func Listen() {
 	if *printLogin {
 		for token, tokenData := range db.GetTokens() {
 			if tokenData.Owner == "admin" && tokenData.Client == "" {
-				printLoginInfo(token, db.GetAdminDomain())
+				printLoginInfo(token, db.GetAdminDomain(), *httpsPort)
 				break
 			}
 		}
@@ -437,9 +437,13 @@ func prompt(promptText string) string {
 	return strings.TrimSpace(text)
 }
 
-func printLoginInfo(token, adminDomain string) {
-	log.Println("Admin token: " + token)
-	url := fmt.Sprintf("https://%s/login?access_token=%s", adminDomain, token)
+func printLoginInfo(token, adminDomain string, httpsPort int) {
+	var url string
+	if httpsPort != 443 {
+		url = fmt.Sprintf("https://%s:%d/login?access_token=%s", adminDomain, httpsPort, token)
+	} else {
+		url = fmt.Sprintf("https://%s/login?access_token=%s", adminDomain, token)
+	}
 	log.Println(fmt.Sprintf("Admin login link: %s", url))
 	qrterminal.GenerateHalfBlock(url, qrterminal.L, os.Stdout)
 }
