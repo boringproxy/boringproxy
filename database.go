@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/takingnames/namedrop-go"
@@ -60,6 +61,7 @@ type Tunnel struct {
 	ClientName   string `json:"client_name"`
 	AuthUsername string `json:"auth_username"`
 	AuthPassword string `json:"auth_password"`
+	Used         bool
 }
 
 func NewDatabase(path string) (*Database, error) {
@@ -225,6 +227,44 @@ func (d *Database) GetTunnels() map[string]Tunnel {
 	}
 
 	return tunnels
+}
+
+func (d *Database) SelectLoadBalancedTunnel(domain string) (Tunnel, bool) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	tunnels := make(map[string]Tunnel)
+	for dom, tun := range d.Tunnels {
+		keys := strings.Split(dom, "|")
+		if domain == keys[0] {
+			tunnels[dom] = tun
+		}
+	}
+
+	// Load balance
+	for _, t := range tunnels {
+		if !t.Used {
+			t.Used = true
+			log.Printf("Routing to : %s|%s", t.Domain, t.ClientName)
+			return t, true
+		}
+	}
+
+	// Reset all used flags
+	count := 1
+	for _, t := range tunnels {
+		t.Used = false
+
+		if count == len(tunnels) {
+			t.Used = true
+			log.Printf("Routing to : %s|%s", t.Domain, t.ClientName)
+			return t, true
+		}
+		count += 1
+	}
+
+	// len(tunnels) is 0
+	return Tunnel{}, false
 }
 
 func (d *Database) GetTunnel(domain string) (Tunnel, bool) {

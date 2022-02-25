@@ -293,7 +293,7 @@ func Listen() {
 			}
 		} else {
 
-			tunnel, exists := db.GetTunnel(hostDomain)
+			tunnel, exists := db.SelectLoadBalancedTunnel(hostDomain)
 			if !exists {
 				errMessage := fmt.Sprintf("No tunnel attached to %s", hostDomain)
 				w.WriteHeader(500)
@@ -354,30 +354,49 @@ func (p *Server) handleConnection(clientConn net.Conn, certConfig *certmagic.Con
 
 	passConn := NewProxyConn(clientConn, clientReader)
 
-	tunnel, exists := p.db.GetTunnel(clientHello.ServerName)
-
-	if exists && (tunnel.TlsTermination == "client" || tunnel.TlsTermination == "passthrough") || tunnel.TlsTermination == "client-tls" {
-		p.passthroughRequest(passConn, tunnel)
-	} else if exists && tunnel.TlsTermination == "server-tls" {
-		useTls := true
-		err := ProxyTcp(passConn, "127.0.0.1", tunnel.TunnelPort, useTls, certConfig)
-		if err != nil {
-			log.Println(err.Error())
-			return
+	retry := 0
+	for retry < 10 {
+		if retry > 0 {
+			log.Println("Retrying...")
 		}
-	} else {
-		p.httpListener.PassConn(passConn)
+
+		tunnel, exists := p.db.SelectLoadBalancedTunnel(clientHello.ServerName)
+		if exists && (tunnel.TlsTermination == "client" || tunnel.TlsTermination == "passthrough") || tunnel.TlsTermination == "client-tls" {
+			err = p.passthroughRequest(passConn, tunnel)
+
+			if err != nil {
+				log.Printf("Tunnel %s|%s connection failed\n", tunnel.Domain, tunnel.ClientName)
+				retry++
+				continue
+			} else {
+				break
+			}
+		} else if exists && tunnel.TlsTermination == "server-tls" {
+			useTls := true
+			err := ProxyTcp(passConn, "127.0.0.1", tunnel.TunnelPort, useTls, certConfig)
+			if err != nil {
+				log.Println(err.Error())
+				log.Printf("Tunnel %s|%s connection failed\n", tunnel.Domain, tunnel.ClientName)
+				retry++
+				continue
+			} else {
+				break
+			}
+		} else {
+			p.httpListener.PassConn(passConn)
+			break
+		}
 	}
 }
 
-func (p *Server) passthroughRequest(conn net.Conn, tunnel Tunnel) {
+func (p *Server) passthroughRequest(conn net.Conn, tunnel Tunnel) error {
 
 	upstreamAddr := fmt.Sprintf("localhost:%d", tunnel.TunnelPort)
 	upstreamConn, err := net.Dial("tcp", upstreamAddr)
 
 	if err != nil {
 		log.Print(err)
-		return
+		return err
 	}
 	defer upstreamConn.Close()
 
@@ -396,6 +415,7 @@ func (p *Server) passthroughRequest(conn net.Conn, tunnel Tunnel) {
 	}()
 
 	wg.Wait()
+	return nil
 }
 
 func setAdminDomain(certConfig *certmagic.Config, db *Database, namedropClient *namedrop.Client, autoCerts bool) error {

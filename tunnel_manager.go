@@ -8,14 +8,15 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/caddyserver/certmagic"
-	"golang.org/x/crypto/ssh"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/user"
 	"strings"
 	"sync"
+
+	"github.com/caddyserver/certmagic"
+	"golang.org/x/crypto/ssh"
 )
 
 type TunnelManager struct {
@@ -34,9 +35,9 @@ func NewTunnelManager(config *Config, db *Database, certConfig *certmagic.Config
 	}
 
 	if config.autoCerts {
-		for domainName, tun := range db.GetTunnels() {
+		for _, tun := range db.GetTunnels() {
 			if tun.TlsTermination == "server" || tun.TlsTermination == "server-tls" {
-				err = certConfig.ManageSync(context.Background(), []string{domainName})
+				err = certConfig.ManageSync(context.Background(), []string{tun.Domain})
 				if err != nil {
 					log.Println("CertMagic error at startup")
 					log.Println(err)
@@ -84,8 +85,8 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 	}
 
 	for _, tun := range m.db.GetTunnels() {
-		if tunReq.Domain == tun.Domain {
-			return Tunnel{}, errors.New("Tunnel domain already in use")
+		if tunReq.Domain == tun.Domain && tunReq.ClientName == tun.ClientName {
+			return Tunnel{}, errors.New("Tunnel domain and client name combination already in use")
 		}
 
 		if tunReq.TunnelPort == tun.TunnelPort {
@@ -102,7 +103,7 @@ func (m *TunnelManager) RequestCreateTunnel(tunReq Tunnel) (Tunnel, error) {
 	tunReq.Username = m.user.Username
 	tunReq.TunnelPrivateKey = privKey
 
-	m.db.SetTunnel(tunReq.Domain, tunReq)
+	m.db.SetTunnel(tunReq.Domain+"|"+tunReq.ClientName, tunReq)
 
 	return tunReq, nil
 }
