@@ -112,7 +112,7 @@ func Listen() {
 	}
 
 	if *acceptCATerms {
-		certmagic.DefaultACME.Agreed  = true
+		certmagic.DefaultACME.Agreed = true
 		log.Print(fmt.Sprintf("Automatic agreement to CA terms with email (%s)", *acmeEmail))
 	}
 
@@ -345,11 +345,11 @@ func Listen() {
 			continue
 		}
 
-		go p.handleConnection(conn)
+		go p.handleConnection(conn, certConfig)
 	}
 }
 
-func (p *Server) handleConnection(clientConn net.Conn) {
+func (p *Server) handleConnection(clientConn net.Conn, certConfig *certmagic.Config) {
 
 	clientHello, clientReader, err := peekClientHello(clientConn)
 	if err != nil {
@@ -363,6 +363,13 @@ func (p *Server) handleConnection(clientConn net.Conn) {
 
 	if exists && (tunnel.TlsTermination == "client" || tunnel.TlsTermination == "passthrough") || tunnel.TlsTermination == "client-tls" {
 		p.passthroughRequest(passConn, tunnel)
+	} else if exists && tunnel.TlsTermination == "server-tls" {
+		useTls := true
+		err := ProxyTcp(passConn, "127.0.0.1", tunnel.TunnelPort, useTls, certConfig)
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
 	} else {
 		p.httpListener.PassConn(passConn)
 	}
