@@ -360,31 +360,32 @@ func (p *Server) handleConnection(clientConn net.Conn, certConfig *certmagic.Con
 			log.Println("Retrying...")
 		}
 
-	tunnel, exists := p.db.SelectLoadBalancedTunnel(clientHello.ServerName)
-	if exists && (tunnel.TlsTermination == "client" || tunnel.TlsTermination == "passthrough") || tunnel.TlsTermination == "client-tls" {
-		err = p.passthroughRequest(passConn, tunnel)
+		tunnel, exists := p.db.SelectLoadBalancedTunnel(clientHello.ServerName)
+		if exists && (tunnel.TlsTermination == "client" || tunnel.TlsTermination == "passthrough") || tunnel.TlsTermination == "client-tls" {
+			err = p.passthroughRequest(passConn, tunnel)
 
-		if err != nil {
-			log.Printf("Tunnel %s|%s connection failed\n", tunnel.Domain, tunnel.ClientName)
-			retry++
-			continue
+			if err != nil {
+				log.Printf("Tunnel %s|%s connection failed\n", tunnel.Domain, tunnel.ClientName)
+				retry++
+				continue
+			} else {
+				break
+			}
+		} else if exists && tunnel.TlsTermination == "server-tls" {
+			useTls := true
+			err := ProxyTcp(passConn, "127.0.0.1", tunnel.TunnelPort, useTls, certConfig)
+			if err != nil {
+				log.Println(err.Error())
+				log.Printf("Tunnel %s|%s connection failed\n", tunnel.Domain, tunnel.ClientName)
+				retry++
+				continue
+			} else {
+				break
+			}
 		} else {
+			p.httpListener.PassConn(passConn)
 			break
 		}
-	} else if exists && tunnel.TlsTermination == "server-tls" {
-		useTls := true
-		err := ProxyTcp(passConn, "127.0.0.1", tunnel.TunnelPort, useTls, certConfig)
-		if err != nil {
-			log.Println(err.Error())
-			log.Printf("Tunnel %s|%s connection failed\n", tunnel.Domain, tunnel.ClientName)
-			retry++
-			continue
-		} else {
-			break
-		}
-	} else {
-		p.httpListener.PassConn(passConn)
-		break
 	}
 }
 
