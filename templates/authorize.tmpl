@@ -1,0 +1,28 @@
+<p>
+  A service is requesting to create a tunnel. If you want to approve this action, select a domain below.
+</p>
+
+<h1>Select Domain</h1>
+
+<form action="/waygate/authorized" method="POST">
+  <input type="hidden" name="client_id" value="{{.AuthRequest.ClientId}}" required>
+  <input type="hidden" name="redirect_uri" value="{{.AuthRequest.RedirectUri}}" required>
+  <input type="hidden" name="scope" value="{{.AuthRequest.Scope}}" required>
+  <input type="hidden" name="state" value="{{.AuthRequest.State}}" required>
+
+  <div>
+    <input type="text" name="host" placeholder="Subdomain optional">
+    <span>.</span>
+    <select id="domain-input" name="domain">
+      {{ range .Domains}}
+      <option>{{.DomainName}}</option>
+      {{ end }}
+      <option>takingnames.co</option>
+    </select>
+  </div>
+
+  <div class='tn-button-row'>
+    <button class='button'>Approve</button>
+    <button class='button' formaction="/deny">Deny</button>
+  </div>
+</form>

@@ -11,6 +11,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/user"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -37,10 +39,11 @@ type SmtpConfig struct {
 }
 
 type Server struct {
-	db           *Database
-	tunMan       *TunnelManager
-	httpClient   *http.Client
-	httpListener *PassthroughListener
+	db            *Database
+	tunMan        *TunnelManager
+	httpClient    *http.Client
+	httpListener  *PassthroughListener
+	waygateServer *waygate.Server
 }
 
 func Listen() {
@@ -93,7 +96,17 @@ func Listen() {
 		fmt.Printf("WARNING: Failed to access %s:%d from the internet\n", ip, *httpsPort)
 	}
 
+	user, err := user.Current()
+	if err != nil {
+		log.Fatalf("Unable to get current user: %v", err)
+	}
 	waygateServer := waygate.NewServer(db)
+	waygateServer.SshConfig = &waygate.SshConfig{
+		ServerAddress:      db.GetAdminDomain(),
+		ServerPort:         *sshServerPort,
+		Username:           user.Username,
+		AuthorizedKeysPath: filepath.Join(user.HomeDir, ".ssh", "authorized_keys"),
+	}
 
 	autoCerts := true
 	if *httpPort != 80 || *httpsPort != 443 {
@@ -148,7 +161,8 @@ func Listen() {
 	users := db.GetUsers()
 	if len(users) == 0 {
 		db.AddUser("admin", true)
-		_, err := db.AddToken("admin", "")
+		clientId := ""
+		_, err := db.AddToken("admin", clientId)
 		if err != nil {
 			log.Fatal("Failed to initialize admin user")
 		}
@@ -190,7 +204,7 @@ func Listen() {
 
 	httpListener := NewPassthroughListener()
 
-	p := &Server{db, tunMan, httpClient, httpListener}
+	p := &Server{db, tunMan, httpClient, httpListener, waygateServer}
 
 	tlsConfig := &tls.Config{
 		GetCertificate: certConfig.GetCertificate,
@@ -199,6 +213,13 @@ func Listen() {
 	tlsListener := tls.NewListener(httpListener, tlsConfig)
 
 	http.Handle("/waygate/", http.StripPrefix("/waygate", waygateServer))
+	// TODO: This feels like a bit of a hack.
+	http.HandleFunc("/waygate/authorize", func(w http.ResponseWriter, r *http.Request) {
+		webUiHandler.handleWebUiRequest(w, r)
+	})
+	http.HandleFunc("/waygate/authorized", func(w http.ResponseWriter, r *http.Request) {
+		webUiHandler.handleWebUiRequest(w, r)
+	})
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		timestamp := time.Now().Format(time.RFC3339)
@@ -354,6 +375,18 @@ func (p *Server) handleConnection(clientConn net.Conn, certConfig *certmagic.Con
 	clientHello, clientReader, err := peekClientHello(clientConn)
 	if err != nil {
 		log.Println("peekClientHello error", err)
+		return
+	}
+
+	port, err := p.waygateServer.GetSSHPortForDomain(clientHello.ServerName)
+	if err == nil {
+		fmt.Println("yolo", port)
+		useTls := true
+		err := ProxyTcp(clientConn, "127.0.0.1", port, useTls, certConfig)
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
 		return
 	}
 

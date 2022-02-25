@@ -8,17 +8,20 @@ import (
 	"sync"
 
 	"github.com/takingnames/namedrop-go"
+	"github.com/takingnames/waygate-go"
 )
 
 var DBFolderPath string
 
 type Database struct {
-	AdminDomain string                         `json:"admin_domain"`
-	Tokens      map[string]TokenData           `json:"tokens"`
-	Tunnels     map[string]Tunnel              `json:"tunnels"`
-	Users       map[string]User                `json:"users"`
-	dnsRequests map[string]namedrop.DNSRequest `json:"dns_requests"`
-	mutex       *sync.Mutex
+	AdminDomain      string                             `json:"admin_domain"`
+	Tokens           map[string]TokenData               `json:"tokens"`
+	Tunnels          map[string]Tunnel                  `json:"tunnels"`
+	Users            map[string]User                    `json:"users"`
+	dnsRequests      map[string]namedrop.DNSRequest     `json:"dns_requests"`
+	WaygateTunnels   map[string]waygate.WaygateTunnel   `json:"waygate_tunnels"`
+	WaygateTalismans map[string]waygate.WaygateTalisman `json:"waygate_talismans"`
+	mutex            *sync.Mutex
 }
 
 type TokenData struct {
@@ -94,6 +97,13 @@ func NewDatabase(path string) (*Database, error) {
 
 	if db.dnsRequests == nil {
 		db.dnsRequests = make(map[string]namedrop.DNSRequest)
+	}
+
+	if db.WaygateTunnels == nil {
+		db.WaygateTunnels = make(map[string]waygate.WaygateTunnel)
+	}
+	if db.WaygateTalismans == nil {
+		db.WaygateTalismans = make(map[string]waygate.WaygateTalisman)
 	}
 
 	db.mutex = &sync.Mutex{}
@@ -320,6 +330,87 @@ func (d *Database) DeleteUser(username string) {
 	delete(d.Users, username)
 
 	d.persist()
+}
+
+func (d *Database) AddWaygateTunnel(domains []string) (string, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	id, err := genRandomCode(32)
+	if err != nil {
+		return "", errors.New("Could not generate waygate id")
+	}
+
+	// TODO: verify none of the domains are already in use.
+
+	waygate := waygate.WaygateTunnel{
+		Domains: domains,
+	}
+
+	d.WaygateTunnels[id] = waygate
+
+	d.persist()
+
+	return id, nil
+}
+func (d *Database) GetWaygateTunnel(id string) (waygate.WaygateTunnel, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	tun, exists := d.WaygateTunnels[id]
+	if !exists {
+		return waygate.WaygateTunnel{}, errors.New("No such waygate")
+	}
+
+	return tun, nil
+}
+func (d *Database) GetWaygates() map[string]waygate.WaygateTunnel {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	wgs := make(map[string]waygate.WaygateTunnel)
+
+	for id, wg := range d.WaygateTunnels {
+		wgs[id] = wg
+	}
+
+	return wgs
+}
+
+func (d *Database) AddWaygateTalisman(waygateId string) (string, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	talisman, err := genRandomCode(32)
+	if err != nil {
+		return "", errors.New("Could not generate waygate talisman")
+	}
+
+	_, exists := d.WaygateTunnels[waygateId]
+	if !exists {
+		return "", errors.New("No such waygate")
+	}
+
+	talismanData := waygate.WaygateTalisman{
+		WaygateId: waygateId,
+	}
+
+	d.WaygateTalismans[talisman] = talismanData
+
+	d.persist()
+
+	return talisman, nil
+}
+func (d *Database) GetWaygateTalisman(id string) (waygate.WaygateTalisman, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	talisman, exists := d.WaygateTalismans[id]
+	if !exists {
+		return waygate.WaygateTalisman{}, errors.New("No such talisman")
+	}
+
+	return talisman, nil
 }
 
 func (d *Database) persist() {

@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/takingnames/waygate-go"
 )
 
 //go:embed logo.png templates
@@ -104,6 +106,105 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 	}
 
 	switch r.URL.Path {
+	case "/waygate/authorized":
+		if r.Method != "POST" {
+			w.WriteHeader(405)
+			io.WriteString(w, "Invalid method")
+			return
+		}
+
+		r.ParseForm()
+
+		authReq, err := waygate.ExtractAuthRequest(r)
+		if err != nil {
+			w.WriteHeader(400)
+			io.WriteString(w, err.Error())
+			return
+		}
+
+		domain := r.Form.Get("domain")
+		host := r.Form.Get("host")
+
+		fqdn := fmt.Sprintf("%s.%s", host, domain)
+
+		fmt.Println(fqdn)
+
+		waygateId, err := h.db.AddWaygateTunnel([]string{fqdn})
+		if err != nil {
+			w.WriteHeader(500)
+			h.alertDialog(w, r, err.Error(), "/")
+			return
+		}
+
+		talisman, err := h.db.AddWaygateTalisman(waygateId)
+		if err != nil {
+			w.WriteHeader(500)
+			h.alertDialog(w, r, err.Error(), "/")
+			return
+		}
+
+		if authReq.RedirectUri == "urn:ietf:wg:oauth:2.0:oob" {
+			fmt.Fprintf(w, talisman)
+		} else {
+			w.WriteHeader(500)
+			h.alertDialog(w, r, "Unsupported auth", "/")
+			return
+		}
+
+	case "/waygate/authorize":
+		if r.Method != "GET" {
+			w.WriteHeader(405)
+			h.alertDialog(w, r, err.Error(), "/")
+			return
+		}
+
+		r.ParseForm()
+
+		authReq, err := waygate.ExtractAuthRequest(r)
+		if err != nil {
+			w.WriteHeader(400)
+			h.alertDialog(w, r, err.Error(), "/")
+			return
+		}
+
+		//user, exists := db.GetUser(tokenData.Owner)
+		//if !exists {
+		//	sendLoginPage(w, r)
+		//	return
+		//}
+
+		//domains := db.GetDomainsForUser(tokenData.Owner)
+
+		//displayClientId := authReq.ClientId
+
+		//if strings.HasSuffix(authReq.ClientId, ".ip.takingnames.live") {
+		//	domainParts := strings.Split(authReq.ClientId, ".ip.takingnames.live")
+		//	ip := strings.Replace(domainParts[0], "-", ".", -1)
+		//	displayClientId = ip
+		//}
+
+		data := struct {
+			//	LoggedIn        bool
+			Domains []string
+			//	FreeDomains     []string
+			//	User            User
+			AuthRequest *waygate.AuthRequest
+			//	DisplayClientId string
+		}{
+			//	LoggedIn:        loggedIn,
+			Domains: []string{},
+			//	FreeDomains:     FreeDomains(),
+			//	User:            user,
+			AuthRequest: authReq,
+			//	DisplayClientId: displayClientId,
+		}
+
+		err = h.tmpl.ExecuteTemplate(w, "authorize.tmpl", data)
+		if err != nil {
+			w.WriteHeader(500)
+			h.alertDialog(w, r, err.Error(), "/")
+			return
+		}
 	case "/login":
 		h.handleLogin(w, r)
 	case "/users":
