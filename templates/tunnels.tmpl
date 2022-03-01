@@ -36,7 +36,7 @@
       {{range $domain, $tunnel:= .Tunnels}}
       <tr>
         <td class='tn-tunnel-table__cell'>
-          <a href='https://{{$domain}}'>{{$domain}}</a>
+          <a href='https://{{$domain}}' target="_blank">{{$domain}}</a>
         </td>
         <td class='tn-tunnel-table__cell'>{{$tunnel.ClientName}}</td>
         <td class='tn-tunnel-table__cell'>{{$tunnel.ClientAddress}}:{{$tunnel.ClientPort}}</td>
