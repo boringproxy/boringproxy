@@ -378,24 +378,18 @@ func (p *Server) handleConnection(clientConn net.Conn, certConfig *certmagic.Con
 		return
 	}
 
+	passConn := NewProxyConn(clientConn, clientReader)
+
 	port, err := p.waygateServer.GetSSHPortForDomain(clientHello.ServerName)
 	if err == nil {
-		fmt.Println("yolo", port)
-		useTls := true
-		err := ProxyTcp(clientConn, "127.0.0.1", port, useTls, certConfig)
-		if err != nil {
-			log.Println(err.Error())
-			return
-		}
+		p.passthroughRequest(passConn, port)
 		return
 	}
-
-	passConn := NewProxyConn(clientConn, clientReader)
 
 	tunnel, exists := p.db.GetTunnel(clientHello.ServerName)
 
 	if exists && (tunnel.TlsTermination == "client" || tunnel.TlsTermination == "passthrough") || tunnel.TlsTermination == "client-tls" {
-		p.passthroughRequest(passConn, tunnel)
+		p.passthroughRequest(passConn, tunnel.TunnelPort)
 	} else if exists && tunnel.TlsTermination == "server-tls" {
 		useTls := true
 		err := ProxyTcp(passConn, "127.0.0.1", tunnel.TunnelPort, useTls, certConfig)
@@ -408,9 +402,9 @@ func (p *Server) handleConnection(clientConn net.Conn, certConfig *certmagic.Con
 	}
 }
 
-func (p *Server) passthroughRequest(conn net.Conn, tunnel Tunnel) {
+func (p *Server) passthroughRequest(conn net.Conn, port int) {
 
-	upstreamAddr := fmt.Sprintf("localhost:%d", tunnel.TunnelPort)
+	upstreamAddr := fmt.Sprintf("localhost:%d", port)
 	upstreamConn, err := net.Dial("tcp", upstreamAddr)
 
 	if err != nil {
