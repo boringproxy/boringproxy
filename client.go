@@ -31,18 +31,6 @@ type Client struct {
 	behindProxy      bool
 }
 
-type ClientConfig struct {
-	ServerAddr     string `json:"serverAddr,omitempty"`
-	Token          string `json:"token,omitempty"`
-	ClientName     string `json:"clientName,omitempty"`
-	User           string `json:"user,omitempty"`
-	CertDir        string `json:"certDir,omitempty"`
-	AcmeEmail      string `json:"acmeEmail,omitempty"`
-	AcmeUseStaging bool   `json:"acmeUseStaging,omitempty"`
-	DnsServer      string `json:"dnsServer,omitempty"`
-	BehindProxy    bool   `json:"behindProxy,omitempty"`
-}
-
 func NewClient(config *ClientConfig) (*Client, error) {
 
 	if config.DnsServer != "" {
@@ -72,16 +60,25 @@ func NewClient(config *ClientConfig) (*Client, error) {
 
 	certmagic.DefaultACME.DisableHTTPChallenge = true
 
-	if config.CertDir != "" {
-		certmagic.Default.Storage = &certmagic.FileStorage{config.CertDir}
+	if config.myCertConfig.certDir != "" {
+		certmagic.Default.Storage = &certmagic.FileStorage{config.myCertConfig.certDir}
 	}
 
-	if config.AcmeEmail != "" {
-		certmagic.DefaultACME.Email = config.AcmeEmail
+	if config.myCertConfig.acmeEmail != "" {
+		certmagic.DefaultACME.Email = config.myCertConfig.acmeEmail
+		certmagic.DefaultACME.Agreed = true
+		log.Print(fmt.Sprintf("Automatic agreement to CA terms with email (%s)", config.myCertConfig.acmeEmail))
 	}
 
-	if config.AcmeUseStaging {
+	switch config.myCertConfig.defaultCA {
+	case "production":
+		certmagic.DefaultACME.CA = certmagic.LetsEncryptProductionCA
+
+	case "staging":
 		certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
+
+	default:
+		certmagic.DefaultACME.CA = config.myCertConfig.defaultCA
 	}
 
 	certConfig := certmagic.NewDefault()
