@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 )
 
 type myCertConfig struct {
@@ -44,23 +45,52 @@ func fail(msg string) {
 	os.Exit(1)
 }
 
-func SetServerConfig() *ServerConfig {
-	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	adminDomain := flagSet.String("admin-domain", "BP_ADMIN_DOMAIN", "Admin Domain")
-	sshServerPort := flagSet.Int("ssh-server-port", 22, "SSH Server Port")
-	dbDir := flagSet.String("db-dir", "", "Database file directory")
-	printLogin := flagSet.Bool("print-login", false, "Prints admin login information")
-	httpPort := flagSet.Int("http-port", 80, "HTTP (insecure) port")
-	httpsPort := flagSet.Int("https-port", 443, "HTTPS (secure) port")
-	allowHttp := flagSet.Bool("allow-http", false, "Allow unencrypted (HTTP) requests")
-	publicIp := flagSet.String("public-ip", "", "Public IP")
-	behindProxy := flagSet.Bool("behind-proxy", false, "Whether we're running behind another reverse proxy")
-	certDir := flagSet.String("cert-dir", "", "TLS cert directory")
-	acmeEmail := flagSet.String("acme-email", "", "Email for ACME (ie Let's Encrypt)")
-	defaultCA := flagSet.String("ca", "production", "Default ACME CA")
-	autoCerts := flagSet.Bool("autocert", true, "Enable/Disable auto certs")
+// Simple helper function to read an environment or return a default value
+func getEnv(key string, defaultVal string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
 
-	err := flagSet.Parse(os.Args[2:])
+	return defaultVal
+}
+
+// Simple helper function to read an environment variable into integer or return a default value
+func getEnvAsInt(name string, defaultVal int) int {
+	valueStr := getEnv(name, "")
+	if value, err := strconv.Atoi(valueStr); err == nil {
+		return value
+	}
+
+	return defaultVal
+}
+
+// Helper to read an environment variable into a bool or return default value
+func getEnvAsBool(name string, defaultVal bool) bool {
+	valStr := getEnv(name, "")
+	if val, err := strconv.ParseBool(valStr); err == nil {
+		return val
+	}
+
+	return defaultVal
+}
+
+func SetServerConfig(flags []string) *ServerConfig {
+	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	adminDomain := flagSet.String("admin-domain", getEnv("BP_ADMIN_DOMAIN", ""), "Admin Domain")
+	sshServerPort := flagSet.Int("ssh-server-port", getEnvAsInt("BP_SSH_SERVER_PORT", 22), "SSH Server Port")
+	dbDir := flagSet.String("db-dir", getEnv("BP_DB_DIR", ""), "Database file directory")
+	printLogin := flagSet.Bool("print-login", getEnvAsBool("BP_PRINT_LOGIN", false), "Prints admin login information")
+	httpPort := flagSet.Int("http-port", getEnvAsInt("BP_HTTP_PORT", 80), "HTTP (insecure) port")
+	httpsPort := flagSet.Int("https-port", getEnvAsInt("BP_HTTPS_PORT", 443), "HTTPS (secure) port")
+	allowHttp := flagSet.Bool("allow-http", getEnvAsBool("BP_ALLOW_HTTP", false), "Allow unencrypted (HTTP) requests")
+	publicIp := flagSet.String("public-ip", getEnv("BP_PUBLIC_IP", ""), "Public IP")
+	behindProxy := flagSet.Bool("behind-proxy", getEnvAsBool("BP_BEHIND_PROXY", false), "Whether we're running behind another reverse proxy")
+	certDir := flagSet.String("cert-dir", getEnv("BP_CERT_DIR", ""), "TLS cert directory")
+	acmeEmail := flagSet.String("acme-email", getEnv("BP_ACME_EMAIL", ""), "Email for ACME (ie Let's Encrypt)")
+	defaultCA := flagSet.String("ca", getEnv("BP_CA", "production"), "Default ACME CA")
+	autoCerts := flagSet.Bool("autocert", getEnvAsBool("BP_AUTO_CERTS", false), "Enable/Disable auto certs")
+
+	err := flagSet.Parse(flags)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: parsing flags: %s\n", os.Args[0], err)
 	}
@@ -88,20 +118,20 @@ func SetServerConfig() *ServerConfig {
 	return config
 }
 
-func SetClientConfig() *ClientConfig {
+func SetClientConfig(flags []string) *ClientConfig {
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	server := flagSet.String("server", "", "boringproxy server")
-	token := flagSet.String("token", "", "Access token")
-	name := flagSet.String("client-name", "", "Client name")
-	user := flagSet.String("user", "", "user")
-	dnsServer := flagSet.String("dns-server", "", "Custom DNS server")
-	behindProxy := flagSet.Bool("behind-proxy", false, "Whether we're running behind another reverse proxy")
-	certDir := flagSet.String("cert-dir", "", "TLS cert directory")
-	acmeEmail := flagSet.String("acme-email", "", "Email for ACME (ie Let's Encrypt)")
-	defaultCA := flagSet.String("ca", "production", "Default ACME CA")
-	autoCerts := flagSet.Bool("autocert", true, "Enable/Disable auto certs")
+	server := flagSet.String("server", getEnv("BP_SERVER", ""), "boringproxy server")
+	token := flagSet.String("token", getEnv("BP_TOKEN", ""), "Access token")
+	name := flagSet.String("client-name", getEnv("BP_CLIENT_NAME", ""), "Client name")
+	user := flagSet.String("user", getEnv("BP_USER", ""), "user")
+	dnsServer := flagSet.String("dns-server", getEnv("BP_DNS_SERVER", ""), "Custom DNS server")
+	behindProxy := flagSet.Bool("behind-proxy", getEnvAsBool("BP_BEHIND_PROXY", false), "Whether we're running behind another reverse proxy")
+	certDir := flagSet.String("cert-dir", getEnv("BP_CERT_DIR", ""), "TLS cert directory")
+	acmeEmail := flagSet.String("acme-email", getEnv("BP_ACME_EMAIL", ""), "Email for ACME (ie Let's Encrypt)")
+	defaultCA := flagSet.String("ca", getEnv("BP_CA", "production"), "Default ACME CA")
+	autoCerts := flagSet.Bool("autocert", getEnvAsBool("BP_AUTO_CERTS", false), "Enable/Disable auto certs")
 
-	err := flagSet.Parse(os.Args[2:])
+	err := flagSet.Parse(flags)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: parsing flags: %s\n", os.Args[0], err)
 	}
