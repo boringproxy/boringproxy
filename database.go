@@ -441,6 +441,10 @@ func (d *Database) GetTokenByCode(code string) (string, error) {
 		return "", errors.New("No such code")
 	}
 
+	delete(d.WaygatePendingTokens, code)
+
+	d.persist()
+
 	return token, nil
 }
 
