@@ -14,14 +14,15 @@ import (
 var DBFolderPath string
 
 type Database struct {
-	AdminDomain      string                             `json:"admin_domain"`
-	Tokens           map[string]TokenData               `json:"tokens"`
-	Tunnels          map[string]Tunnel                  `json:"tunnels"`
-	Users            map[string]User                    `json:"users"`
-	dnsRequests      map[string]namedrop.DNSRequest     `json:"dns_requests"`
-	WaygateTunnels   map[string]waygate.WaygateTunnel   `json:"waygate_tunnels"`
-	WaygateTalismans map[string]waygate.WaygateTalisman `json:"waygate_talismans"`
-	mutex            *sync.Mutex
+	AdminDomain          string                             `json:"admin_domain"`
+	Tokens               map[string]TokenData               `json:"tokens"`
+	Tunnels              map[string]Tunnel                  `json:"tunnels"`
+	Users                map[string]User                    `json:"users"`
+	dnsRequests          map[string]namedrop.DNSRequest     `json:"dns_requests"`
+	WaygateTunnels       map[string]waygate.WaygateTunnel   `json:"waygate_tunnels"`
+	WaygateTalismans     map[string]waygate.WaygateTalisman `json:"waygate_talismans"`
+	WaygatePendingTokens map[string]string                  `json:"waygate_pending_tokens"`
+	mutex                *sync.Mutex
 }
 
 type TokenData struct {
@@ -104,6 +105,9 @@ func NewDatabase(path string) (*Database, error) {
 	}
 	if db.WaygateTalismans == nil {
 		db.WaygateTalismans = make(map[string]waygate.WaygateTalisman)
+	}
+	if db.WaygatePendingTokens == nil {
+		db.WaygatePendingTokens = make(map[string]string)
 	}
 
 	db.mutex = &sync.Mutex{}
@@ -411,6 +415,33 @@ func (d *Database) GetWaygateTalisman(id string) (waygate.WaygateTalisman, error
 	}
 
 	return talisman, nil
+}
+
+func (d *Database) SetTokenCode(token, code string) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	_, exists := d.WaygateTalismans[token]
+	if !exists {
+		return errors.New("No such token")
+	}
+
+	d.WaygatePendingTokens[code] = token
+
+	d.persist()
+
+	return nil
+}
+func (d *Database) GetTokenByCode(code string) (string, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	token, exists := d.WaygatePendingTokens[code]
+	if !exists {
+		return "", errors.New("No such code")
+	}
+
+	return token, nil
 }
 
 func (d *Database) persist() {

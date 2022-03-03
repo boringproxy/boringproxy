@@ -146,10 +146,24 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		if authReq.RedirectUri == "urn:ietf:wg:oauth:2.0:oob" {
 			fmt.Fprintf(w, talisman)
 		} else {
-			w.WriteHeader(500)
-			h.alertDialog(w, r, "Unsupported auth", "/")
-			return
+			code, err := genRandomCode(32)
+			if err != nil {
+				w.WriteHeader(500)
+				h.alertDialog(w, r, err.Error(), "/")
+				return
+			}
+
+			err = h.db.SetTokenCode(talisman, code)
+			if err != nil {
+				w.WriteHeader(500)
+				h.alertDialog(w, r, err.Error(), "/")
+				return
+			}
+			url := fmt.Sprintf("http://%s?code=%s&state=%s", authReq.RedirectUri, code, authReq.State)
+			http.Redirect(w, r, url, 303)
 		}
+
+		return
 
 	case "/waygate/authorize":
 		if r.Method != "GET" {
