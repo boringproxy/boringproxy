@@ -23,7 +23,7 @@ func NewAuth(db *Database) *Auth {
 }
 
 func (a *Auth) Authorized(token string) bool {
-	_, exists := a.db.GetTokenData(token)
+	_, exists := a.db.GetLegacyTokenData(token)
 
 	if exists {
 		return true

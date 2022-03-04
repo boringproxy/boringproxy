@@ -20,7 +20,7 @@ type Database struct {
 	Users         map[string]User                `json:"users"`
 	dnsRequests   map[string]namedrop.DNSRequest `json:"dns_requests"`
 	Waygates      map[string]waygate.Waygate     `json:"waygates"`
-	WaygateTokens map[string]waygate.Token       `json:"waygate_tokens"`
+	WaygateTokens map[string]waygate.TokenData   `json:"waygate_tokens"`
 	waygateCodes  map[string]string              `json:"waygate_codes"`
 	mutex         *sync.Mutex
 }
@@ -104,7 +104,7 @@ func NewDatabase(path string) (*Database, error) {
 		db.Waygates = make(map[string]waygate.Waygate)
 	}
 	if db.WaygateTokens == nil {
-		db.WaygateTokens = make(map[string]waygate.Token)
+		db.WaygateTokens = make(map[string]waygate.TokenData)
 	}
 	if db.waygateCodes == nil {
 		db.waygateCodes = make(map[string]string)
@@ -198,7 +198,7 @@ func (d *Database) GetTokens() map[string]TokenData {
 	return tokens
 }
 
-func (d *Database) GetTokenData(token string) (TokenData, bool) {
+func (d *Database) GetLegacyTokenData(token string) (TokenData, bool) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
@@ -357,7 +357,7 @@ func (d *Database) AddWaygateTunnel(domains []string) (string, error) {
 
 	return id, nil
 }
-func (d *Database) GetWaygateTunnel(id string) (waygate.Waygate, error) {
+func (d *Database) GetWaygate(id string) (waygate.Waygate, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
@@ -395,7 +395,7 @@ func (d *Database) AddWaygateToken(waygateId string) (string, error) {
 		return "", errors.New("No such waygate")
 	}
 
-	tokenData := waygate.Token{
+	tokenData := waygate.TokenData{
 		WaygateId: waygateId,
 	}
 
@@ -405,13 +405,13 @@ func (d *Database) AddWaygateToken(waygateId string) (string, error) {
 
 	return token, nil
 }
-func (d *Database) GetWaygateToken(id string) (waygate.Token, error) {
+func (d *Database) GetTokenData(id string) (waygate.TokenData, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
 	token, exists := d.WaygateTokens[id]
 	if !exists {
-		return waygate.Token{}, errors.New("No such token")
+		return waygate.TokenData{}, errors.New("No such token")
 	}
 
 	return token, nil

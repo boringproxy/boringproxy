@@ -46,7 +46,7 @@ func (a *Api) handleTunnels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokenData, exists := a.db.GetTokenData(token)
+	tokenData, exists := a.db.GetLegacyTokenData(token)
 	if !exists {
 		w.WriteHeader(403)
 		w.Write([]byte("Not authorized"))
@@ -141,7 +141,7 @@ func (a *Api) handleUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokenData, exists := a.db.GetTokenData(token)
+	tokenData, exists := a.db.GetLegacyTokenData(token)
 	if !exists {
 		w.WriteHeader(401)
 		io.WriteString(w, "Failed to get token")
@@ -179,7 +179,7 @@ func (a *Api) handleTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokenData, exists := a.db.GetTokenData(token)
+	tokenData, exists := a.db.GetLegacyTokenData(token)
 	if !exists {
 		w.WriteHeader(403)
 		w.Write([]byte("Not authorized"))
@@ -219,7 +219,7 @@ func (a *Api) handleClients(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokenData, exists := a.db.GetTokenData(token)
+	tokenData, exists := a.db.GetLegacyTokenData(token)
 	if !exists {
 		w.WriteHeader(403)
 		w.Write([]byte("Not authorized"))
@@ -478,7 +478,7 @@ func (a *Api) DeleteToken(tokenData TokenData, params url.Values) error {
 		return errors.New("Invalid token parameter")
 	}
 
-	delTokenData, exists := a.db.GetTokenData(token)
+	delTokenData, exists := a.db.GetLegacyTokenData(token)
 	if !exists {
 		return errors.New("Token doesn't exist")
 	}

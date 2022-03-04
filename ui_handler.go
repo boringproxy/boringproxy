@@ -85,7 +85,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	tokenData, exists := h.db.GetTokenData(token)
+	tokenData, exists := h.db.GetLegacyTokenData(token)
 	if !exists {
 		h.sendLoginPage(w, r, 403)
 		return
