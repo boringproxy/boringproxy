@@ -14,15 +14,15 @@ import (
 var DBFolderPath string
 
 type Database struct {
-	AdminDomain          string                           `json:"admin_domain"`
-	Tokens               map[string]TokenData             `json:"tokens"`
-	Tunnels              map[string]Tunnel                `json:"tunnels"`
-	Users                map[string]User                  `json:"users"`
-	dnsRequests          map[string]namedrop.DNSRequest   `json:"dns_requests"`
-	WaygateTunnels       map[string]waygate.WaygateTunnel `json:"waygate_tunnels"`
-	WaygateTokens        map[string]waygate.WaygateToken  `json:"waygate_tokens"`
-	WaygatePendingTokens map[string]string                `json:"waygate_pending_tokens"`
-	mutex                *sync.Mutex
+	AdminDomain    string                           `json:"admin_domain"`
+	Tokens         map[string]TokenData             `json:"tokens"`
+	Tunnels        map[string]Tunnel                `json:"tunnels"`
+	Users          map[string]User                  `json:"users"`
+	dnsRequests    map[string]namedrop.DNSRequest   `json:"dns_requests"`
+	WaygateTunnels map[string]waygate.WaygateTunnel `json:"waygate_tunnels"`
+	WaygateTokens  map[string]waygate.Token         `json:"waygate_tokens"`
+	waygateCodes   map[string]string                `json:"waygate_codes"`
+	mutex          *sync.Mutex
 }
 
 type TokenData struct {
@@ -104,10 +104,10 @@ func NewDatabase(path string) (*Database, error) {
 		db.WaygateTunnels = make(map[string]waygate.WaygateTunnel)
 	}
 	if db.WaygateTokens == nil {
-		db.WaygateTokens = make(map[string]waygate.WaygateToken)
+		db.WaygateTokens = make(map[string]waygate.Token)
 	}
-	if db.WaygatePendingTokens == nil {
-		db.WaygatePendingTokens = make(map[string]string)
+	if db.waygateCodes == nil {
+		db.waygateCodes = make(map[string]string)
 	}
 
 	db.mutex = &sync.Mutex{}
@@ -395,7 +395,7 @@ func (d *Database) AddWaygateToken(waygateId string) (string, error) {
 		return "", errors.New("No such waygate")
 	}
 
-	tokenData := waygate.WaygateToken{
+	tokenData := waygate.Token{
 		WaygateId: waygateId,
 	}
 
@@ -405,13 +405,13 @@ func (d *Database) AddWaygateToken(waygateId string) (string, error) {
 
 	return token, nil
 }
-func (d *Database) GetWaygateToken(id string) (waygate.WaygateToken, error) {
+func (d *Database) GetWaygateToken(id string) (waygate.Token, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
 	token, exists := d.WaygateTokens[id]
 	if !exists {
-		return waygate.WaygateToken{}, errors.New("No such token")
+		return waygate.Token{}, errors.New("No such token")
 	}
 
 	return token, nil
@@ -426,7 +426,7 @@ func (d *Database) SetTokenCode(token, code string) error {
 		return errors.New("No such token")
 	}
 
-	d.WaygatePendingTokens[code] = token
+	d.waygateCodes[code] = token
 
 	d.persist()
 
@@ -436,12 +436,12 @@ func (d *Database) GetTokenByCode(code string) (string, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	token, exists := d.WaygatePendingTokens[code]
+	token, exists := d.waygateCodes[code]
 	if !exists {
 		return "", errors.New("No such code")
 	}
 
-	delete(d.WaygatePendingTokens, code)
+	delete(d.waygateCodes, code)
 
 	d.persist()
 
