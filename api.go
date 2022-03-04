@@ -232,45 +232,59 @@ func (a *Api) handleClients(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clientName := r.Form.Get("client-name")
-	if clientName == "" {
-		if tokenData.Client == "" {
-			w.WriteHeader(400)
-			w.Write([]byte("Missing client-name parameter"))
-			return
-		} else {
-			clientName = tokenData.Client
-		}
-	}
-
-	if tokenData.Client != "" && tokenData.Client != clientName {
-		w.WriteHeader(403)
-		io.WriteString(w, "Token does not have proper permissions")
-		return
-	}
-
-	user := r.Form.Get("user")
-	if user == "" {
-		user = tokenData.Owner
-	}
-
-	switch r.Method {
-	case "POST":
-		err := a.SetClient(tokenData, r.Form, user, clientName)
-		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte(err.Error()))
-		}
-	case "DELETE":
-		err := a.DeleteClient(tokenData, user, clientName)
-		if err != nil {
-			w.WriteHeader(500)
-			io.WriteString(w, err.Error())
+	// TODO: This code is messy. I originally made this if block to add
+	// support for GET without messing with the POST/DELETE code, but a
+	// lot of the logic can probably be combined.
+	if r.Method == "GET" {
+		if tokenData.Client != "" {
+			w.WriteHeader(403)
+			io.WriteString(w, "Token does not have proper permissions")
 			return
 		}
-	default:
-		w.WriteHeader(405)
-		fmt.Fprintf(w, "Invalid method for /api/clients")
+
+		clients := a.GetClients(tokenData, r.Form)
+		json.NewEncoder(w).Encode(clients)
+	} else {
+		clientName := r.Form.Get("client-name")
+		if clientName == "" {
+			if tokenData.Client == "" {
+				w.WriteHeader(400)
+				w.Write([]byte("Missing client-name parameter"))
+				return
+			} else {
+				clientName = tokenData.Client
+			}
+		}
+
+		if tokenData.Client != "" && tokenData.Client != clientName {
+			w.WriteHeader(403)
+			io.WriteString(w, "Token does not have proper permissions")
+			return
+		}
+
+		user := r.Form.Get("user")
+		if user == "" {
+			user = tokenData.Owner
+		}
+
+		switch r.Method {
+		case "POST":
+			err := a.SetClient(tokenData, r.Form, user, clientName)
+			if err != nil {
+				w.WriteHeader(500)
+				w.Write([]byte(err.Error()))
+			}
+		case "DELETE":
+			err := a.DeleteClient(tokenData, user, clientName)
+			if err != nil {
+				w.WriteHeader(500)
+				io.WriteString(w, err.Error())
+				return
+			}
+		default:
+			w.WriteHeader(405)
+			fmt.Fprintf(w, "Invalid method for /api/clients")
+		}
 	}
 }
 
@@ -447,6 +461,21 @@ func (a *Api) DeleteTunnel(tokenData TokenData, params url.Values) error {
 	return nil
 }
 
+func (a *Api) GetTokens(tokenData TokenData, params url.Values) map[string]TokenData {
+
+	tokens := a.db.GetTokens()
+
+	user, _ := a.db.GetUser(tokenData.Owner)
+
+	for key, tok := range tokens {
+		if !user.IsAdmin && tok.Owner != tokenData.Owner {
+			delete(tokens, key)
+		}
+	}
+
+	return tokens
+}
+
 func (a *Api) CreateToken(tokenData TokenData, params url.Values) (string, error) {
 
 	owner := params.Get("owner")
@@ -500,21 +529,6 @@ func (a *Api) DeleteToken(tokenData TokenData, params url.Values) error {
 
 	return nil
 
-}
-
-func (a *Api) GetTokens(tokenData TokenData, params url.Values) map[string]TokenData {
-
-	tokens := a.db.GetTokens()
-
-	user, _ := a.db.GetUser(tokenData.Owner)
-
-	for key, tok := range tokens {
-		if !user.IsAdmin && tok.Owner != tokenData.Owner {
-			delete(tokens, key)
-		}
-	}
-
-	return tokens
 }
 
 func (a *Api) GetUsers(tokenData TokenData, params url.Values) map[string]User {
@@ -581,6 +595,33 @@ func (a *Api) DeleteUser(tokenData TokenData, params url.Values) error {
 	}
 
 	return nil
+}
+
+type client struct {
+	Name  string `json:"name"`
+	Owner string `json:"owner"`
+}
+
+func (a *Api) GetClients(tokenData TokenData, params url.Values) []client {
+
+	users := a.db.GetUsers()
+
+	user, _ := a.db.GetUser(tokenData.Owner)
+
+	clients := []client{}
+
+	for username, u := range users {
+		for name, _ := range u.Clients {
+			if user.IsAdmin || username == tokenData.Owner {
+				clients = append(clients, client{
+					Name:  name,
+					Owner: username,
+				})
+			}
+		}
+	}
+
+	return clients
 }
 
 func (a *Api) SetClient(tokenData TokenData, params url.Values, ownerId, clientId string) error {
