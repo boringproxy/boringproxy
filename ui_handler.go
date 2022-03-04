@@ -136,7 +136,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			return
 		}
 
-		talisman, err := h.db.AddWaygateTalisman(waygateId)
+		waygateToken, err := h.db.AddWaygateToken(waygateId)
 		if err != nil {
 			w.WriteHeader(500)
 			h.alertDialog(w, r, err.Error(), "/")
@@ -144,7 +144,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		}
 
 		if authReq.RedirectUri == "urn:ietf:wg:oauth:2.0:oob" {
-			fmt.Fprintf(w, talisman)
+			fmt.Fprintf(w, waygateToken)
 		} else {
 			code, err := genRandomCode(32)
 			if err != nil {
@@ -153,7 +153,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 				return
 			}
 
-			err = h.db.SetTokenCode(talisman, code)
+			err = h.db.SetTokenCode(waygateToken, code)
 			if err != nil {
 				w.WriteHeader(500)
 				h.alertDialog(w, r, err.Error(), "/")

@@ -14,14 +14,14 @@ import (
 var DBFolderPath string
 
 type Database struct {
-	AdminDomain          string                             `json:"admin_domain"`
-	Tokens               map[string]TokenData               `json:"tokens"`
-	Tunnels              map[string]Tunnel                  `json:"tunnels"`
-	Users                map[string]User                    `json:"users"`
-	dnsRequests          map[string]namedrop.DNSRequest     `json:"dns_requests"`
-	WaygateTunnels       map[string]waygate.WaygateTunnel   `json:"waygate_tunnels"`
-	WaygateTalismans     map[string]waygate.WaygateTalisman `json:"waygate_talismans"`
-	WaygatePendingTokens map[string]string                  `json:"waygate_pending_tokens"`
+	AdminDomain          string                           `json:"admin_domain"`
+	Tokens               map[string]TokenData             `json:"tokens"`
+	Tunnels              map[string]Tunnel                `json:"tunnels"`
+	Users                map[string]User                  `json:"users"`
+	dnsRequests          map[string]namedrop.DNSRequest   `json:"dns_requests"`
+	WaygateTunnels       map[string]waygate.WaygateTunnel `json:"waygate_tunnels"`
+	WaygateTokens        map[string]waygate.WaygateToken  `json:"waygate_tokens"`
+	WaygatePendingTokens map[string]string                `json:"waygate_pending_tokens"`
 	mutex                *sync.Mutex
 }
 
@@ -103,8 +103,8 @@ func NewDatabase(path string) (*Database, error) {
 	if db.WaygateTunnels == nil {
 		db.WaygateTunnels = make(map[string]waygate.WaygateTunnel)
 	}
-	if db.WaygateTalismans == nil {
-		db.WaygateTalismans = make(map[string]waygate.WaygateTalisman)
+	if db.WaygateTokens == nil {
+		db.WaygateTokens = make(map[string]waygate.WaygateToken)
 	}
 	if db.WaygatePendingTokens == nil {
 		db.WaygatePendingTokens = make(map[string]string)
@@ -381,13 +381,13 @@ func (d *Database) GetWaygates() map[string]waygate.WaygateTunnel {
 	return wgs
 }
 
-func (d *Database) AddWaygateTalisman(waygateId string) (string, error) {
+func (d *Database) AddWaygateToken(waygateId string) (string, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	talisman, err := genRandomCode(32)
+	token, err := genRandomCode(32)
 	if err != nil {
-		return "", errors.New("Could not generate waygate talisman")
+		return "", errors.New("Could not generate waygate token")
 	}
 
 	_, exists := d.WaygateTunnels[waygateId]
@@ -395,33 +395,33 @@ func (d *Database) AddWaygateTalisman(waygateId string) (string, error) {
 		return "", errors.New("No such waygate")
 	}
 
-	talismanData := waygate.WaygateTalisman{
+	tokenData := waygate.WaygateToken{
 		WaygateId: waygateId,
 	}
 
-	d.WaygateTalismans[talisman] = talismanData
+	d.WaygateTokens[token] = tokenData
 
 	d.persist()
 
-	return talisman, nil
+	return token, nil
 }
-func (d *Database) GetWaygateTalisman(id string) (waygate.WaygateTalisman, error) {
+func (d *Database) GetWaygateToken(id string) (waygate.WaygateToken, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	talisman, exists := d.WaygateTalismans[id]
+	token, exists := d.WaygateTokens[id]
 	if !exists {
-		return waygate.WaygateTalisman{}, errors.New("No such talisman")
+		return waygate.WaygateToken{}, errors.New("No such token")
 	}
 
-	return talisman, nil
+	return token, nil
 }
 
 func (d *Database) SetTokenCode(token, code string) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	_, exists := d.WaygateTalismans[token]
+	_, exists := d.WaygateTokens[token]
 	if !exists {
 		return errors.New("No such token")
 	}
