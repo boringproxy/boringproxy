@@ -1,0 +1,29 @@
+{{ template "header.tmpl" . }}
+<div class='list'>
+  {{range $name, $domain := $.Domains}}
+
+  <div class='list-item'>
+    <span class='domain'>{{$name}} (Owner: {{$domain.Owner}})</span>
+    <a href="/confirm-delete-domain?owner={{$domain.Owner}}&domain={{$name}}">
+      <button class='button'>Delete</button>
+    </a>
+  </div>
+
+  {{end}}
+</div>
+
+<div class='domain-adder'>
+  <form action="/domains" method="POST">
+     <label for="owner">Owner:</label>
+     <select id="owner" name="owner">
+       {{range $username, $user := $.Users}}
+       <option value="{{$username}}">{{$username}}</option>
+       {{end}}
+     </select>
+     <label for="domain">Domain:</label>
+     <input type="text" name="domain" required></input>
+     <button class='button' type="submit">Add Domain</button>
+  </form>
+</div>
+
+{{ template "footer.tmpl" . }}

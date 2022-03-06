@@ -352,6 +352,8 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		h.handleTokens(w, r, user, tokenData)
 	case "/clients":
 		h.handleClients(w, r, user, tokenData)
+	case "/domains":
+		h.handleDomains(w, r, user, tokenData)
 	case "/confirm-delete-token":
 		h.confirmDeleteToken(w, r)
 	case "/delete-token":
@@ -360,6 +362,10 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		h.confirmDeleteClient(w, r)
 	case "/delete-client":
 		h.deleteClient(w, r, tokenData)
+	case "/confirm-delete-domain":
+		h.confirmDeleteDomain(w, r)
+	case "/delete-domain":
+		h.deleteDomain(w, r, tokenData)
 	case "/confirm-logout":
 
 		data := &ConfirmData{
@@ -583,6 +589,62 @@ func (h *WebUiHandler) handleClients(w http.ResponseWriter, r *http.Request, use
 		return
 	}
 }
+
+func (h *WebUiHandler) handleDomains(w http.ResponseWriter, r *http.Request, user User, tokenData TokenData) {
+
+	r.ParseForm()
+
+	switch r.Method {
+	case "GET":
+		var users map[string]User
+
+		// TODO: handle security checks in api
+		if user.IsAdmin {
+			users = h.db.GetUsers()
+		} else {
+			user, _ := h.db.GetUser(tokenData.Owner)
+			users = make(map[string]User)
+			users[tokenData.Owner] = user
+		}
+
+		domains := h.api.GetDomains(tokenData)
+
+		templateData := struct {
+			User    User
+			Users   map[string]User
+			Domains map[string]Domain
+		}{
+			User:    user,
+			Users:   users,
+			Domains: domains,
+		}
+
+		err := h.tmpl.ExecuteTemplate(w, "domains.tmpl", templateData)
+		if err != nil {
+			w.WriteHeader(500)
+			io.WriteString(w, err.Error())
+			return
+		}
+	case "POST":
+
+		owner := r.Form.Get("owner")
+		domain := r.Form.Get("domain")
+
+		err := h.api.SetDomain(tokenData, r.Form, domain, owner)
+		if err != nil {
+			w.WriteHeader(500)
+			h.alertDialog(w, r, err.Error(), "/domains")
+			return
+		}
+
+		http.Redirect(w, r, "/domains", 303)
+	default:
+		w.WriteHeader(405)
+		h.alertDialog(w, r, "Invalid method for tokens", "/tokens")
+		return
+	}
+}
+
 func (h *WebUiHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != "GET" {
@@ -876,6 +938,42 @@ func (h *WebUiHandler) deleteClient(w http.ResponseWriter, r *http.Request, toke
 	}
 
 	http.Redirect(w, r, "/clients", 303)
+}
+
+func (h *WebUiHandler) confirmDeleteDomain(w http.ResponseWriter, r *http.Request) {
+
+	r.ParseForm()
+
+	domain := r.Form.Get("domain")
+
+	data := &ConfirmData{
+		Head:       h.headHtml,
+		Message:    fmt.Sprintf("Are you sure you want to delete domain %s?", domain),
+		ConfirmUrl: fmt.Sprintf("/delete-domain?domain=%s", domain),
+		CancelUrl:  "/domains",
+	}
+
+	err := h.tmpl.ExecuteTemplate(w, "confirm.tmpl", data)
+	if err != nil {
+		w.WriteHeader(500)
+		h.alertDialog(w, r, err.Error(), "/domains")
+		return
+	}
+}
+func (h *WebUiHandler) deleteDomain(w http.ResponseWriter, r *http.Request, tokenData TokenData) {
+
+	r.ParseForm()
+
+	domain := r.Form.Get("domain")
+
+	err := h.api.DeleteDomain(tokenData, domain)
+	if err != nil {
+		w.WriteHeader(500)
+		h.alertDialog(w, r, err.Error(), "/domains")
+		return
+	}
+
+	http.Redirect(w, r, "/domains", 303)
 }
 
 func (h *WebUiHandler) alertDialog(w http.ResponseWriter, r *http.Request, message, redirectUrl string) error {

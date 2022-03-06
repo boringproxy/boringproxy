@@ -18,6 +18,7 @@ type Database struct {
 	Tokens        map[string]TokenData           `json:"tokens"`
 	Tunnels       map[string]Tunnel              `json:"tunnels"`
 	Users         map[string]User                `json:"users"`
+	Domains       map[string]Domain              `json:"domains"`
 	dnsRequests   map[string]namedrop.DNSRequest `json:"dns_requests"`
 	Waygates      map[string]waygate.Waygate     `json:"waygates"`
 	WaygateTokens map[string]waygate.TokenData   `json:"waygate_tokens"`
@@ -33,6 +34,10 @@ type TokenData struct {
 type User struct {
 	IsAdmin bool                `json:"is_admin"`
 	Clients map[string]DbClient `json:"clients"`
+}
+
+type Domain struct {
+	Owner string `json:"owner"`
 }
 
 type DbClient struct {
@@ -332,6 +337,51 @@ func (d *Database) DeleteUser(username string) {
 	defer d.mutex.Unlock()
 
 	delete(d.Users, username)
+
+	d.persist()
+}
+
+func (d *Database) GetDomains() map[string]Domain {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	domains := make(map[string]Domain)
+
+	for k, v := range d.Domains {
+		domains[k] = v
+	}
+
+	return domains
+}
+
+func (d *Database) AddDomain(domain, owner string) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	_, exists := d.Domains[domain]
+
+	if exists {
+		return errors.New("Domain already taken")
+	}
+
+	_, exists = d.Users[owner]
+	if !exists {
+		return errors.New("No such user")
+	}
+
+	d.Domains[domain] = Domain{
+		Owner: owner,
+	}
+
+	d.persist()
+
+	return nil
+}
+func (d *Database) DeleteDomain(domain string) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	delete(d.Domains, domain)
 
 	d.persist()
 }

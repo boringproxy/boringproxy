@@ -580,3 +580,60 @@ func (a *Api) DeleteClient(tokenData TokenData, ownerId, clientId string) error 
 
 	return nil
 }
+
+func (a *Api) GetDomains(tokenData TokenData) map[string]Domain {
+
+	user, _ := a.db.GetUser(tokenData.Owner)
+
+	var domains map[string]Domain
+
+	if user.IsAdmin {
+		domains = a.db.GetDomains()
+	} else {
+		domains = make(map[string]Domain)
+
+		for name, domain := range a.db.GetDomains() {
+			if tokenData.Owner == domain.Owner {
+				domains[name] = domain
+			}
+		}
+	}
+
+	return domains
+}
+func (a *Api) SetDomain(tokenData TokenData, params url.Values, domain, ownerId string) error {
+
+	if tokenData.Owner != ownerId {
+		user, _ := a.db.GetUser(tokenData.Owner)
+		if !user.IsAdmin {
+			return errors.New("Unauthorized")
+		}
+	}
+
+	err := a.db.AddDomain(domain, ownerId)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+func (a *Api) DeleteDomain(tokenData TokenData, domainName string) error {
+
+	domains := a.db.GetDomains()
+
+	domain, exists := domains[domainName]
+	if !exists {
+		return errors.New("No such domain")
+	}
+
+	if tokenData.Owner != domain.Owner {
+		user, _ := a.db.GetUser(tokenData.Owner)
+		if !user.IsAdmin {
+			return errors.New("Unauthorized")
+		}
+	}
+
+	a.db.DeleteDomain(domainName)
+
+	return nil
+}
