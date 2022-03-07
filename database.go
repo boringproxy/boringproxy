@@ -386,7 +386,7 @@ func (d *Database) DeleteDomain(domain string) {
 	d.persist()
 }
 
-func (d *Database) AddWaygateTunnel(domains []string) (string, error) {
+func (d *Database) AddWaygate(domains []string) (string, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 

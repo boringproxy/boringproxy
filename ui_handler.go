@@ -129,7 +129,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 		fmt.Println(fqdn)
 
-		waygateId, err := h.db.AddWaygateTunnel([]string{fqdn})
+		waygateId, err := h.db.AddWaygate([]string{fqdn})
 		if err != nil {
 			w.WriteHeader(500)
 			h.alertDialog(w, r, err.Error(), "/")
