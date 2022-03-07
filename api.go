@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 type Api struct {
@@ -610,7 +612,34 @@ func (a *Api) SetDomain(tokenData TokenData, params url.Values, domain, ownerId 
 		}
 	}
 
-	err := a.db.AddDomain(domain, ownerId)
+	checkDomain := domain
+	if strings.HasPrefix(domain, "*.") {
+		checkDomain = domain[2:]
+	}
+
+	randomHost, err := genRandomCode(32)
+	if err != nil {
+		return err
+	}
+
+	ips, err := net.LookupIP(fmt.Sprintf("%s.%s", randomHost, checkDomain))
+	if err != nil {
+		return err
+	}
+
+	found := false
+	for _, ip := range ips {
+		if ip.String() == a.config.PublicIp {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return errors.New(fmt.Sprintf("The requested domain does not appear to have an A/AAAA record pointed at the public IP address of the server (%s). This may be because the record is not properly set, or because the DNS is still propagating (can take up to 48 hours).", a.config.PublicIp))
+	}
+
+	err = a.db.AddDomain(domain, ownerId)
 	if err != nil {
 		return err
 	}
