@@ -395,7 +395,15 @@ func (d *Database) AddWaygate(domains []string) (string, error) {
 		return "", errors.New("Could not generate waygate id")
 	}
 
-	// TODO: verify none of the domains are already in use.
+	for _, domainName := range domains {
+		for _, waygate := range d.Waygates {
+			for _, waygateDomainName := range waygate.Domains {
+				if domainName == waygateDomainName {
+					return "", errors.New("Domain already used by another waygate")
+				}
+			}
+		}
+	}
 
 	waygate := waygate.Waygate{
 		Domains: domains,
