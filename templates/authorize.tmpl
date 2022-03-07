@@ -11,13 +11,12 @@
   <input type="hidden" name="state" value="{{.AuthRequest.State}}" required>
 
   <div>
-    <input type="text" name="host" placeholder="Subdomain optional">
+    <input type="text" name="host" placeholder="Subdomain" required>
     <span>.</span>
     <select id="domain-input" name="domain">
-      {{ range .Domains}}
-      <option>{{.DomainName}}</option>
+      {{range $domainName := $.Domains}}
+      <option>{{$domainName}}</option>
       {{ end }}
-      <option>takingnames.co</option>
     </select>
   </div>
 

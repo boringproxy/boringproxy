@@ -181,36 +181,22 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			return
 		}
 
-		//user, exists := db.GetUser(tokenData.Owner)
-		//if !exists {
-		//	sendLoginPage(w, r)
-		//	return
-		//}
+		wildcardDomains := []string{}
 
-		//domains := db.GetDomainsForUser(tokenData.Owner)
+		domains := h.api.GetDomains(tokenData)
 
-		//displayClientId := authReq.ClientId
-
-		//if strings.HasSuffix(authReq.ClientId, ".ip.takingnames.live") {
-		//	domainParts := strings.Split(authReq.ClientId, ".ip.takingnames.live")
-		//	ip := strings.Replace(domainParts[0], "-", ".", -1)
-		//	displayClientId = ip
-		//}
+		for domainName, _ := range domains {
+			if strings.HasPrefix(domainName, "*.") {
+				wildcardDomains = append(wildcardDomains, domainName[2:])
+			}
+		}
 
 		data := struct {
-			//	LoggedIn        bool
-			Domains []string
-			//	FreeDomains     []string
-			//	User            User
+			Domains     []string
 			AuthRequest *waygate.AuthRequest
-			//	DisplayClientId string
 		}{
-			//	LoggedIn:        loggedIn,
-			Domains: []string{},
-			//	FreeDomains:     FreeDomains(),
-			//	User:            user,
+			Domains:     wildcardDomains,
 			AuthRequest: authReq,
-			//	DisplayClientId: displayClientId,
 		}
 
 		err = h.tmpl.ExecuteTemplate(w, "authorize.tmpl", data)
