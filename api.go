@@ -618,6 +618,37 @@ func (a *Api) DeleteClient(tokenData TokenData, ownerId, clientId string) error 
 	return nil
 }
 
+func (a *Api) GetDomainNames(r *http.Request) ([]string, error) {
+
+	token, err := extractToken("access_token", r)
+	if err != nil {
+		return nil, errors.New("No access token")
+	}
+
+	tokenData, exists := a.db.GetLegacyTokenData(token)
+	if !exists {
+		return nil, errors.New("Error getting token")
+	}
+
+	if tokenData.Client != "" {
+		return nil, errors.New("Attempted to use client token")
+	}
+
+	domainMap := a.GetDomains(tokenData)
+
+	domains := []string{}
+
+	for domainName, _ := range domainMap {
+		domains = append(domains, domainName)
+	}
+
+	if len(domains) == 0 {
+		return nil, errors.New("No domains")
+	}
+
+	return domains, nil
+}
+
 func (a *Api) GetDomains(tokenData TokenData) map[string]Domain {
 
 	user, _ := a.db.GetUser(tokenData.Owner)

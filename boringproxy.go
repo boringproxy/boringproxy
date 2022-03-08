@@ -96,18 +96,6 @@ func Listen() {
 		fmt.Printf("WARNING: Failed to access %s:%d from the internet\n", ip, *httpsPort)
 	}
 
-	user, err := user.Current()
-	if err != nil {
-		log.Fatalf("Unable to get current user: %v", err)
-	}
-	waygateServer := waygate.NewServer(db)
-	waygateServer.SshConfig = &waygate.SshConfig{
-		ServerAddress:      db.GetAdminDomain(),
-		ServerPort:         *sshServerPort,
-		Username:           user.Username,
-		AuthorizedKeysPath: filepath.Join(user.HomeDir, ".ssh", "authorized_keys"),
-	}
-
 	autoCerts := true
 	if *httpPort != 80 || *httpsPort != 443 {
 		fmt.Printf("WARNING: LetsEncrypt only supports HTTP/HTTPS ports 80/443. You are using %d/%d. Disabling automatic certificate management\n", *httpPort, *httpsPort)
@@ -191,6 +179,18 @@ func Listen() {
 
 	api := NewApi(config, db, auth, tunMan)
 
+	user, err := user.Current()
+	if err != nil {
+		log.Fatalf("Unable to get current user: %v", err)
+	}
+	waygateServer := waygate.NewServer(db, api)
+	waygateServer.SshConfig = &waygate.SshConfig{
+		ServerAddress:      db.GetAdminDomain(),
+		ServerPort:         *sshServerPort,
+		Username:           user.Username,
+		AuthorizedKeysPath: filepath.Join(user.HomeDir, ".ssh", "authorized_keys"),
+	}
+
 	webUiHandler := NewWebUiHandler(config, db, api, auth)
 
 	httpClient := &http.Client{
@@ -212,9 +212,9 @@ func Listen() {
 
 	http.Handle("/waygate/", http.StripPrefix("/waygate", waygateServer))
 	// TODO: This feels like a bit of a hack.
-	http.HandleFunc("/waygate/authorize", func(w http.ResponseWriter, r *http.Request) {
-		webUiHandler.handleWebUiRequest(w, r)
-	})
+	//http.HandleFunc("/waygate/authorize", func(w http.ResponseWriter, r *http.Request) {
+	//	webUiHandler.handleWebUiRequest(w, r)
+	//})
 	http.HandleFunc("/waygate/authorized", func(w http.ResponseWriter, r *http.Request) {
 		webUiHandler.handleWebUiRequest(w, r)
 	})

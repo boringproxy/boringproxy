@@ -72,6 +72,7 @@ func NewWebUiHandler(config *Config, db *Database, api *Api, auth *Auth) *WebUiH
 
 func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request) {
 
+	// TODO: Still want to be parsing this at runtime?
 	var err error
 	h.tmpl, err = template.ParseFS(fs, "templates/*.tmpl")
 	if err != nil {
@@ -99,8 +100,8 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 
 	user, _ := h.db.GetUser(tokenData.Owner)
 
+	// TODO: is this used/doing anything?
 	tunnels := h.api.GetTunnels(tokenData)
-
 	for domain, tun := range tunnels {
 		tunnels[domain] = tun
 	}
@@ -164,47 +165,6 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		}
 
 		return
-
-	case "/waygate/authorize":
-		if r.Method != "GET" {
-			w.WriteHeader(405)
-			h.alertDialog(w, r, err.Error(), "/")
-			return
-		}
-
-		r.ParseForm()
-
-		authReq, err := waygate.ExtractAuthRequest(r)
-		if err != nil {
-			w.WriteHeader(400)
-			h.alertDialog(w, r, err.Error(), "/")
-			return
-		}
-
-		wildcardDomains := []string{}
-
-		domains := h.api.GetDomains(tokenData)
-
-		for domainName, _ := range domains {
-			if strings.HasPrefix(domainName, "*.") {
-				wildcardDomains = append(wildcardDomains, domainName[2:])
-			}
-		}
-
-		data := struct {
-			Domains     []string
-			AuthRequest *waygate.AuthRequest
-		}{
-			Domains:     wildcardDomains,
-			AuthRequest: authReq,
-		}
-
-		err = h.tmpl.ExecuteTemplate(w, "authorize.tmpl", data)
-		if err != nil {
-			w.WriteHeader(500)
-			h.alertDialog(w, r, err.Error(), "/")
-			return
-		}
 	case "/login":
 		h.handleLogin(w, r)
 	case "/users":
