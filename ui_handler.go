@@ -14,8 +14,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/takingnames/waygate-go"
 )
 
 //go:embed logo.png templates
@@ -107,64 +105,6 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 	}
 
 	switch r.URL.Path {
-	case "/waygate/authorized":
-		if r.Method != "POST" {
-			w.WriteHeader(405)
-			io.WriteString(w, "Invalid method")
-			return
-		}
-
-		r.ParseForm()
-
-		authReq, err := waygate.ExtractAuthRequest(r)
-		if err != nil {
-			w.WriteHeader(400)
-			io.WriteString(w, err.Error())
-			return
-		}
-
-		domain := r.Form.Get("domain")
-		host := r.Form.Get("host")
-
-		fqdn := fmt.Sprintf("%s.%s", host, domain)
-
-		fmt.Println(fqdn)
-
-		waygateId, err := h.db.AddWaygate([]string{fqdn})
-		if err != nil {
-			w.WriteHeader(500)
-			h.alertDialog(w, r, err.Error(), "/")
-			return
-		}
-
-		waygateToken, err := h.db.AddWaygateToken(waygateId)
-		if err != nil {
-			w.WriteHeader(500)
-			h.alertDialog(w, r, err.Error(), "/")
-			return
-		}
-
-		if authReq.RedirectUri == "urn:ietf:wg:oauth:2.0:oob" {
-			fmt.Fprintf(w, waygateToken)
-		} else {
-			code, err := genRandomCode(32)
-			if err != nil {
-				w.WriteHeader(500)
-				h.alertDialog(w, r, err.Error(), "/")
-				return
-			}
-
-			err = h.db.SetTokenCode(waygateToken, code)
-			if err != nil {
-				w.WriteHeader(500)
-				h.alertDialog(w, r, err.Error(), "/")
-				return
-			}
-			url := fmt.Sprintf("http://%s?code=%s&state=%s", authReq.RedirectUri, code, authReq.State)
-			http.Redirect(w, r, url, 303)
-		}
-
-		return
 	case "/login":
 		h.handleLogin(w, r)
 	case "/users":

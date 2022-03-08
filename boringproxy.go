@@ -211,13 +211,6 @@ func Listen() {
 	tlsListener := tls.NewListener(httpListener, tlsConfig)
 
 	http.Handle("/waygate/", http.StripPrefix("/waygate", waygateServer))
-	// TODO: This feels like a bit of a hack.
-	//http.HandleFunc("/waygate/authorize", func(w http.ResponseWriter, r *http.Request) {
-	//	webUiHandler.handleWebUiRequest(w, r)
-	//})
-	http.HandleFunc("/waygate/authorized", func(w http.ResponseWriter, r *http.Request) {
-		webUiHandler.handleWebUiRequest(w, r)
-	})
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		timestamp := time.Now().Format(time.RFC3339)
