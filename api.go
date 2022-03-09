@@ -680,15 +680,14 @@ func (a *Api) SetDomain(tokenData TokenData, params url.Values, domain, ownerId 
 
 	checkDomain := domain
 	if strings.HasPrefix(domain, "*.") {
-		checkDomain = domain[2:]
+		randomHost, err := genRandomCode(32)
+		if err != nil {
+			return err
+		}
+		checkDomain = fmt.Sprintf("%s.%s", randomHost, checkDomain[2:])
 	}
 
-	randomHost, err := genRandomCode(32)
-	if err != nil {
-		return err
-	}
-
-	ips, err := net.LookupIP(fmt.Sprintf("%s.%s", randomHost, checkDomain))
+	ips, err := net.LookupIP(checkDomain)
 	if err != nil {
 		return err
 	}
@@ -713,7 +712,7 @@ func (a *Api) SetDomain(tokenData TokenData, params url.Values, domain, ownerId 
 	}
 
 	if !ipv4Match || !ipv6Match {
-		return errors.New(fmt.Sprintf("The requested domain does not appear to have an A/AAAA record pointed at the public IP address of the server. This may be because the record is not properly set, or because the DNS is still propagating (can take up to 48 hours). IPv4: '%s', IPv6: '%s'", a.config.PublicIpv4, a.config.PublicIpv6))
+		return errors.New(fmt.Sprintf("The requested domain does not appear to have an A/AAAA record pointed at the public IP address of the server. This may be because the record is not properly set, or because the DNS is still propagating (can take up to 48 hours). The records should match the following values: A: '%s', AAAA: '%s'", a.config.PublicIpv4, a.config.PublicIpv6))
 	}
 
 	err = a.db.AddDomain(domain, ownerId)
