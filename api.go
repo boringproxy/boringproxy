@@ -693,16 +693,27 @@ func (a *Api) SetDomain(tokenData TokenData, params url.Values, domain, ownerId 
 		return err
 	}
 
-	found := false
+	ipv4Match := false
+	ipv6Match := false
+
+	if a.config.PublicIpv4 == "" {
+		ipv4Match = true
+	}
+	if a.config.PublicIpv6 == "" {
+		ipv6Match = true
+	}
+
 	for _, ip := range ips {
-		if ip.String() == a.config.PublicIp {
-			found = true
-			break
+		ipStr := ip.String()
+		if ipStr == a.config.PublicIpv4 {
+			ipv4Match = true
+		} else if ipStr == a.config.PublicIpv6 {
+			ipv6Match = true
 		}
 	}
 
-	if !found {
-		return errors.New(fmt.Sprintf("The requested domain does not appear to have an A/AAAA record pointed at the public IP address of the server (%s). This may be because the record is not properly set, or because the DNS is still propagating (can take up to 48 hours).", a.config.PublicIp))
+	if !ipv4Match || !ipv6Match {
+		return errors.New(fmt.Sprintf("The requested domain does not appear to have an A/AAAA record pointed at the public IP address of the server. This may be because the record is not properly set, or because the DNS is still propagating (can take up to 48 hours). IPv4: '%s', IPv6: '%s'", a.config.PublicIpv4, a.config.PublicIpv6))
 	}
 
 	err = a.db.AddDomain(domain, ownerId)

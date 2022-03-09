@@ -139,6 +139,8 @@ github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5Cc
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/takingnames/namedrop-go v0.7.0 h1:xgIXrK9clSbnZFZwVuGCYhn7bGQO2fPYAIlACah4rtg=
 github.com/takingnames/namedrop-go v0.7.0/go.mod h1:E3nx6fxAMfestthd1O3VhbaPesLaiYSGkWXRD1nIc88=
+github.com/takingnames/namedrop-go v0.8.0 h1:lLltsu5NA0WlgjZ65AFP+AAb+maP/Xb5uCsfKVQwEGg=
+github.com/takingnames/namedrop-go v0.8.0/go.mod h1:E3nx6fxAMfestthd1O3VhbaPesLaiYSGkWXRD1nIc88=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

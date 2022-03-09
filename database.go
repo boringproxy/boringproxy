@@ -101,6 +101,10 @@ func NewDatabase(path string) (*Database, error) {
 		db.Users = make(map[string]User)
 	}
 
+	if db.Domains == nil {
+		db.Domains = make(map[string]Domain)
+	}
+
 	if db.dnsRequests == nil {
 		db.dnsRequests = make(map[string]namedrop.DNSRequest)
 	}

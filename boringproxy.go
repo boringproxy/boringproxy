@@ -26,7 +26,8 @@ import (
 
 type Config struct {
 	SshServerPort  int    `json:"ssh_server_port"`
-	PublicIp       string `json:"public_ip"`
+	PublicIpv4     string `json:"public_ipv4"`
+	PublicIpv6     string `json:"public_ipv6"`
 	namedropClient *namedrop.Client
 	autoCerts      bool
 }
@@ -56,11 +57,14 @@ func Listen() {
 	httpPort := flagSet.Int("http-port", 80, "HTTP (insecure) port")
 	httpsPort := flagSet.Int("https-port", 443, "HTTPS (secure) port")
 	allowHttp := flagSet.Bool("allow-http", false, "Allow unencrypted (HTTP) requests")
-	publicIp := flagSet.String("public-ip", "", "Public IP")
 	behindProxy := flagSet.Bool("behind-proxy", false, "Whether we're running behind another reverse proxy")
 	acmeEmail := flagSet.String("acme-email", "", "Email for ACME (ie Let's Encrypt)")
 	acmeUseStaging := flagSet.Bool("acme-use-staging", false, "Use ACME (ie Let's Encrypt) staging servers")
 	acceptCATerms := flagSet.Bool("accept-ca-terms", false, "Automatically accept CA terms")
+	var publicIpv4 string
+	flagSet.StringVar(&publicIpv4, "public-ipv4", "", "Public IPv4 address")
+	var publicIpv6 string
+	flagSet.StringVar(&publicIpv6, "public-ipv6", "", "Public IPv6 address")
 	err := flagSet.Parse(os.Args[2:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: parsing flags: %s\n", os.Args[0], err)
@@ -75,25 +79,36 @@ func Listen() {
 
 	namedropClient := namedrop.NewClient(db, db.GetAdminDomain(), "takingnames.io/namedrop")
 
-	var ip string
-
-	if *publicIp != "" {
-		ip = *publicIp
-	} else {
-		ip, err = namedropClient.GetPublicIp()
+	if publicIpv4 == "" {
+		publicIpv4, err = namedropClient.GetPublicIpv4()
 		if err != nil {
 			fmt.Printf("WARNING: Failed to determine public IP: %s\n", err.Error())
 		}
 	}
 
-	err = namedrop.CheckPublicAddress(ip, *httpPort)
-	if err != nil {
-		fmt.Printf("WARNING: Failed to access %s:%d from the internet\n", ip, *httpPort)
+	if publicIpv6 == "" {
+		publicIpv6, err = namedropClient.GetPublicIpv6()
+		if err != nil {
+			fmt.Printf("WARNING: Failed to determine public IP: %s\n", err.Error())
+		}
 	}
 
-	err = namedrop.CheckPublicAddress(ip, *httpsPort)
+	err = namedrop.CheckPublicAddress(publicIpv4, *httpPort)
 	if err != nil {
-		fmt.Printf("WARNING: Failed to access %s:%d from the internet\n", ip, *httpsPort)
+		fmt.Printf("WARNING: Failed to access %s:%d from the internet\n", publicIpv4, *httpPort)
+	}
+	err = namedrop.CheckPublicAddress(publicIpv4, *httpsPort)
+	if err != nil {
+		fmt.Printf("WARNING: Failed to access %s:%d from the internet\n", publicIpv4, *httpsPort)
+	}
+
+	err = namedrop.CheckPublicAddress(publicIpv6, *httpPort)
+	if err != nil {
+		fmt.Printf("WARNING: Failed to access %s:%d from the internet\n", publicIpv6, *httpPort)
+	}
+	err = namedrop.CheckPublicAddress(publicIpv6, *httpsPort)
+	if err != nil {
+		fmt.Printf("WARNING: Failed to access %s:%d from the internet\n", publicIpv6, *httpsPort)
 	}
 
 	autoCerts := true
@@ -168,7 +183,8 @@ func Listen() {
 
 	config := &Config{
 		SshServerPort:  *sshServerPort,
-		PublicIp:       ip,
+		PublicIpv4:     publicIpv4,
+		PublicIpv6:     publicIpv6,
 		namedropClient: namedropClient,
 		autoCerts:      autoCerts,
 	}
@@ -250,24 +266,36 @@ func Listen() {
 			domain := namedropTokenData.Scopes[0].Domain
 			host := namedropTokenData.Scopes[0].Host
 
-			recordType := "AAAA"
-			if IsIPv4(config.PublicIp) {
-				recordType = "A"
+			if config.PublicIpv4 != "" {
+				createRecordReq := namedrop.Record{
+					Domain: domain,
+					Host:   host,
+					Type:   "A",
+					Value:  config.PublicIpv4,
+					TTL:    300,
+				}
+				err = namedropClient.CreateRecord(createRecordReq)
+				if err != nil {
+					w.WriteHeader(500)
+					io.WriteString(w, err.Error())
+					return
+				}
 			}
 
-			createRecordReq := namedrop.Record{
-				Domain: domain,
-				Host:   host,
-				Type:   recordType,
-				Value:  config.PublicIp,
-				TTL:    300,
-			}
-
-			err = namedropClient.CreateRecord(createRecordReq)
-			if err != nil {
-				w.WriteHeader(500)
-				io.WriteString(w, err.Error())
-				return
+			if config.PublicIpv6 != "" {
+				createRecordReq := namedrop.Record{
+					Domain: domain,
+					Host:   host,
+					Type:   "AAAA",
+					Value:  config.PublicIpv6,
+					TTL:    300,
+				}
+				err = namedropClient.CreateRecord(createRecordReq)
+				if err != nil {
+					w.WriteHeader(500)
+					io.WriteString(w, err.Error())
+					return
+				}
 			}
 
 			fqdn := host + "." + domain
