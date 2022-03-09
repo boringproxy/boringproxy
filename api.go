@@ -451,28 +451,36 @@ func (a *Api) DeleteTunnel(tokenData TokenData, params url.Values) error {
 
 func (a *Api) CreateToken(tokenData TokenData, params url.Values) (string, error) {
 
-	owner := params.Get("owner")
-	if owner == "" {
+	ownerId := params.Get("owner")
+	if ownerId == "" {
 		return "", errors.New("Invalid owner paramater")
 	}
 
 	user, _ := a.db.GetUser(tokenData.Owner)
 
-	if tokenData.Owner != owner && !user.IsAdmin {
+	if tokenData.Owner != ownerId && !user.IsAdmin {
 		return "", errors.New("Unauthorized")
+	}
+
+	var owner User
+
+	if tokenData.Owner == ownerId {
+		owner = user
+	} else {
+		owner, _ = a.db.GetUser(ownerId)
 	}
 
 	client := params.Get("client")
 
 	if client != "any" {
-		if _, exists := user.Clients[client]; !exists {
-			return "", errors.New(fmt.Sprintf("Client %s does not exist for user %s", client, owner))
+		if _, exists := owner.Clients[client]; !exists {
+			return "", errors.New(fmt.Sprintf("Client %s does not exist for user %s", client, ownerId))
 		}
 	} else {
 		client = ""
 	}
 
-	token, err := a.db.AddToken(owner, client)
+	token, err := a.db.AddToken(ownerId, client)
 	if err != nil {
 		return "", errors.New("Failed to create token")
 	}
