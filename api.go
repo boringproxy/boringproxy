@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/takingnames/waygate-go"
 )
 
 type Api struct {
@@ -749,4 +751,16 @@ func (a *Api) DeleteDomain(tokenData TokenData, domainName string) error {
 	a.db.DeleteDomain(domainName)
 
 	return nil
+}
+
+func (a *Api) GetWaygates(tokenData TokenData) map[string]waygate.Waygate {
+
+	user, _ := a.db.GetUser(tokenData.Owner)
+	waygates := a.db.GetWaygates()
+
+	if user.IsAdmin {
+		return waygates
+	} else {
+		return map[string]waygate.Waygate{}
+	}
 }

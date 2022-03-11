@@ -390,7 +390,7 @@ func (d *Database) DeleteDomain(domain string) {
 	d.persist()
 }
 
-func (d *Database) AddWaygate(domains []string) (string, error) {
+func (d *Database) AddWaygate(wg waygate.Waygate) (string, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
@@ -399,7 +399,7 @@ func (d *Database) AddWaygate(domains []string) (string, error) {
 		return "", errors.New("Could not generate waygate id")
 	}
 
-	for _, domainName := range domains {
+	for _, domainName := range wg.Domains {
 		for _, waygate := range d.Waygates {
 			for _, waygateDomainName := range waygate.Domains {
 				if domainName == waygateDomainName {
@@ -409,11 +409,7 @@ func (d *Database) AddWaygate(domains []string) (string, error) {
 		}
 	}
 
-	waygate := waygate.Waygate{
-		Domains: domains,
-	}
-
-	d.Waygates[id] = waygate
+	d.Waygates[id] = wg
 
 	d.persist()
 

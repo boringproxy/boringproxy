@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/takingnames/waygate-go"
 )
 
 //go:embed logo.png templates
@@ -240,6 +242,8 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		h.handleClients(w, r, user, tokenData)
 	case "/domains":
 		h.handleDomains(w, r, user, tokenData)
+	case "/waygates":
+		h.handleWaygates(w, r, user, tokenData)
 	case "/confirm-delete-token":
 		h.confirmDeleteToken(w, r)
 	case "/delete-token":
@@ -527,6 +531,35 @@ func (h *WebUiHandler) handleDomains(w http.ResponseWriter, r *http.Request, use
 	default:
 		w.WriteHeader(405)
 		h.alertDialog(w, r, "Invalid method for tokens", "/tokens")
+		return
+	}
+}
+
+func (h *WebUiHandler) handleWaygates(w http.ResponseWriter, r *http.Request, user User, tokenData TokenData) {
+
+	r.ParseForm()
+
+	switch r.Method {
+	case "GET":
+		waygates := h.api.GetWaygates(tokenData)
+
+		templateData := struct {
+			User     User
+			Waygates map[string]waygate.Waygate
+		}{
+			User:     user,
+			Waygates: waygates,
+		}
+
+		err := h.tmpl.ExecuteTemplate(w, "waygates.tmpl", templateData)
+		if err != nil {
+			w.WriteHeader(500)
+			io.WriteString(w, err.Error())
+			return
+		}
+	default:
+		w.WriteHeader(405)
+		h.alertDialog(w, r, "Invalid method for /waygates", "/waygates")
 		return
 	}
 }
