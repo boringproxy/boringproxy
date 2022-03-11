@@ -1,0 +1,40 @@
+{{ template "header.tmpl" . }}
+
+<div class='tn-waygate-list-table'>
+  <table class='tn-waygate-table'>
+    <thead>
+      <tr>
+        <th class='tn-waygate-table__cell'>Domains</th>
+        <th class='tn-waygate-table__cell'>Description</th>
+        <th class='tn-waygate-table__cell'>Admin Link</th>
+        <th class='tn-waygate-table__cell'>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range $waygateId, $waygate := .Waygates}}
+      <tr>
+        <td class='tn-waygate-table__cell'>
+          {{ range $domain := $waygate.Domains }}
+          <div>
+            <a href='https://{{$domain}}' target="_blank">{{$domain}}</a>
+          </div>
+          {{ end }}
+        </td>
+        <td class='tn-waygate-table__cell'>
+          {{$waygate.Description}}
+        </td>
+        <td class='tn-waygate-table__cell'>
+          <a href='{{$waygate.AdminUrl}}' target="_blank">Admin Link</a>
+        </td>
+        <td class='tn-waygate-table__cell'>
+          <div class='button-row'>
+            <a class='button' href="/waygates/{{$waygateId}}">Edit</a>
+            <a class='button' href="/confirm-delete-waygate?id={{$waygateId}}">Delete</a>
+          </div>
+        </td>
+      </tr>
+      {{ end }}
+    </tbody>
+  </table>
+</div>
+{{ template "footer.tmpl" . }}
