@@ -14,8 +14,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/takingnames/waygate-go"
 )
 
 //go:embed logo.png templates
@@ -242,8 +240,6 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		h.handleClients(w, r, user, tokenData)
 	case "/domains":
 		h.handleDomains(w, r, user, tokenData)
-	case "/waygates":
-		h.handleWaygates(w, r, user, tokenData)
 	case "/confirm-delete-token":
 		h.confirmDeleteToken(w, r)
 	case "/delete-token":
@@ -295,6 +291,22 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 		namedropLink := h.config.namedropClient.DomainRequestLink()
 
 		http.Redirect(w, r, namedropLink, 303)
+
+	case "/waygates":
+		h.handleWaygates(w, r, user, tokenData)
+	case "/waygate-edit":
+		h.handleWaygateEdit(w, r)
+	case "/waygate-add-domain":
+		h.handleWaygateAddNormalDomain(w, r)
+	case "/waygate-add-wildcard-domain":
+		h.handleWaygateAddWildcardDomain(w, r)
+	case "/waygate-delete-selected":
+		h.handleWaygateDeleteSelected(w, r)
+	case "/waygate-create":
+		h.handleWaygateCreate(w, r)
+	case "/waygate-connect-existing":
+		h.handleWaygateConnectExisting(w, r)
+
 	default:
 		if strings.HasPrefix(r.URL.Path, "/tunnels/") {
 
@@ -531,35 +543,6 @@ func (h *WebUiHandler) handleDomains(w http.ResponseWriter, r *http.Request, use
 	default:
 		w.WriteHeader(405)
 		h.alertDialog(w, r, "Invalid method for tokens", "/tokens")
-		return
-	}
-}
-
-func (h *WebUiHandler) handleWaygates(w http.ResponseWriter, r *http.Request, user User, tokenData TokenData) {
-
-	r.ParseForm()
-
-	switch r.Method {
-	case "GET":
-		waygates := h.api.GetWaygates(tokenData)
-
-		templateData := struct {
-			User     User
-			Waygates map[string]waygate.Waygate
-		}{
-			User:     user,
-			Waygates: waygates,
-		}
-
-		err := h.tmpl.ExecuteTemplate(w, "waygates.tmpl", templateData)
-		if err != nil {
-			w.WriteHeader(500)
-			io.WriteString(w, err.Error())
-			return
-		}
-	default:
-		w.WriteHeader(405)
-		h.alertDialog(w, r, "Invalid method for /waygates", "/waygates")
 		return
 	}
 }

@@ -226,7 +226,9 @@ func Listen() {
 	}
 	tlsListener := tls.NewListener(httpListener, tlsConfig)
 
-	http.Handle("/waygate/", http.StripPrefix("/waygate", waygateServer))
+	waygateHandler := NewWaygateHandler(waygateServer, db, api)
+
+	http.Handle("/waygate/", http.StripPrefix("/waygate", waygateHandler))
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		timestamp := time.Now().Format(time.RFC3339)

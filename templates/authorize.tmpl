@@ -1,0 +1,50 @@
+<p>
+  A service is requesting to create a tunnel. If you want to approve this
+  action, create a new Waygate or select an existing one below.
+</p>
+
+
+<form action="/waygate-edit" method="POST">
+  <input type="hidden" name="return-url" value="{{.ReturnUrl}}" required>
+  <button class='button' formaction="/waygate-edit">Create new Waygate</button>
+</form>
+
+<h1>Select existing Waygate:</h1>
+
+<form action="./approve" method="POST">
+  <input type="hidden" name="client_id" value="{{.AuthRequest.ClientId}}" required>
+  <input type="hidden" name="redirect_uri" value="{{.AuthRequest.RedirectUri}}" required>
+  <input type="hidden" name="scope" value="{{.AuthRequest.Scope}}" required>
+  <input type="hidden" name="state" value="{{.AuthRequest.State}}" required>
+
+  <div class='waygate-list-table'>
+    <table class='waygate-table'>
+      <thead>
+        <tr>
+          <th class='waygate-table__cell'>Domains</th>
+          <th class='waygate-table__cell'>Description</th>
+          <th class='waygate-table__cell'></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range $waygateId, $waygate := .Waygates}}
+        <tr>
+          <td class='waygate-table__cell'>
+            {{ range $domain := $waygate.Domains }}
+            <div>
+              {{$domain}}
+            </div>
+            {{ end }}
+          </td>
+          <td class='waygate-table__cell'>
+            {{$waygate.Description}}
+          </td>
+          <td class='waygate-table__cell'>
+            <button class='button' formaction="/waygate-connect-existing" name="waygate-id" value="{{$waygateId}}">Select</button>
+          </td>
+        </tr>
+        {{ end }}
+      </tbody>
+    </table>
+  </div>
+</form>

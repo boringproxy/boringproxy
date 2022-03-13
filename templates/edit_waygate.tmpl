@@ -1,0 +1,56 @@
+<!doctype html>
+
+<html>
+<body>
+
+<form action="/waygate-create" method="POST">
+
+  <input type="hidden" name="return-url" value="{{.ReturnUrl}}" required>
+
+  <div>
+    Description:
+  </div>
+  <div>
+    <input type="text" name="description" placeholder="Description (optional)">
+  </div>
+  
+  <div>
+    Domains:
+  </div>
+
+  {{range $domainName := $.SelectedDomains}}
+  <input type="hidden" name="selected-domains" value="{{$domainName}}">
+  <div>
+    {{$domainName}}
+    <button formaction="/waygate-delete-selected" name="delete-domain" value="{{$domainName}}">Delete</button>
+  </div>
+  {{end}}
+
+  <div>
+    <select id="domain-input" name="add-domain">
+      {{range $domainName := $.Domains}}
+      <option>{{$domainName}}</option>
+      {{ end }}
+    </select>
+    <button formaction="/waygate-add-domain">Add Domain</button>
+  </div>
+
+  <div>
+    <input type="text" name="host" placeholder="Subdomain">
+    <span>.</span>
+    <select id="domain-input" name="add-wildcard-domain">
+      {{range $domainName := $.WildcardDomains}}
+      <option>{{$domainName}}</option>
+      {{ end }}
+    </select>
+    <button formaction="/waygate-add-wildcard-domain">Add Wildcard</button>
+  </div>
+  
+  <div class='button-row'>
+    <button class='button' type="submit">Submit</button>
+    <button class='button'>Cancel</button>
+  </div>
+</form>
+
+</body>
+</html>
