@@ -13,6 +13,11 @@ import (
 
 var DBFolderPath string
 
+type Waygate struct {
+	OwnerId string          `json:"owner_id"`
+	Waygate waygate.Waygate `json:"waygate"`
+}
+
 type Database struct {
 	AdminDomain   string                         `json:"admin_domain"`
 	Tokens        map[string]TokenData           `json:"tokens"`
@@ -20,7 +25,7 @@ type Database struct {
 	Users         map[string]User                `json:"users"`
 	Domains       map[string]Domain              `json:"domains"`
 	dnsRequests   map[string]namedrop.DNSRequest `json:"dns_requests"`
-	Waygates      map[string]waygate.Waygate     `json:"waygates"`
+	Waygates      map[string]Waygate             `json:"waygates"`
 	WaygateTokens map[string]waygate.TokenData   `json:"waygate_tokens"`
 	waygateCodes  map[string]string              `json:"waygate_codes"`
 	mutex         *sync.Mutex
@@ -110,7 +115,7 @@ func NewDatabase(path string) (*Database, error) {
 	}
 
 	if db.Waygates == nil {
-		db.Waygates = make(map[string]waygate.Waygate)
+		db.Waygates = make(map[string]Waygate)
 	}
 	if db.WaygateTokens == nil {
 		db.WaygateTokens = make(map[string]waygate.TokenData)
@@ -390,7 +395,7 @@ func (d *Database) DeleteDomain(domain string) {
 	d.persist()
 }
 
-func (d *Database) AddWaygate(wg waygate.Waygate) (string, error) {
+func (d *Database) AddWaygate(ownerId string, wg waygate.Waygate) (string, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
@@ -401,7 +406,7 @@ func (d *Database) AddWaygate(wg waygate.Waygate) (string, error) {
 
 	for _, domainName := range wg.Domains {
 		for _, waygate := range d.Waygates {
-			for _, waygateDomainName := range waygate.Domains {
+			for _, waygateDomainName := range waygate.Waygate.Domains {
 				if domainName == waygateDomainName {
 					return "", errors.New("Domain already used by another waygate")
 				}
@@ -409,7 +414,10 @@ func (d *Database) AddWaygate(wg waygate.Waygate) (string, error) {
 		}
 	}
 
-	d.Waygates[id] = wg
+	d.Waygates[id] = Waygate{
+		OwnerId: ownerId,
+		Waygate: wg,
+	}
 
 	d.persist()
 
@@ -419,12 +427,12 @@ func (d *Database) GetWaygate(id string) (waygate.Waygate, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	tun, exists := d.Waygates[id]
+	wg, exists := d.Waygates[id]
 	if !exists {
 		return waygate.Waygate{}, errors.New("No such waygate")
 	}
 
-	return tun, nil
+	return wg.Waygate, nil
 }
 func (d *Database) GetWaygates() map[string]waygate.Waygate {
 	d.mutex.Lock()
@@ -433,12 +441,32 @@ func (d *Database) GetWaygates() map[string]waygate.Waygate {
 	wgs := make(map[string]waygate.Waygate)
 
 	for id, wg := range d.Waygates {
-		wgs[id] = wg
+		wgs[id] = wg.Waygate
 	}
 
 	return wgs
 }
 
+func (d *Database) GetBoringProxyWaygate(id string) (Waygate, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	wg, exists := d.Waygates[id]
+	if !exists {
+		return Waygate{}, errors.New("No such waygate")
+	}
+
+	return wg, nil
+
+}
+
+func (d *Database) DeleteWaygate(id string) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	delete(d.Waygates, id)
+
+}
 func (d *Database) AddWaygateToken(waygateId string) (string, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()

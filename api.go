@@ -764,3 +764,22 @@ func (a *Api) GetWaygates(tokenData TokenData) map[string]waygate.Waygate {
 		return map[string]waygate.Waygate{}
 	}
 }
+
+func (a *Api) DeleteWaygate(tokenData TokenData, waygateId string) error {
+
+	waygate, err := a.db.GetBoringProxyWaygate(waygateId)
+	if err != nil {
+		return err
+	}
+
+	if tokenData.Owner != waygate.OwnerId {
+		user, _ := a.db.GetUser(tokenData.Owner)
+		if !user.IsAdmin {
+			return errors.New("Unauthorized")
+		}
+	}
+
+	a.db.DeleteWaygate(waygateId)
+
+	return nil
+}

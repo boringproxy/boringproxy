@@ -176,7 +176,7 @@ func (h *WebUiHandler) handleWaygateAddDomain(w http.ResponseWriter, r *http.Req
 
 	h.handleWaygateEdit(w, r)
 }
-func (h *WebUiHandler) handleWaygateDeleteSelected(w http.ResponseWriter, r *http.Request) {
+func (h *WebUiHandler) handleWaygateDeleteSelectedDomain(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		w.WriteHeader(405)
 		io.WriteString(w, "Invalid method")
@@ -249,7 +249,7 @@ func (h *WebUiHandler) handleWaygateEdit(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func (h *WebUiHandler) handleWaygateCreate(w http.ResponseWriter, r *http.Request) {
+func (h *WebUiHandler) handleWaygateCreate(w http.ResponseWriter, r *http.Request, tokenData TokenData) {
 	if r.Method != "POST" {
 		w.WriteHeader(405)
 		io.WriteString(w, "Invalid method")
@@ -295,7 +295,8 @@ func (h *WebUiHandler) handleWaygateCreate(w http.ResponseWriter, r *http.Reques
 		Domains:     selectedDomains,
 		Description: description,
 	}
-	_, err = h.db.AddWaygate(wg)
+
+	_, err = h.db.AddWaygate(tokenData.Owner, wg)
 	if err != nil {
 		w.WriteHeader(500)
 		fmt.Fprintf(w, err.Error())
@@ -359,4 +360,40 @@ func (h *WebUiHandler) completeAuth(w http.ResponseWriter, r *http.Request, wayg
 		url := fmt.Sprintf("http://%s?code=%s&state=%s", authReq.RedirectUri, code, authReq.State)
 		http.Redirect(w, r, url, 303)
 	}
+}
+
+func (h *WebUiHandler) confirmDeleteWaygate(w http.ResponseWriter, r *http.Request) {
+
+	r.ParseForm()
+
+	waygateId := r.Form.Get("waygate-id")
+
+	data := &ConfirmData{
+		Head:       h.headHtml,
+		Message:    "Are you sure you want to delete Waygate?",
+		ConfirmUrl: fmt.Sprintf("/waygate-delete?waygate-id=%s", waygateId),
+		CancelUrl:  "/waygates",
+	}
+
+	err := h.tmpl.ExecuteTemplate(w, "confirm.tmpl", data)
+	if err != nil {
+		w.WriteHeader(500)
+		h.alertDialog(w, r, err.Error(), "/waygates")
+		return
+	}
+}
+func (h *WebUiHandler) deleteWaygate(w http.ResponseWriter, r *http.Request, tokenData TokenData) {
+
+	r.ParseForm()
+
+	waygateId := r.Form.Get("waygate-id")
+
+	err := h.api.DeleteWaygate(tokenData, waygateId)
+	if err != nil {
+		w.WriteHeader(500)
+		h.alertDialog(w, r, err.Error(), "/waygates")
+		return
+	}
+
+	http.Redirect(w, r, "/waygates", 303)
 }

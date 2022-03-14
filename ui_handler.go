@@ -301,11 +301,15 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 	case "/waygate-add-wildcard-domain":
 		h.handleWaygateAddWildcardDomain(w, r)
 	case "/waygate-delete-selected":
-		h.handleWaygateDeleteSelected(w, r)
+		h.handleWaygateDeleteSelectedDomain(w, r)
 	case "/waygate-create":
-		h.handleWaygateCreate(w, r)
+		h.handleWaygateCreate(w, r, tokenData)
 	case "/waygate-connect-existing":
 		h.handleWaygateConnectExisting(w, r)
+	case "/waygate-confirm-delete":
+		h.confirmDeleteWaygate(w, r)
+	case "/waygate-delete":
+		h.deleteWaygate(w, r, tokenData)
 
 	default:
 		if strings.HasPrefix(r.URL.Path, "/tunnels/") {
