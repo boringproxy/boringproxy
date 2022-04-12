@@ -6,11 +6,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"sync"
 
 	"github.com/boringproxy/boringproxy"
+	"github.com/joho/godotenv"
 )
 
 const usage = `Usage: %s [command] [flags]
@@ -30,12 +32,39 @@ func fail(msg string) {
 	fmt.Fprintln(os.Stderr, msg)
 	os.Exit(1)
 }
+
+func loadEnvFile(filePath string) {
+	// loads values from .env into the system
+	var err error
+	if filePath != "" {
+		err = godotenv.Load(filePath)
+		log.Println(fmt.Sprintf("Loading .env file from '%s'", filePath))
+	} else {
+		err = godotenv.Load()
+		log.Println("Loading .env file from working directory")
+	}
+	if err != nil {
+		log.Println("No .env file found")
+	}
+}
+
 func main() {
+	var env_file string
+	var flags []string
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, os.Args[0]+": Need a command")
 		fmt.Printf(usage, os.Args[0])
 		os.Exit(1)
+	} else {
+		flags = os.Args[2:]
+		if len(os.Args) > 2 {
+			if os.Args[2] == "config" {
+				env_file = os.Args[3]
+				flags = os.Args[4:]
+			}
+		}
 	}
+	loadEnvFile(env_file)
 
 	command := os.Args[1]
 
@@ -83,43 +112,10 @@ func main() {
 			}
 		}
 	case "server":
-		boringproxy.Listen()
+		config := boringproxy.SetServerConfig(flags)
+		boringproxy.Listen(config)
 	case "client":
-		flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-		server := flagSet.String("server", "", "boringproxy server")
-		token := flagSet.String("token", "", "Access token")
-		name := flagSet.String("client-name", "", "Client name")
-		user := flagSet.String("user", "", "user")
-		certDir := flagSet.String("cert-dir", "", "TLS cert directory")
-		acmeEmail := flagSet.String("acme-email", "", "Email for ACME (ie Let's Encrypt)")
-		acmeUseStaging := flagSet.Bool("acme-use-staging", false, "Use ACME (ie Let's Encrypt) staging servers")
-		dnsServer := flagSet.String("dns-server", "", "Custom DNS server")
-		behindProxy := flagSet.Bool("behind-proxy", false, "Whether we're running behind another reverse proxy")
-
-		err := flagSet.Parse(os.Args[2:])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: parsing flags: %s\n", os.Args[0], err)
-		}
-
-		if *server == "" {
-			fail("-server is required")
-		}
-
-		if *token == "" {
-			fail("-token is required")
-		}
-
-		config := &boringproxy.ClientConfig{
-			ServerAddr:     *server,
-			Token:          *token,
-			ClientName:     *name,
-			User:           *user,
-			CertDir:        *certDir,
-			AcmeEmail:      *acmeEmail,
-			AcmeUseStaging: *acmeUseStaging,
-			DnsServer:      *dnsServer,
-			BehindProxy:    *behindProxy,
-		}
+		config := boringproxy.SetClientConfig(flags)
 
 		ctx := context.Background()
 
