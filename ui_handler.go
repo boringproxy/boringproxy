@@ -3,12 +3,15 @@ package boringproxy
 import (
 	"embed"
 	"encoding/base64"
+
 	//"encoding/json"
 	"fmt"
-	qrcode "github.com/skip2/go-qrcode"
 	"html/template"
 	"io"
 	"net/http"
+
+	qrcode "github.com/skip2/go-qrcode"
+
 	//"net/url"
 	//"os"
 	"strings"
@@ -209,7 +212,7 @@ func (h *WebUiHandler) handleWebUiRequest(w http.ResponseWriter, r *http.Request
 			return
 		}
 
-		w.Header().Set("Content-Disposition", "attachment; filename=id_rsa")
+		w.Header().Set("Content-Disposition", "attachment; filename=id_ed25519")
 		io.WriteString(w, tun.TunnelPrivateKey)
 
 	case "/add-token-client":
