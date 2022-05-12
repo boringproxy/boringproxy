@@ -93,6 +93,7 @@ func main() {
 		certDir := flagSet.String("cert-dir", "", "TLS cert directory")
 		acmeEmail := flagSet.String("acme-email", "", "Email for ACME (ie Let's Encrypt)")
 		acmeUseStaging := flagSet.Bool("acme-use-staging", false, "Use ACME (ie Let's Encrypt) staging servers")
+		acmeCa := flagSet.String("acme-certificate-authority", "", "URI for ACME Certificate Authority")
 		dnsServer := flagSet.String("dns-server", "", "Custom DNS server")
 		behindProxy := flagSet.Bool("behind-proxy", false, "Whether we're running behind another reverse proxy")
 
@@ -117,6 +118,7 @@ func main() {
 			CertDir:        *certDir,
 			AcmeEmail:      *acmeEmail,
 			AcmeUseStaging: *acmeUseStaging,
+			AcmeCa:         *acmeCa,
 			DnsServer:      *dnsServer,
 			BehindProxy:    *behindProxy,
 		}

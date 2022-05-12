@@ -39,6 +39,7 @@ type ClientConfig struct {
 	CertDir        string `json:"certDir,omitempty"`
 	AcmeEmail      string `json:"acmeEmail,omitempty"`
 	AcmeUseStaging bool   `json:"acmeUseStaging,omitempty"`
+	AcmeCa         string `json:"acmeCa,omitempty"`
 	DnsServer      string `json:"dnsServer,omitempty"`
 	BehindProxy    bool   `json:"behindProxy,omitempty"`
 }
@@ -82,6 +83,10 @@ func NewClient(config *ClientConfig) (*Client, error) {
 
 	if config.AcmeUseStaging {
 		certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
+	}
+
+	if config.AcmeCa != "" {
+		certmagic.DefaultACME.CA = config.AcmeCa
 	}
 
 	certConfig := certmagic.NewDefault()
