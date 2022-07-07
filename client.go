@@ -125,25 +125,25 @@ func (c *Client) Run(ctx context.Context) error {
 
 	clientReq, err := http.NewRequest("POST", url, nil)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Failed to create request for URL %s", url))
+		return fmt.Errorf("Failed to create request for URL %s", url)
 	}
 	if len(c.token) > 0 {
 		clientReq.Header.Add("Authorization", "bearer "+c.token)
 	}
 	resp, err := c.httpClient.Do(clientReq)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Failed to create client. Ensure the server is running. URL: %s", url))
+		return fmt.Errorf("Failed to create client. Ensure the server is running. URL: %s", url)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return errors.New(fmt.Sprintf("Failed to create client. HTTP Status code: %d. Failed to read body", resp.StatusCode))
+			return fmt.Errorf("Failed to create client. HTTP Status code: %d. Failed to read body", resp.StatusCode)
 		}
 
 		msg := string(body)
-		return errors.New(fmt.Sprintf("Failed to create client. Are the user ('%s') and token correct? HTTP Status code: %d. Message: %s", c.user, resp.StatusCode, msg))
+		return fmt.Errorf("Failed to create client. Are the user ('%s') and token correct? HTTP Status code: %d. Message: %s", c.user, resp.StatusCode, msg)
 	}
 
 	for {
@@ -266,7 +266,7 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 
 	signer, err := ssh.ParsePrivateKey([]byte(tunnel.TunnelPrivateKey))
 	if err != nil {
-		return errors.New(fmt.Sprintf("Unable to parse private key: %v", err))
+		return fmt.Errorf("Unable to parse private key: %v", err)
 	}
 
 	//var hostKey ssh.PublicKey
@@ -283,7 +283,7 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 	sshHost := fmt.Sprintf("%s:%d", tunnel.ServerAddress, tunnel.ServerPort)
 	client, err := ssh.Dial("tcp", sshHost, config)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Failed to dial: ", err))
+		return fmt.Errorf("Failed to dial: %v", err)
 	}
 	defer client.Close()
 
@@ -294,7 +294,7 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 	tunnelAddr := fmt.Sprintf("%s:%d", bindAddr, tunnel.TunnelPort)
 	listener, err := client.Listen("tcp", tunnelAddr)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Unable to register tcp forward for %s:%d %v", bindAddr, tunnel.TunnelPort, err))
+		return fmt.Errorf("Unable to register tcp forward for %s:%d %v", bindAddr, tunnel.TunnelPort, err)
 	}
 	defer listener.Close()
 
