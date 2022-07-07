@@ -14,7 +14,9 @@ import (
 	"time"
 
 	"github.com/caddyserver/certmagic"
+	httpproxy "github.com/fopina/net-proxy-httpconnect/proxy"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/net/proxy"
 )
 
 type Client struct {
@@ -42,6 +44,10 @@ type ClientConfig struct {
 	AcmeCa         string `json:"acmeCa,omitempty"`
 	DnsServer      string `json:"dnsServer,omitempty"`
 	BehindProxy    bool   `json:"behindProxy,omitempty"`
+}
+
+func init() {
+	httpproxy.RegisterSchemes()
 }
 
 func NewClient(config *ClientConfig) (*Client, error) {
@@ -281,10 +287,16 @@ func (c *Client) BoreTunnel(ctx context.Context, tunnel Tunnel) error {
 	}
 
 	sshHost := fmt.Sprintf("%s:%d", tunnel.ServerAddress, tunnel.ServerPort)
-	client, err := ssh.Dial("tcp", sshHost, config)
+	dialer := proxy.FromEnvironment()
+	pconn, err := dialer.Dial("tcp", sshHost)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Failed to dial: ", err))
+		return errors.New(fmt.Sprintf("Failed to dial: %v", err))
 	}
+	conn, chans, reqs, err := ssh.NewClientConn(pconn, sshHost, config)
+	if err != nil {
+		return errors.New(fmt.Sprintf("failed to create SSH client: %v", err))
+	}
+	client := ssh.NewClient(conn, chans, reqs)
 	defer client.Close()
 
 	bindAddr := "127.0.0.1"
