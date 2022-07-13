@@ -52,10 +52,10 @@ This will make sure that boringproxy server will always start backup if the host
 Download the boringproxy-client@.service file
 ```bash
 # with wget
-wget https://raw.githubusercontent.com/boringproxy/boringproxy/master/systemd/boringproxy-client%40.service -O "/tmp/boringproxy-client@.service"
+wget https://raw.githubusercontent.com/boringproxy/boringproxy/master/systemd/boringproxy-client.service -O "/tmp/boringproxy-client@.service"
 
 # or with curl
-curl https://raw.githubusercontent.com/boringproxy/boringproxy/master/systemd/boringproxy-client%40.service --output "/tmp/boringproxy-client@.service"
+curl https://raw.githubusercontent.com/boringproxy/boringproxy/master/systemd/boringproxy-client.service --output "/tmp/boringproxy-client@.service"
 
 sudo mv /tmp/boringproxy-client@.service /etc/systemd/system/boringproxy-client@.service
 ```
