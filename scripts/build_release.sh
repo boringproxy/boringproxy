@@ -22,6 +22,7 @@ cd ./cmd/boringproxy
 ../../scripts/build_arch.sh openbsd arm
 ../../scripts/build_arch.sh openbsd arm64
 ../../scripts/build_arch.sh windows 386 .exe
+../../scripts/build_arch.sh darwin arm64
 
 mv build ../../
 cd ../../
