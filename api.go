@@ -472,7 +472,7 @@ func (a *Api) CreateToken(tokenData TokenData, params url.Values) (string, error
 
 	if client != "any" {
 		if _, exists := owner.Clients[client]; !exists {
-			return "", errors.New(fmt.Sprintf("Client %s does not exist for user %s", client, ownerId))
+			return "", fmt.Errorf("Client %s does not exist for user %s", client, ownerId)
 		}
 	} else {
 		client = ""
