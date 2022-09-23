@@ -1,0 +1,49 @@
+project_name: boringproxy
+
+# release:
+  # If set to auto, will mark the release as not ready for production
+  # in case there is an indicator for this in the tag e.g. v1.0.0-rc1
+  # If set to true, will mark the release as not ready for production.
+  # Default is false.
+  #
+  # leaving as false for now as all releases are "beta" but they should be full releases
+  # prerelease: auto
+
+builds:
+  - main: ./cmd/boringproxy
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - freebsd
+      - windows
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - arm
+      - '386'
+    goarm:
+      - '7'
+    ignore:
+      - goos: darwin
+        goarch: '386'
+      - goos: darwin
+        goarch: arm
+        goarm: '7'
+    ldflags:
+      - -s -w -X main.Version={{.Version}}
+
+archives:
+- format: binary
+
+snapshot:
+  name_template: "{{ .Tag }}"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+    - '^docs:'
+    - '^test:'
+    - '^Merge pull request'
