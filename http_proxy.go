@@ -75,7 +75,10 @@ func proxyRequest(w http.ResponseWriter, r *http.Request, tunnel Tunnel, httpCli
 	upstreamReq.Header.Set("X-Forwarded-For", xForwardedFor)
 	upstreamReq.Header.Set("Forwarded", fmt.Sprintf("for=%s", remoteHost))
 
-	upstreamReq.Host = fmt.Sprintf("%s:%d", tunnel.ClientAddress, tunnel.ClientPort)
+	// TODO: This might need to be more generic, but using r.Host. However,
+	// I think that may have security implications for things like DNS
+	// rebinding attacks. Not sure.
+	upstreamReq.Host = tunnel.Domain
 
 	upstreamRes, err := httpClient.Do(upstreamReq)
 	if err != nil {
