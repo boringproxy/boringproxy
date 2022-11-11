@@ -96,6 +96,7 @@ func main() {
 		acmeCa := flagSet.String("acme-certificate-authority", "", "URI for ACME Certificate Authority")
 		dnsServer := flagSet.String("dns-server", "", "Custom DNS server")
 		behindProxy := flagSet.Bool("behind-proxy", false, "Whether we're running behind another reverse proxy")
+		pollInterval := flagSet.Int("poll-interval-ms", 2000, "Interval in milliseconds to poll for tunnel changes")
 
 		err := flagSet.Parse(os.Args[2:])
 		if err != nil {
@@ -110,6 +111,11 @@ func main() {
 			fail("-token is required")
 		}
 
+		minPollInterval := 100
+		if *pollInterval < minPollInterval {
+			fail(fmt.Sprintf("-poll-interval-ms must be at least %d", minPollInterval))
+		}
+
 		config := &boringproxy.ClientConfig{
 			ServerAddr:     *server,
 			Token:          *token,
@@ -121,6 +127,7 @@ func main() {
 			AcmeCa:         *acmeCa,
 			DnsServer:      *dnsServer,
 			BehindProxy:    *behindProxy,
+			PollInterval:   *pollInterval,
 		}
 
 		ctx := context.Background()

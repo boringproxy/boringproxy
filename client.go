@@ -29,6 +29,7 @@ type Client struct {
 	cancelFuncsMutex *sync.Mutex
 	certConfig       *certmagic.Config
 	behindProxy      bool
+	pollInterval     int
 }
 
 type ClientConfig struct {
@@ -42,6 +43,7 @@ type ClientConfig struct {
 	AcmeCa         string `json:"acmeCa,omitempty"`
 	DnsServer      string `json:"dnsServer,omitempty"`
 	BehindProxy    bool   `json:"behindProxy,omitempty"`
+	PollInterval   int    `json:"pollInterval,omitempty"`
 }
 
 func NewClient(config *ClientConfig) (*Client, error) {
@@ -113,6 +115,7 @@ func NewClient(config *ClientConfig) (*Client, error) {
 		cancelFuncsMutex: cancelFuncsMutex,
 		certConfig:       certConfig,
 		behindProxy:      config.BehindProxy,
+		pollInterval:     config.PollInterval,
 	}, nil
 }
 
@@ -146,6 +149,19 @@ func (c *Client) Run(ctx context.Context) error {
 		return fmt.Errorf("Failed to create client. Are the user ('%s') and token correct? HTTP Status code: %d. Message: %s", c.user, resp.StatusCode, msg)
 	}
 
+	pollChan := make(chan struct{})
+
+	// A polling interval of 0 disables polling. Basically pollChan will
+	// remain blocked and never trigger in the select below.
+	if c.pollInterval > 0 {
+		go func() {
+			for {
+				<-time.After(time.Duration(c.pollInterval) * time.Millisecond)
+				pollChan <- struct{}{}
+			}
+		}()
+	}
+
 	for {
 		err := c.PollTunnels(ctx)
 		if err != nil {
@@ -155,7 +171,8 @@ func (c *Client) Run(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return nil
-		case <-time.After(2 * time.Second):
+		case <-pollChan:
+			fmt.Println("poll")
 			// continue
 		}
 	}
