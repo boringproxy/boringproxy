@@ -112,8 +112,8 @@ func main() {
 		}
 
 		minPollInterval := 100
-		if *pollInterval < minPollInterval {
-			fail(fmt.Sprintf("-poll-interval-ms must be at least %d", minPollInterval))
+		if *pollInterval != 0 && *pollInterval < minPollInterval {
+			fail(fmt.Sprintf("-poll-interval-ms must be at least %d, or 0 to disable polling", minPollInterval))
 		}
 
 		config := &boringproxy.ClientConfig{

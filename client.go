@@ -172,7 +172,6 @@ func (c *Client) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-pollChan:
-			fmt.Println("poll")
 			// continue
 		}
 	}
