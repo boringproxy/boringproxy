@@ -39,7 +39,7 @@ cd boringproxy
 If you don't already have golang installed:
 
 ```bash
-./install_go.sh
+./scripts/install_go.sh
 source $HOME/.bashrc
 ```
 
