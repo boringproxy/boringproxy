@@ -58,6 +58,16 @@
          <input type="password" id="password" name="password">
        </div>
      </div>
+     
+     <div class='input'>
+       <label for="ip-restricted">IP restriction:</label>
+       <input type="checkbox" id="ip-restricted" name="ip-restricted">
+
+       <div id='allowed-ips-input'>
+         <label for="allowed-ips">Allowed IPs (one per line):</label>
+         <textarea id="allowed-ips" name="allowed-ips" cols="40" rows="5"></textarea>
+       </div>
+     </div>
 
      <div class='input'>
        <label for="ssh-server-addr">Override SSH Server Address:</label>

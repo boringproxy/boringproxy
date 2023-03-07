@@ -215,6 +215,14 @@ main {
   display: block;
 }
 
+#allowed-ips-input {
+  display: none;
+}
+
+#ip-restricted:checked ~ #allowed-ips-input {
+  display: block;
+}
+
 .token-adder {
   padding: 5px;
   display: flex;

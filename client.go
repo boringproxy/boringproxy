@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"reflect"
 	"sync"
 	"time"
 
@@ -237,7 +238,7 @@ func (c *Client) SyncTunnels(ctx context.Context, serverTunnels map[string]Tunne
 			log.Println("New tunnel", k)
 			c.tunnels[k] = newTun
 			bore = true
-		} else if newTun != tun {
+		} else if !reflect.DeepEqual(newTun, tun) {
 			log.Println("Restart tunnel", k)
 			c.cancelFuncsMutex.Lock()
 			c.cancelFuncs[k]()

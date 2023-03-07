@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 type Api struct {
@@ -379,6 +381,33 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 		}
 	}
 
+	ipRestricted := params.Get("ip-restricted") == "on"
+
+	var ips []string
+	if ipRestricted {
+		ipsAsString := params.Get("allowed-ips")
+		if len(ipsAsString) == 0 {
+			return nil, errors.New("At least one allowed IP is required")
+		}
+		ipsRaw := strings.Split(strings.ReplaceAll(ipsAsString, "\r\n", "\n"), "\n")
+		for _, ipAllowed := range ipsRaw {
+			addr, err := netip.ParseAddr(ipAllowed)
+			if err == nil {
+				prefix, err := addr.Prefix(addr.BitLen())
+				if err != nil {
+					return nil, fmt.Errorf("Invalid IP '%s' : %w", ipAllowed, err)
+				}
+				ips = append(ips, prefix.String())
+			} else {
+				_, err = netip.ParsePrefix(ipAllowed)
+				if err != nil {
+					return nil, fmt.Errorf("Invalid IP '%s' : %w", ipAllowed, err)
+				}
+				ips = append(ips, ipAllowed)
+			}
+		}
+	}
+
 	tlsTerm := params.Get("tls-termination")
 	if tlsTerm != "server" && tlsTerm != "client" && tlsTerm != "passthrough" && tlsTerm != "client-tls" && tlsTerm != "server-tls" {
 		return nil, errors.New("Invalid tls-termination parameter")
@@ -413,6 +442,7 @@ func (a *Api) CreateTunnel(tokenData TokenData, params url.Values) (*Tunnel, err
 		TlsTermination:   tlsTerm,
 		ServerAddress:    sshServerAddr,
 		ServerPort:       sshServerPort,
+		IPsAllowed:       ips,
 	}
 
 	tunnel, err := a.tunMan.RequestCreateTunnel(request)

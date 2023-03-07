@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"strings"
 	"sync"
@@ -352,12 +353,29 @@ func (p *Server) handleConnection(clientConn net.Conn, certConfig *certmagic.Con
 	clientHello, clientReader, err := peekClientHello(clientConn)
 	if err != nil {
 		log.Println("peekClientHello error", err)
+		clientConn.Close()
 		return
 	}
 
-	passConn := NewProxyConn(clientConn, clientReader)
-
 	tunnel, exists := p.db.GetTunnel(clientHello.ServerName)
+	if exists && len(tunnel.IPsAllowed) != 0 {
+		allowed, err := validateIpRestriction(clientConn.RemoteAddr(), &tunnel)
+		if err != nil {
+			log.Println(err.Error())
+			clientConn.Close()
+			return
+		}
+		if !allowed {
+			log.Printf("Closing the connection to tunnel '%s' since the IP '%s' does not match the IP restriction.\n", tunnel.Domain, clientConn.RemoteAddr().String())
+			err := clientConn.Close()
+			if err != nil {
+				log.Println(err.Error())
+			}
+			return
+		}
+	}
+
+	passConn := NewProxyConn(clientConn, clientReader)
 
 	if exists && (tunnel.TlsTermination == "client" || tunnel.TlsTermination == "passthrough") || tunnel.TlsTermination == "client-tls" {
 		p.passthroughRequest(passConn, tunnel)
@@ -371,6 +389,25 @@ func (p *Server) handleConnection(clientConn net.Conn, certConfig *certmagic.Con
 	} else {
 		p.httpListener.PassConn(passConn)
 	}
+}
+
+func validateIpRestriction(remoteAddr net.Addr, tunnel *Tunnel) (bool, error) {
+	addrPort, err := netip.ParseAddrPort(remoteAddr.String())
+	if err != nil {
+		return false, err
+	}
+
+	for _, ipAllowed := range tunnel.IPsAllowed {
+		network, err := netip.ParsePrefix(ipAllowed)
+		if err != nil {
+			return false, err
+		}
+		if network.Contains(addrPort.Addr()) {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func (p *Server) passthroughRequest(conn net.Conn, tunnel Tunnel) {

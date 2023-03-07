@@ -56,10 +56,11 @@ type Tunnel struct {
 
 	// TODO: These are not used by clients and possibly shouldn't be
 	// returned in API calls.
-	Owner        string `json:"owner"`
-	ClientName   string `json:"client_name"`
-	AuthUsername string `json:"auth_username"`
-	AuthPassword string `json:"auth_password"`
+	Owner        string   `json:"owner"`
+	ClientName   string   `json:"client_name"`
+	AuthUsername string   `json:"auth_username"`
+	AuthPassword string   `json:"auth_password"`
+	IPsAllowed   []string `json:"ips_allowed"`
 }
 
 func NewDatabase(path string) (*Database, error) {
@@ -158,7 +159,7 @@ func (d *Database) AddToken(owner, client string) (string, error) {
 
 	token, err := genRandomCode(32)
 	if err != nil {
-		return "", errors.New("Could not generat token")
+		return "", errors.New("Could not generate token")
 	}
 
 	d.Tokens[token] = TokenData{
