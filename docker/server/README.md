@@ -21,3 +21,8 @@ If you don't want to build the image, a prebuild image can be downloaded from Gi
 ```bash
 docker-compose -f docker-compose.yml -f prebuild.yml up -d
 ```
+
+Once it's running, the GUI can be accessed at the admin domain you specified. It will ask for an access token. The token can be found by accessing boringproxy_db.json:
+```bash
+nano /var/lib/docker/volumes/server_storage/_data/boringproxy_db.json
+```
