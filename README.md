@@ -39,13 +39,16 @@ cd boringproxy
 If you don't already have golang installed:
 
 ```bash
-./install_go.sh
+sudo ./scripts/install_go.sh
 source $HOME/.bashrc
 ```
 
 Make the logo image file. It gets baked into the executable so it needs to
 be available at build time. Note that you don't have to use the official
 logo for the build. Any PNG will do. It's currently just used for the favicon.
+Note that you have to have inkscape installed to generate the logo:
+
+[https://wiki.inkscape.org/wiki/index.php/Installing_Inkscape](https://wiki.inkscape.org/wiki/index.php/Installing_Inkscape)
 
 ```bash
 ./scripts/generate_logo.sh
