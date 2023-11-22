@@ -86,3 +86,29 @@ sudo setcap cap_net_bind_service=+ep boringproxy
 [1]: https://forum.indiebits.io/c/boringproxy-support/9
 
 [2]: https://github.com/boringproxy/boringproxy/issues
+
+##Updating
+
+To update boringproxy, follow the build instructions again and replace the ``boringproxy`` executable file
+
+Don't forget to give the executable permission to bing low ports
+
+```bash
+sudo setcap cap_net_bind_service=+ep boringproxy
+```
+
+To kill the old process and restart the proxy:
+
+For server:
+
+```bash
+kill $(pgrep boringproxy)
+./boringproxy server
+```
+
+For client:
+
+```bash
+kill $(pgrep boringproxy)
+./boringproxy client -server bpdemo.brng.pro -token fKFIjefKDFLEFijKDFJKELJF -client-name demo-client -user demo-user
+```
