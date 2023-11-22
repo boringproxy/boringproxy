@@ -87,7 +87,7 @@ sudo setcap cap_net_bind_service=+ep boringproxy
 
 [2]: https://github.com/boringproxy/boringproxy/issues
 
-##Updating
+## Updating
 
 To update boringproxy, follow the build instructions again and replace the ``boringproxy`` executable file
 
